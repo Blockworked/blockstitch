@@ -128,6 +128,7 @@ function argText(arg: ValueNode): string {
           @update:model-value="v => onArgInput(i, v)"
         />
       </template>
+      <span v-if="spec.suffix" class="value-op">{{ spec.suffix }}</span>
     </template>
     <span v-if="preview" class="value-eval-tooltip" :class="{ 'value-eval-tooltip-error': preview.error }">{{ preview.text }}</span>
   </span>

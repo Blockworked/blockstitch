@@ -147,6 +147,10 @@ export interface CanvasHost<TNode extends BlockNode = BlockNode> {
    * (or return false) if the host's custom blocks have no boolean-reporter
    * concept. */
   callIsBool?(blockId: string): boolean;
+  /** Returns the display color for a floating custom reporter, if the host
+   * owns one. Keeping this on the floating-card component makes the color
+   * part of Vue's normal render instead of a post-render DOM mutation. */
+  floatingValueColor?(floatingValue: FloatingValueLike): string | undefined;
 }
 
 let host: CanvasHost<any> | null = null;

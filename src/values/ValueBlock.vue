@@ -171,6 +171,7 @@ function onContextMenu(e: MouseEvent) {
         />
         <ValueBlock v-else :location="childLocation(i)" :value="arg" />
       </template>
+      <span v-if="label?.suffix" class="value-op">{{ label.suffix }}</span>
     </template>
     <template v-else-if="displayValue.kind === 'Var' || displayValue.kind === 'Param'">
       <span class="value-op">{{ displayValue.name }}</span>

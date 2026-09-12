@@ -19,6 +19,8 @@ export interface OperatorKindSpec {
   prefix?: string;
   /** Rendered between each consecutive pair of args. */
   infix?: string;
+  /** Rendered after the final argument. */
+  suffix?: string;
   /** If set, `args[enumArg.index]` is a fixed dropdown choice, not a
    * draggable value slot. */
   enumArg?: { index: number; options: { value: string; label: string }[] };
@@ -50,9 +52,9 @@ export function specForOp(op: string): OperatorKindSpec | undefined {
   return specsByOp.get(op);
 }
 
-export function labelForOp(op: string): Pick<OperatorKindSpec, 'prefix' | 'infix'> | undefined {
+export function labelForOp(op: string): Pick<OperatorKindSpec, 'prefix' | 'infix' | 'suffix'> | undefined {
   const spec = specForOp(op);
-  return spec && { prefix: spec.prefix, infix: spec.infix };
+  return spec && { prefix: spec.prefix, infix: spec.infix, suffix: spec.suffix };
 }
 
 export function allOperators(): OperatorKindSpec[] {
