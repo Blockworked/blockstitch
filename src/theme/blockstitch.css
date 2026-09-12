@@ -556,12 +556,21 @@ body.sidebar-resizing {
 }
 
 /* ── Canvas (Scratch-like strand layout) ─────────────────────────────────── */
+/* The canvas is a spatial drag surface, not text content — without this, any
+   pointerdown+drag that isn't claimed by a more specific handler (e.g. the
+   hollow interior of an empty wrap-block mouth, which deliberately doesn't
+   pick up the block — see InstructionRow.vue's onRowPointerDown) falls back
+   to the browser's native text-selection drag instead of doing nothing, since
+   nothing on that path calls preventDefault(). Doesn't affect real `<input>`/
+   `<textarea>` elements (field edits, comment bodies) — those keep their own
+   selection behavior regardless of an ancestor's `user-select`. */
 .canvas-scroll {
   position: absolute;
   inset: 0;
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--blockstitch-scrollbar-thumb) transparent;
+  user-select: none;
 }
 .canvas-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
 .canvas-scroll::-webkit-scrollbar-track { background: transparent; }

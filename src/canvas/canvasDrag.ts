@@ -440,6 +440,11 @@ function beginPan(e: PointerEvent) {
   if (active instanceof HTMLElement && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
     active.blur();
   }
+  // Blurring an active field clears its own focus, but a stray text
+  // selection (e.g. from a drag that landed on selectable text) is a
+  // separate browser concept that survives a blur — clear it explicitly so
+  // clicking empty canvas space always leaves a clean slate.
+  window.getSelection()?.removeAllRanges();
   closeAllDropdowns();
   blockPrimaryPaste = true;
   blockPrimaryPasteGeneration++;
