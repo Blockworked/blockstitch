@@ -25,7 +25,7 @@ const footNotchFlat = computed(() => {
   const slots = shape.value?.getSlots?.(props.instruction);
   const lastSlot = slots?.[slots.length - 1];
   const lastRow = lastSlot?.[lastSlot.length - 1];
-  return !!lastRow && isCapType(lastRow.type);
+  return !!lastRow && isCapType(lastRow.type, lastRow);
 });
 const fieldComponent = computed(() => getBlockField(props.instruction.type));
 const typeIcon = computed(() => shape.value?.icon);
@@ -146,7 +146,7 @@ function onRowPointerLeave() {
   <div
     v-else
     class="instruction-row"
-    :class="{ 'row-first': isFirst, 'row-last': isLast, 'instruction-row-when-ran': isEntryTriggerType(instruction.type), 'instruction-row-header': isHeaderType(instruction.type), 'instruction-row-cap': isCapType(instruction.type) }"
+    :class="{ 'row-first': isFirst, 'row-last': isLast, 'instruction-row-when-ran': isEntryTriggerType(instruction.type), 'instruction-row-header': isHeaderType(instruction.type), 'instruction-row-cap': isCapType(instruction.type, instruction) }"
     :data-index="index"
     :data-instr-id="instruction.id"
     @pointerdown="onRowPointerDown"

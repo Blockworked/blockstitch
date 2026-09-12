@@ -914,9 +914,18 @@ body.sidebar-resizing {
    picking up a nested block. Genuinely empty mouth interior triggers
    neither path (its own box is `pointer-events: none` and never becomes
    `:hover` on its own — see its comment), so hovering hollow space inside
-   a mouth, or a nested block sitting inside it, never triggers this. */
-.instruction-row.instruction-row-wrap:has(.wrap-head-line:hover, .wrap-mid-bar:hover, .wrap-foot-bar:hover),
-.instruction-row.instruction-row-wrap.wrap-spine-hover {
+   a mouth, or a nested block sitting inside it, never triggers this.
+
+   `body:not(.bs-dragging)` guards both selectors for the same reason as the
+   plain-row hover rules above: a drag ghost is `pointer-events: none`, so
+   real hover keeps landing on whatever wrap block the ghost happens to be
+   floating over mid-drag — re-theming a whole (possibly large, deeply
+   nested) If/If-Else chain blue just because the ghost passed near its
+   spine, with no relation to where the drag would actually land. Suppressed
+   for a drag's duration; the dragged block itself gets the same treatment
+   unconditionally instead (see .strand-drag-ghost rules below). */
+body:not(.bs-dragging) .instruction-row.instruction-row-wrap:has(.wrap-head-line:hover, .wrap-mid-bar:hover, .wrap-foot-bar:hover),
+body:not(.bs-dragging) .instruction-row.instruction-row-wrap.wrap-spine-hover {
   /* A flat color, not `var(--blockstitch-bg3)` directly — `background: var(--blockstitch-wrap-fill)`
      resolves to either `background-image` (gradient) or `background-color`
      (plain color) depending on which kind of value `--blockstitch-wrap-fill` holds, and
@@ -1581,7 +1590,18 @@ body.sidebar-resizing {
     1.5px calc(100% - var(--blockstitch-connector-notch-depth) - 4.6px), 1.5px 4.6px
   );
 }
-.instruction-row:hover {
+/* `body:not(.bs-dragging)` on this and the sibling hover rules below (see
+   also .instruction-row-wrap's own hover rule and .instruction-row:hover >
+   .instruction-shape further down) — a strand/palette drag's ghost is
+   `pointer-events: none` (see .strand-drag-ghost) so it never receives its
+   own hover, but that also means real hover keeps landing on whatever real
+   row the ghost happens to be floating over as the pointer passes across
+   it mid-drag, lighting up unrelated blocks blue for no reason. `.bs-dragging`
+   is toggled on `<body>` for the duration of any such drag (see
+   setDragActive in canvasDrag.ts); suppressing ordinary hover for its
+   duration leaves highlighting to the ghost's own forced accent styling
+   below instead. */
+body:not(.bs-dragging) .instruction-row:hover {
   /* Rows overlap their neighbor by --blockstitch-connector-notch-depth (see above) and
      stack in DOM order when z-index is auto, so without this the row below
      (painted later) would cover the bottom half of this row's accent
@@ -1590,7 +1610,7 @@ body.sidebar-resizing {
   z-index: 1;
   filter: drop-shadow(var(--blockstitch-shadow-sm));
 }
-.instruction-row:hover::before {
+body:not(.bs-dragging) .instruction-row:hover::before {
   background: var(--blockstitch-accent);
 }
 
@@ -1638,7 +1658,7 @@ body.sidebar-resizing {
    blocks flash on hovering the outer If/If-Else block). `.instruction-shape`
    is always a direct child of its own `.instruction-row`, so `>` scopes
    this to exactly that row without affecting anything nested inside it. */
-.instruction-row:hover > .instruction-shape { background: var(--blockstitch-bg3); }
+body:not(.bs-dragging) .instruction-row:hover > .instruction-shape { background: var(--blockstitch-bg3); }
 
 .instruction-content {
   display: flex;
@@ -2056,6 +2076,21 @@ body.sidebar-resizing {
   pointer-events: none;
   opacity: 0.92;
 }
+/* The block actually being dragged always shows the same accent outline a
+   block normally only gets on real `:hover` — forced unconditionally here
+   since the ghost is `pointer-events: none` and can never register hover on
+   itself. This is the one place that treatment now comes from: ordinary
+   hover-highlighting elsewhere is suppressed for a drag's duration (see the
+   `body:not(.bs-dragging)` guards on .instruction-row/.instruction-row-wrap's
+   own hover rules), so only the thing actually being picked up reads as
+   "this is what's selected," never whatever the ghost happens to float over. */
+.strand-drag-ghost .instruction-row::before {
+  background: var(--blockstitch-accent);
+}
+.strand-drag-ghost .instruction-row.instruction-row-wrap {
+  --blockstitch-wrap-fill: linear-gradient(to right, var(--blockstitch-bg3), var(--blockstitch-bg3));
+  --blockstitch-wrap-outline: var(--blockstitch-accent);
+}
 /* Inserted as a real sibling among a target `.instruction-list`'s own rows
    (see canvasDrag.ts's showSnapPreview) — not a `position: fixed` overlay —
    so it's the class added directly onto the cloned `.instruction-row`
@@ -2470,10 +2505,11 @@ body.sidebar-resizing {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 140px;
+  height: 260px;
   padding: var(--blockstitch-spacing);
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--blockstitch-scrollbar-thumb) transparent;
   /* Same two-layer composite the main canvas uses (see .canvas-inner /
      #macro-editor): a translucent glass wash over the flat `--blockstitch-bg`, with the
      dot pattern painted on top — not a flat `--blockstitch-bg` fill, which reads
@@ -2489,19 +2525,43 @@ body.sidebar-resizing {
   border: 1px solid var(--blockstitch-border);
   border-radius: var(--blockstitch-radius);
 }
-.make-block-preview {
-  display: flex;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 2px;
-  padding: 10px 14px;
-  background: var(--blockstitch-glass-bg-strong);
-  backdrop-filter: blur(var(--blockstitch-glass-blur));
-  -webkit-backdrop-filter: blur(var(--blockstitch-glass-blur));
-  border: 1px solid var(--blockstitch-glass-border);
-  border-radius: var(--blockstitch-radius-lg);
-  box-shadow: var(--blockstitch-bevel-top), var(--blockstitch-shadow-sm);
+.make-block-canvas::-webkit-scrollbar { width: 10px; height: 10px; }
+.make-block-canvas::-webkit-scrollbar-track { background: transparent; }
+.make-block-canvas::-webkit-scrollbar-thumb {
+  background: var(--blockstitch-scrollbar-thumb);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.make-block-canvas::-webkit-scrollbar-thumb:hover { background: var(--blockstitch-scrollbar-thumb-hover); background-clip: padding-box; }
+/* Left/middle-click drag-to-pan (see onCanvasPointerDown in
+   MakeBlockDialog.vue) mirrors the real canvas's own pan gesture
+   (canvasDrag.ts's beginPan/.canvas-scroll.panning) at a much smaller scale
+   — just this one scrollable box, no strands/snapping involved. */
+.make-block-canvas.panning, .make-block-canvas.panning * { cursor: grabbing !important; }
+/* The preview reuses the real canvas classes verbatim -- .instruction-row/
+   .instruction-shape/.instruction-type-icon/.instruction-content (see
+   canvas/InstructionRow.vue and PaletteCallBlock.vue's sidebar prefab, which
+   takes the same approach for a *saved* custom block) for a block that
+   doesn't return a value, or .value-block/.value-card-shape (see
+   values/ValueBlock.vue and PaletteCallValueBlock.vue) for one that does --
+   instead of a hand-maintained approximation, so this is guaranteed to look
+   exactly like what actually spawns on the canvas, including future changes
+   to those classes. `Blocks` (lucide) stands in for the type icon, matching
+   PaletteCallBlock.vue's icon for a saved custom block, since a block being
+   defined here has no InstructionType of its own to look one up for.
+
+   The remove/move toolbar can't be positioned by nesting it in the selected
+   .make-block-piece and floating it via CSS the way earlier revisions of
+   this preview did: .instruction-shape clip-paths its own content to cut
+   the puzzle-piece notch, which silently clips away anything inside it that
+   tries to render outside its box. Instead the toolbar is hoisted out as a
+   sibling of the shape, inside .make-block-preview-anchor (position:
+   relative), and positioned in JS from the selected piece's actual measured
+   DOM rect -- see previewAnchorEl/pieceEls/toolbarPos in the component. */
+.make-block-preview-anchor {
+  position: relative;
+  display: inline-flex;
 }
 .make-block-piece {
   display: inline-flex;
@@ -2515,16 +2575,24 @@ body.sidebar-resizing {
 .make-block-piece:hover { background: var(--blockstitch-hover-overlay); }
 .make-block-piece-selected { background: var(--blockstitch-hover-overlay); box-shadow: 0 0 0 1.5px var(--blockstitch-accent); }
 /* The text span is always rendered — even while editing (just hidden) — so
-   its box is always what reserves the piece's width. That box reflects the
-   last-committed value, not whatever's being typed, so renaming never grows
-   or shrinks the piece out from under the click that started it; the input
-   (below) is absolutely positioned to exactly fill that same reserved box
-   instead of sizing itself. */
+   its box is always what reserves the piece's width. While editing, its
+   content mirrors the live input value (see MakeBlockDialog.vue), so the
+   piece grows/shrinks with every keystroke instead of only on commit; the
+   input (below) is absolutely positioned to exactly fill that same reserved
+   box instead of sizing itself. */
 .make-block-piece-field { position: relative; display: inline-flex; align-items: center; }
 .make-block-piece-text {
   font-size: 13px;
   color: var(--blockstitch-text);
-  white-space: nowrap;
+  /* `pre`, not `nowrap` -- both keep the text on one line, but `nowrap`
+     still collapses whitespace at the *end* of that line for layout
+     purposes (same rule that trims trailing spaces at a line break), so a
+     trailing space typed into this piece (see editingText's live mirror
+     below) didn't widen the reserved box until a non-space character
+     followed it. `pre` preserves every space verbatim. */
+  white-space: pre;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 .make-block-piece-text-hidden { visibility: hidden; }
 .make-block-piece-input {
@@ -2533,25 +2601,80 @@ body.sidebar-resizing {
   box-shadow: var(--blockstitch-bevel-top);
 }
 .make-block-piece-input .make-block-piece-text { font-weight: 600; color: var(--blockstitch-accent); }
-.make-block-piece-input-el {
+.make-block-piece-input input.make-block-piece-input-el,
+.make-block-piece-input input.make-block-piece-input-el:focus { font-weight: 600; color: var(--blockstitch-accent); }
+/* A boolean-typed input piece in the "Make a Block" prototype editor —
+   same two-layer hexagon geometry as a real boolean slot (`.value-hex-blank`/
+   `.value-card-shape-bool` above), just keyed to `.make-block-piece` instead
+   of `.value-block` so it still composes with that element's own
+   hover/selected states and rename-input overlay. `.make-block-piece`'s
+   ordinary `padding` is too tight for the notch triangles, hence the
+   override below (two classes beats `.make-block-piece`'s one, so ordering
+   in the stylesheet doesn't matter). */
+.make-block-piece-bool {
+  position: relative;
+  isolation: isolate;
+  --blockstitch-notch: min(calc(var(--blockstitch-bh, 25px) * 0.32), 50%);
+}
+.make-block-piece.make-block-piece-bool { padding: 2px 12px; }
+.make-block-piece-bool::before,
+.make-block-piece-bool::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.make-block-piece-bool::before {
+  z-index: -2;
+  background: linear-gradient(var(--blockstitch-glass-border), var(--blockstitch-glass-border)), linear-gradient(160deg, var(--blockstitch-bg3), var(--blockstitch-bg2));
+  clip-path: polygon(var(--blockstitch-notch) 0%, calc(100% - var(--blockstitch-notch)) 0%, 100% 50%, calc(100% - var(--blockstitch-notch)) 100%, var(--blockstitch-notch) 100%, 0% 50%);
+}
+.make-block-piece-bool::after {
+  z-index: -1;
+  background: linear-gradient(160deg, var(--blockstitch-bg3), var(--blockstitch-bg2));
+  box-shadow: var(--blockstitch-bevel-top);
+  clip-path: polygon(
+    calc(var(--blockstitch-notch) + 0.547px) 1px, calc(100% - var(--blockstitch-notch) - 0.547px) 1px,
+    calc(100% - 1.187px) 50%,
+    calc(100% - var(--blockstitch-notch) - 0.547px) calc(100% - 1px), calc(var(--blockstitch-notch) + 0.547px) calc(100% - 1px),
+    1.187px 50%
+  );
+}
+.make-block-piece-bool .make-block-piece-text,
+.make-block-piece-bool input.make-block-piece-input-el,
+.make-block-piece-bool input.make-block-piece-input-el:focus { font-weight: 600; color: var(--blockstitch-accent); }
+input.make-block-piece-input-el,
+input.make-block-piece-input-el:focus {
   position: absolute;
   inset: 0;
   width: 100%;
+  padding: 0;
   font-size: 13px;
+  font-family: inherit;
   background: transparent;
   border: none;
   outline: none;
+  box-shadow: none;
   color: var(--blockstitch-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Remove/move toolbar — floats above whichever piece is currently
-   selected, instead of a per-piece always-there remove button. */
+/* Remove/move toolbar — floats above the whole selected block (not just the
+   selected piece), instead of a per-piece always-there remove button.
+   Positioned via inline `left`/`top` (measured from the block shape's real
+   DOM rect, see MakeBlockDialog.vue's previewShapeEl/updateToolbarPos)
+   rather than anchored to the shape itself with pure CSS -- see
+   .make-block-preview-anchor's comment for why. */
 .make-block-piece-toolbar {
   position: absolute;
-  bottom: calc(100% + 5px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1;
+  transform: translate(-50%, calc(-100% - 10px));
+  /* Above 1: .instruction-row lifts itself to z-index: 1 on hover (real
+     canvas behavior, reused verbatim by this preview — see
+     .instruction-row:hover), and ties are broken by DOM order, which would
+     otherwise put the hovered block on top of this toolbar since it comes
+     later in the markup than the toolbar. */
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -2579,7 +2702,8 @@ body.sidebar-resizing {
 .make-block-piece-toolbar button:hover:not(:disabled) { background: var(--blockstitch-hover-overlay); color: var(--blockstitch-text); }
 .make-block-piece-toolbar button:disabled { opacity: 0.3; cursor: default; }
 .make-block-piece-toolbar svg { width: 13px; height: 13px; }
-.make-block-piece-remove:hover:not(:disabled) { color: var(--blockstitch-red); }
+.make-block-piece-toolbar button.make-block-piece-remove { color: var(--blockstitch-red); }
+.make-block-piece-toolbar button.make-block-piece-remove:hover:not(:disabled) { background: var(--blockstitch-hover-overlay); color: var(--blockstitch-red); }
 
 /* ── "Add an input"/"Add a label" buttons ───────────────────────────────── */
 .make-block-add-row {
@@ -2629,6 +2753,17 @@ body.sidebar-resizing {
 }
 .make-block-add-title { font-size: 13px; font-weight: 600; }
 .make-block-add-sub { font-size: 11px; color: var(--blockstitch-text-dim); }
+/* The two "block shape" choice buttons — same look as an "Add an input"/
+   "Add a label" button (reuses .make-block-add-btn/-title directly, just
+   without a preview swatch or subtitle), except these are a persistent
+   two-way toggle rather than a one-shot action, hence the extra selected
+   state below (same accent ring language as .make-block-piece-selected). */
+.make-block-shape-btn-selected {
+  background: var(--blockstitch-hover-overlay);
+  border-color: var(--blockstitch-accent);
+  box-shadow: 0 0 0 1.5px var(--blockstitch-accent);
+}
+.make-block-shape-btn .make-block-add-title { width: 100%; text-align: center; }
 .make-block-return-row {
   display: flex;
   align-items: center;

@@ -84,13 +84,18 @@ const boxed = computed(() =>
   (props.location.kind === 'Floating' && props.location.path.length === 0) ||
   isCapsuleLocation(props.location));
 
-// Boolean-producing operators (comparisons, and/or/not, true/false), and the
-// blank `Bool` leaf a boolean slot defaults to, render as a hexagon instead
-// of the ordinary rounded capsule — Scratch's visual language for "this slot
-// expects a boolean."
+// Boolean-producing operators (comparisons, and/or/not, true/false), the
+// blank `Bool` leaf a boolean slot defaults to, a `Param` reporter reading a
+// boolean-typed custom-block input (ask the host — a bare `Param` node has
+// no type of its own, see host.ts's `paramIsBool`), and a `Call` reporter
+// invoking a boolean-returning custom block (host.ts's `callIsBool`) all
+// render as a hexagon instead of the ordinary rounded capsule — Scratch's
+// visual language for "this slot expects a boolean."
 const isBool = computed(() =>
   displayValue.value.kind === 'Bool' ||
-  (displayValue.value.kind === 'Op' && specForOp(displayValue.value.op)?.resultType === 'bool'));
+  (displayValue.value.kind === 'Op' && specForOp(displayValue.value.op)?.resultType === 'bool') ||
+  (displayValue.value.kind === 'Param' && (getHost().paramIsBool?.(props.location, displayValue.value.name) ?? false)) ||
+  (displayValue.value.kind === 'Call' && (getHost().callIsBool?.(displayValue.value.block_id) ?? false)));
 
 // The hexagon's point angle (a fixed ratio of this block's own height via a
 // CSS custom property) stays constant whether the block is a single short

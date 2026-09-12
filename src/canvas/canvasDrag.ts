@@ -323,41 +323,6 @@ function onCanvasWheel(e: WheelEvent) {
   zoomBy(factor, e.clientX, e.clientY);
 }
 
-// ── Zoom (trackpad pinch) ────────────────────────────────────────────────────
-// Chromium/Firefox report a trackpad pinch as ctrl+wheel (handled above), but
-// WebKit — Safari, and the WebKitGTK webview Tauri embeds on Linux — instead
-// fires its non-standard gesturestart/gesturechange/gestureend events, whose
-// `scale` is cumulative from gesture start rather than incremental, so each
-// change is divided by the last seen scale to get a per-event zoom factor.
-// Not in lib.dom.d.ts, so the shape is declared locally and events are read
-// through it rather than through the standard Event type.
-interface GestureEventLike extends Event {
-  scale: number;
-  clientX: number;
-  clientY: number;
-}
-let gestureLastScale = 1;
-
-function onGestureStart(e: Event) {
-  if (!(e.target as Element)?.closest?.('#canvas-scroll')) return;
-  e.preventDefault();
-  gestureLastScale = 1;
-}
-
-function onGestureChange(e: Event) {
-  if (!(e.target as Element)?.closest?.('#canvas-scroll')) return;
-  e.preventDefault();
-  const ge = e as GestureEventLike;
-  const factor = ge.scale / gestureLastScale;
-  gestureLastScale = ge.scale;
-  zoomBy(factor, ge.clientX, ge.clientY);
-}
-
-function onGestureEnd(e: Event) {
-  if (!(e.target as Element)?.closest?.('#canvas-scroll')) return;
-  e.preventDefault();
-}
-
 const BUTTON_ZOOM_FACTOR = 1.25;
 
 /** Zoom-in button handler — zooms in around the canvas viewport's center. */
@@ -397,12 +362,39 @@ interface PanState {
 }
 let pan: PanState | null = null;
 
-export function capturePointer(e: PointerEvent) {
+// Captures on `el` (defaulting to `e.target`) rather than always the exact
+// element under the pointer at pickup — a whole-strand grab is fine either
+// way, but a tail/split drag (beginPickup, non-index-0) picks up a row whose
+// backend split can be confirmed and reflected in a Vue re-render well
+// within the gesture's lifetime, which removes that specific `.instruction-
+// row` element from the DOM entirely (it's no longer in the shortened
+// source strand's list, not just restyled/hidden — see the hidden clones
+// startDrag builds instead of moving the real nodes for exactly this
+// reason). A capturing element that gets removed from the document loses
+// capture implicitly, and — confirmed by instrumenting a real drag — this
+// can happen 100-200ms in, well inside a normal drag's duration, silently
+// breaking delivery of the rest of the gesture's move/up events and
+// stranding the split-off strand at its temporary post-split position
+// instead of wherever it was actually dropped (reads as "the drag did
+// nothing"). Every caller below now captures on the stable canvas-scroll
+// container instead, which the Vue tree never tears down, so no drag's
+// capture can be invalidated by a reactive re-render mid-gesture.
+export function capturePointer(e: PointerEvent, el?: Element | null) {
   try {
-    (e.target as Element | null)?.setPointerCapture?.(e.pointerId);
+    (el ?? (e.target as Element | null))?.setPointerCapture?.(e.pointerId);
   } catch (err) {
     console.error('setPointerCapture failed:', err);
   }
+}
+
+/** The stable element every drag/pan gesture should capture its pointer on
+ * — see capturePointer's doc comment for why capturing on the specific
+ * element under the pointer at pickup is fragile. Never torn down by Vue
+ * (it's the canvas's own static scroll viewport, not part of any v-for),
+ * so a mid-gesture re-render — e.g. a split's backend confirmation landing
+ * — can never invalidate capture out from under an in-progress drag. */
+function stableCaptureEl(): Element | null {
+  return document.getElementById('canvas-scroll');
 }
 
 // On Linux, middle click is X11's "paste primary selection" — CEF honors it
@@ -452,7 +444,7 @@ function beginPan(e: PointerEvent) {
   blockPrimaryPaste = true;
   blockPrimaryPasteGeneration++;
   e.preventDefault();
-  capturePointer(e);
+  capturePointer(e, stableCaptureEl());
   const scrollEl = document.getElementById('canvas-scroll');
   if (!scrollEl) return;
   pan = {
@@ -478,6 +470,20 @@ export function setSidebarArmed(armed: boolean) {
   document.getElementById('instruction-sidebar')?.classList.toggle('trash-armed', armed);
 }
 
+// Toggled on `<body>` for the duration of a whole-strand or palette drag —
+// see blockstitch.css's `body:not(.bs-dragging)` guards on the ordinary
+// hover-highlight rules for why this exists: a drag ghost is `pointer-events:
+// none`, so real hover keeps landing on whatever real row the ghost happens
+// to be floating over mid-drag, lighting up unrelated (and often much
+// larger, e.g. a whole If/If-Else chain) blocks blue with no relation to
+// where the drag would actually land. Suppressing ordinary hover for the
+// drag's duration and instead forcing the same accent treatment onto the
+// ghost itself (also in blockstitch.css) makes "what's highlighted" always
+// mean "what's being dragged," never "whatever it last passed over."
+function setDragActive(active: boolean) {
+  document.body.classList.toggle('bs-dragging', active);
+}
+
 // ── Drag pickup (grip / whole-strand) ───────────────────────────────────────
 interface DragCandidate {
   strandId: string;
@@ -496,6 +502,20 @@ interface DragState {
   resolvedId: string | null;
   resolvingPromise: Promise<string | void> | null;
   snap: { targetId: string; path: NodePath } | null;
+  // The strand this drag started from, always known synchronously —
+  // unlike resolvedId (which for a split drag stays null until splitStrand's
+  // backend round trip resolves it to the *new* tail strand's id), this
+  // never depends on anything async. Needed as the snap-target exclusion
+  // fallback while resolvedId is still pending: the old fallback read the
+  // module-level `dragCandidate` variable, but that's already been set back
+  // to null (by the same onPointerMove branch that calls startDrag) by the
+  // time any pointermove reaches updateSnapTarget, so it was always
+  // `undefined` — meaning nothing was excluded during that window, and the
+  // strand's own still-fully-intact original position (the block hasn't
+  // actually been detached from it backend-side yet) was free to win as the
+  // "nearest" snap target, silently merging a split-off tail right back
+  // where it started. See onPointerMove's updateSnapTarget call.
+  sourceStrandId: string;
   overTrash?: boolean;
   // Set for a whole-strand grab of a header-shaped strand whose block
   // definition should be deleted (rather than just detaching the body
@@ -558,7 +578,7 @@ export function beginCommentDrag(e: PointerEvent, commentId: string) {
   const cardEl = document.querySelector<HTMLElement>(`.comment-card[data-comment-id="${cssEscape(commentId)}"]`);
   if (!cardEl) return;
   e.preventDefault();
-  capturePointer(e);
+  capturePointer(e, stableCaptureEl());
   const rect = cardEl.getBoundingClientRect();
   const ghost = document.createElement('div');
   ghost.className = 'comment-drag-ghost';
@@ -583,7 +603,7 @@ export function beginPickup(e: PointerEvent, strandId: string, path: NodePath) {
   if (isLocked()) return;
   if (e.button !== undefined && e.button !== 0) return;
   e.preventDefault();
-  capturePointer(e);
+  capturePointer(e, stableCaptureEl());
   dragCandidate = { strandId, path, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY };
 }
 
@@ -593,7 +613,7 @@ export function beginPaletteDrag(e: PointerEvent, insType: string, ghostRowEl: H
   if (isLocked()) return;
   if (e.button !== undefined && e.button !== 0) return;
   e.preventDefault();
-  capturePointer(e);
+  capturePointer(e, stableCaptureEl());
 
   const ghost = document.createElement('div');
   ghost.className = 'strand-drag-ghost';
@@ -615,6 +635,7 @@ export function beginPaletteDrag(e: PointerEvent, insType: string, ghostRowEl: H
     ghostEl: ghost,
     snap: null,
   };
+  setDragActive(true);
   positionGhost(e);
 }
 
@@ -636,6 +657,10 @@ function positionGhost(e: PointerEvent) {
 }
 
 const SNAP_THRESHOLD = 36;
+// How much closer a *different* boundary than the currently-snapped one has
+// to be before it's allowed to take over — see updateSnapTarget's own
+// comment for the oscillation this prevents.
+const SNAP_STICKY_BONUS = 8;
 
 // Shared by strand-drags and palette-drags; writes the result onto
 // `target.snap` and updates the shared snap preview.
@@ -653,10 +678,32 @@ function realRows(container: HTMLElement): HTMLElement[] {
 // its own boundary set from only its *direct* child rows, so a nested
 // body's rows never leak into an ancestor's boundaries and vice versa — then
 // picks the single globally closest boundary across all of them.
+//
+// The snap preview is removed *before* any of this measuring happens (not
+// just excluded from `realRows`'s own array — it still occupies real flex
+// layout space, so leaving it in place shifts every row after it down by
+// its own height while everything is being measured). Skipping that meant
+// the preview's own presence fed back into the next call's measurements:
+// showing it at boundary N shifted boundary N+1 (and everything after)
+// down by the preview's height, which on the very next pointermove could
+// make N+1 measure as the closer candidate, moving the preview there —
+// which shifted things back, making N look closer again next time, and so
+// on every frame regardless of whether the pointer had moved at all. That
+// self-sustaining flip was the reported "flashing" near an ambiguous
+// boundary (e.g. right above an empty C-slot) — measuring against the
+// undisturbed layout every time removes the feedback loop entirely. The
+// sticky bonus below is a second, independent safety net against the same
+// symptom arising from ordinary pointer/measurement jitter (two boundaries
+// a pixel or two apart from real mouse tremor, not from the preview's own
+// footprint) rather than the layout-feedback case above.
 function updateSnapTarget(e: PointerEvent, target: { snap: { targetId: string; path: NodePath } | null }, excludeId: string | null | undefined, ghostEl?: HTMLElement) {
+  const prevSnap = target.snap;
+  clearSnapPreview();
+
   const ghostRect = ghostEl?.getBoundingClientRect();
   const containers = Array.from(document.querySelectorAll<HTMLElement>('.instruction-list'));
   let best: SnapCandidate | null = null;
+  let bestEffectiveDist = Infinity;
   for (const container of containers) {
     const id = container.dataset.strandId;
     if (!id || id === excludeId) continue;
@@ -690,12 +737,21 @@ function updateSnapTarget(e: PointerEvent, target: { snap: { targetId: string; p
       if (idx === 0 && headIsHeader) continue;
       // A boundary below a cap block would attach something underneath it —
       // never allowed, since it ends this list's flow.
-      if (idx > 0 && isCapType(listInstructions[idx - 1].type)) continue;
+      if (idx > 0 && isCapType(listInstructions[idx - 1].type, listInstructions[idx - 1])) continue;
       const y = boundaries[idx];
       const refY = ghostRect ? ghostRect.top : e.clientY;
       const dist = Math.abs(refY - y);
-      if (dist <= SNAP_THRESHOLD && (best === null || dist < best.dist)) {
-        best = { targetId: id, path: [...basePath, { index: idx }], dist, container };
+      if (dist > SNAP_THRESHOLD) continue;
+      const path = [...basePath, { index: idx }];
+      // Give the boundary that's already snapped a head start, so a nearly
+      // tied candidate (a pixel or two closer, from pointer jitter or
+      // sub-pixel layout rounding) doesn't keep stealing the target back and
+      // forth every frame — a real, meaningfully closer boundary still wins.
+      const isCurrent = !!prevSnap && prevSnap.targetId === id && pathPrefixEqual(prevSnap.path, path);
+      const effectiveDist = isCurrent ? Math.max(0, dist - SNAP_STICKY_BONUS) : dist;
+      if (best === null || effectiveDist < bestEffectiveDist) {
+        best = { targetId: id, path, dist, container };
+        bestEffectiveDist = effectiveDist;
       }
     }
   }
@@ -703,8 +759,6 @@ function updateSnapTarget(e: PointerEvent, target: { snap: { targetId: string; p
 
   if (best !== null) {
     showSnapPreview(best, ghostEl);
-  } else {
-    clearSnapPreview();
   }
 }
 
@@ -824,6 +878,7 @@ function startDrag(e: PointerEvent, candidate: DragCandidate) {
     resolvedId: null,
     resolvingPromise: null,
     snap: null,
+    sourceStrandId: strandId,
     restoreCard,
     hiddenRowEls,
     hiddenNewCardEl: null,
@@ -832,6 +887,7 @@ function startDrag(e: PointerEvent, candidate: DragCandidate) {
     preExistingStrandIds: new Set(getHost().getDocument()?.strands?.map(s => s.id) ?? []),
   };
   drag = newDrag;
+  setDragActive(true);
 
   if (wholeStrandGrab) {
     newDrag.resolvedId = strandId;
@@ -891,7 +947,7 @@ function onPointerMove(e: PointerEvent) {
         drag.snap = null;
         clearSnapPreview();
       } else {
-        updateSnapTarget(e, drag, drag.resolvedId ?? dragCandidate?.strandId, drag.ghostEl);
+        updateSnapTarget(e, drag, drag.resolvedId ?? drag.sourceStrandId, drag.ghostEl);
       }
     }
     return;
@@ -947,6 +1003,7 @@ function onPointerUp(e: PointerEvent) {
   if (paletteDrag && paletteDrag.pointerId === e.pointerId) {
     const finished = paletteDrag;
     paletteDrag = null;
+    setDragActive(false);
     clearSnapPreview();
     finished.ghostEl.remove();
 
@@ -972,6 +1029,7 @@ function onPointerUp(e: PointerEvent) {
 
   const finished = drag;
   drag = null;
+  setDragActive(false);
   clearSnapPreview();
   setSidebarArmed(false);
   // Move the real card back before removing the ghost wrapper —
@@ -1035,7 +1093,4 @@ export function attachDragListeners() {
   document.addEventListener('pointercancel', onPointerUp);
   document.addEventListener('paste', blockMiddleClickPaste, true);
   document.addEventListener('wheel', onCanvasWheel, { passive: false });
-  document.addEventListener('gesturestart', onGestureStart);
-  document.addEventListener('gesturechange', onGestureChange);
-  document.addEventListener('gestureend', onGestureEnd);
 }

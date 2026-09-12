@@ -18,17 +18,29 @@ import type { ValueNode } from '../values/valueNode';
 
 // `value` is only meaningful for the editable 'Number'/'Text'/operator
 // cases below — a `Var:`/`Param:` reference just renders its name and never
-// reads it, so callers rendering only those kinds may omit it.
-const props = defineProps<{ kind: string; value?: ValueNode }>();
+// reads it, so callers rendering only those kinds may omit it. `boolOverride`
+// lets a caller declare a `Param:<name>` prefab boolean-shaped (a custom
+// block's own header row, e.g., knows each param's declared type directly
+// from its `BlockDef` — no operator spec exists for it to fall back on, so
+// `specForKind` alone would never see it as boolean). `dragKind`, if given,
+// is what's actually threaded into the drag/drop machinery (and so into
+// `resolveFreshValue`/`createFloatingValue`'s `sourceKind`) instead of
+// `kind` — lets a caller pack extra host-only context into the string used
+// to build/track the dragged value (e.g. which block a header's `Param:`
+// oval belongs to) without that context leaking into `kind`'s own display
+// role (`kind.slice(...)` above).
+const props = defineProps<{ kind: string; value?: ValueNode; boolOverride?: boolean; dragKind?: string }>();
 const emit = defineEmits<{ 'update:value': [ValueNode] }>();
 
 const spec = computed(() => specForKind(props.kind));
-const isBool = computed(() => spec.value?.resultType === 'bool');
+const isBool = computed(() => props.boolOverride ?? spec.value?.resultType === 'bool');
 const args = computed(() => (props.value?.kind === 'Op' ? props.value.args : []));
 
 // Set only when this exact prefab was last clicked (not dragged) — see
-// values/valueDrag.ts's onPointerUp/previewClickedPaletteValue.
-const preview = computed(() => (paletteEvalPreview.value?.kind === props.kind ? paletteEvalPreview.value : null));
+// values/valueDrag.ts's onPointerUp/previewClickedPaletteValue. Keyed by
+// whichever string actually went into the drag/click machinery (dragKind,
+// if given — see beginValuePaletteDrag below), not the display-only `kind`.
+const preview = computed(() => (paletteEvalPreview.value?.kind === (props.dragKind ?? props.kind) ? paletteEvalPreview.value : null));
 
 function onPointerDown(e: PointerEvent) {
   if ((e.target as Element | null)?.closest?.('input, .dd')) return;
@@ -38,7 +50,7 @@ function onPointerDown(e: PointerEvent) {
   // Mirrors ValueBlock.vue's onPointerDown, which does the same for the
   // same reason.
   e.stopPropagation();
-  beginValuePaletteDrag(e, props.kind, e.currentTarget as HTMLElement);
+  beginValuePaletteDrag(e, props.dragKind ?? props.kind, e.currentTarget as HTMLElement);
 }
 
 function onContextMenu(e: MouseEvent) {

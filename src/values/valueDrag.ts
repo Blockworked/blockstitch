@@ -212,7 +212,11 @@ function startValueDrag(e: PointerEvent, candidate: ValueDragCandidate) {
   positionGhost(e);
 }
 
-function isSelfOrDescendant(candidate: ValueLocation, root: ValueLocation): boolean {
+/** True only for a location *strictly inside* `root` (one of its own operand
+ * slots, at any depth) — never for `root` itself. Dropping back onto the
+ * exact slot a value was picked up from is a valid no-op "put it back", not
+ * a self-drop; only nesting a value inside its own operand is invalid. */
+function isStrictDescendant(candidate: ValueLocation, root: ValueLocation): boolean {
   if (candidate.kind !== root.kind) return false;
   if (candidate.kind === 'Field' && root.kind === 'Field') {
     if (candidate.strand_id !== root.strand_id || candidate.field_id !== root.field_id) return false;
@@ -222,7 +226,7 @@ function isSelfOrDescendant(candidate: ValueLocation, root: ValueLocation): bool
   } else {
     return false;
   }
-  return candidate.path.length >= root.path.length && root.path.every((p, i) => candidate.path[i] === p);
+  return candidate.path.length > root.path.length && root.path.every((p, i) => candidate.path[i] === p);
 }
 
 function isFloatingRootLocation(location: ValueLocation): boolean {
@@ -248,7 +252,7 @@ function findDropTarget(clientX: number, clientY: number, exclude: ValueLocation
     } catch {
       return null;
     }
-    const isSelf = !!exclude && isSelfOrDescendant(location, exclude);
+    const isSelf = !!exclude && isStrictDescendant(location, exclude);
     if (!isSelf && !isFloatingRootLocation(location)) {
       return { el: match, location };
     }
@@ -338,6 +342,14 @@ function onPointerUp(e: PointerEvent) {
       if (finished.dropTarget) {
         const { location: targetLoc, el: targetEl } = finished.dropTarget;
 
+        // Dropped back onto the exact slot it was picked up from — the
+        // backend model never changed (only the reveal placeholder made it
+        // look moved), so there's nothing to take/put; doing so anyway would
+        // double-take the slot and fabricate a bogus displaced floating copy.
+        if (finished.source.kind === 'existing' && locationsEqual(targetLoc, finished.source.location)) {
+          return;
+        }
+
         let incoming: ValueNode;
         if (finished.source.kind === 'fresh') {
           incoming = resolveFreshValue(finished.source.valueKind);
@@ -369,7 +381,7 @@ function onPointerUp(e: PointerEvent) {
       // Open canvas.
       const [x, y] = clientToCanvas(e.clientX - finished.offsetX, e.clientY - finished.offsetY);
       if (finished.source.kind === 'fresh') {
-        await backend.createFloatingValue(x, y, resolveFreshValue(finished.source.valueKind));
+        await backend.createFloatingValue(x, y, resolveFreshValue(finished.source.valueKind), finished.source.valueKind);
       } else if (finished.source.location.kind === 'Floating' && finished.source.location.path.length === 0) {
         // Whole floating block, just repositioned. Apply the position
         // optimistically and reveal the real card immediately (same trick as

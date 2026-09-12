@@ -24,6 +24,16 @@ export interface BlockShapeDescriptor<TNode extends BlockNode = BlockNode> {
    * ids through a nested tree without the generic code needing to know each
    * wrap type's actual field names (`body`/`then_body`/`else_body`/...). */
   mapSlots?(node: TNode, fn: (slot: TNode[], slotIndex: number) => TNode[]): TNode;
+  /** Only meaningful for `kind: 'stack'` — lets ONE registered type act as
+   * `cap` (no bottom notch) for some instances and not others, based on the
+   * node's own data. A static `kind: 'cap'` registration can't express this,
+   * since every instance of a type shares the single registry entry — a host
+   * whose custom blocks can each independently choose "ends the stack" (e.g.
+   * Blockwork's `CallBlock`, shared by every custom block regardless of
+   * which one it calls) needs this instead. `isCapType` consults it only
+   * when a `node` is given; a type-only lookup falls back to the static
+   * `kind === 'cap'` check alone. */
+  isCap?(node: TNode): boolean;
 }
 
 const registry = new Map<string, BlockShapeDescriptor<any>>();
@@ -42,8 +52,14 @@ export function isHeaderType(type: string): boolean {
   return shapeFor(type)?.kind === 'header';
 }
 
-export function isCapType(type: string): boolean {
-  return shapeFor(type)?.kind === 'cap';
+/** `node`, when given, additionally consults that type's `isCap` predicate
+ * (see `BlockShapeDescriptor`) so a single registered type can be `cap` for
+ * only some of its instances — omit it for a plain static type-only check. */
+export function isCapType(type: string, node?: BlockNode): boolean {
+  const shape = shapeFor(type);
+  if (!shape) return false;
+  if (shape.kind === 'cap') return true;
+  return node !== undefined && shape.isCap?.(node) === true;
 }
 
 export function isWrapType(type: string): boolean {

@@ -62,7 +62,15 @@ export interface CanvasBackend<TNode extends BlockNode = BlockNode> {
   takeValue(location: ValueLocation): Promise<ValueNode>;
   putValue(location: ValueLocation, value: ValueNode): Promise<void>;
   previewValue(value: ValueNode): Promise<string>;
-  createFloatingValue(x: number, y: number, value: ValueNode): Promise<string>;
+  /** `sourceKind` is the palette `kind` string that produced `value` (via
+   * `resolveFreshValue`) when this floating value was just spawned from a
+   * sidebar/header drag with nowhere to drop into — `undefined` when an
+   * already-placed block was instead picked up and re-parked as floating
+   * (see valueDrag.ts's two `createFloatingValue` call sites). Opaque to
+   * blockstitch itself; passed through purely so a host whose `kind`
+   * strings encode extra context (e.g. which block a `Param:` reporter
+   * came from) can recover it. */
+  createFloatingValue(x: number, y: number, value: ValueNode, sourceKind?: string): Promise<string>;
   moveFloatingValue(floatingId: string, x: number, y: number): Promise<void>;
   removeFloatingValue(floatingId: string): Promise<void>;
 
@@ -124,6 +132,21 @@ export interface CanvasHost<TNode extends BlockNode = BlockNode> {
    * value yet) and whether it's still invalid. Omit if the host has no such
    * "invalid buffer" concept. */
   getInvalidText?(location: ValueLocation): { text: string; invalid: boolean } | null;
+  /** True if the `Param:<name>` value node addressed by `location` reads a
+   * custom-block input declared boolean by its owning `BlockDef` — drives
+   * `ValueBlock.vue`'s hexagon rendering for a dropped-out parameter
+   * reporter the same way an operator's `resultType === 'bool'` does.
+   * Omit (or return false) if the host's custom blocks have no notion of a
+   * boolean-typed input. */
+  paramIsBool?(location: ValueLocation, name: string): boolean;
+  /** True if `blockId` names a custom block declared to return a boolean —
+   * drives `ValueBlock.vue`'s hexagon rendering for a `Call` node the same
+   * way `paramIsBool` does for a `Param` node, and `resultType === 'bool'`
+   * does for an operator. Unlike `paramIsBool`, a `Call` node always carries
+   * its own `block_id` directly, so no location-based lookup is needed. Omit
+   * (or return false) if the host's custom blocks have no boolean-reporter
+   * concept. */
+  callIsBool?(blockId: string): boolean;
 }
 
 let host: CanvasHost<any> | null = null;
