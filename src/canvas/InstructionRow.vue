@@ -16,6 +16,7 @@ const props = defineProps<{ strandId: string; path: NodePath; instruction: Block
 // `part="head"` and once with `part="body"`.
 const shape = computed(() => shapeFor(props.instruction.type));
 const isWrap = computed(() => shape.value?.kind === 'wrap');
+const appearance = computed(() => getHost().instructionAppearance?.(props.instruction));
 // The foot bar's top notch receives the bottom bump of whichever row ends
 // up last in the *last* slot (for If-Else, the else arm; every other wrap
 // type has only one slot). A cap-type row there has no bump to receive —
@@ -78,6 +79,11 @@ function onRowPointerDown(e: PointerEvent) {
   // events — this row itself, meaning `target` ends up as the *same*
   // element the listener is bound to instead of any real descendant.
   if (target === currentTarget) return;
+  // A reporter caller is itself draggable as a value block. A row nested in
+  // one of its callback mouths must claim this gesture before it bubbles to
+  // that enclosing value block, otherwise dragging the row starts a drag of
+  // the entire reporter instead.
+  e.stopPropagation();
   beginPickup(e, props.strandId, props.path);
 }
 
@@ -128,7 +134,8 @@ function onRowPointerLeave() {
   <div
     v-if="isWrap"
     class="instruction-row instruction-row-wrap"
-    :class="{ 'row-first': isFirst, 'row-last': isLast, 'wrap-spine-hover': spineHovered }"
+    :class="[{ 'row-first': isFirst, 'row-last': isLast, 'wrap-spine-hover': spineHovered }, appearance?.classes]"
+    :style="appearance?.style"
     :data-index="index"
     :data-instr-id="instruction.id"
     @pointerdown="onRowPointerDown"
@@ -146,7 +153,8 @@ function onRowPointerLeave() {
   <div
     v-else
     class="instruction-row"
-    :class="{ 'row-first': isFirst, 'row-last': isLast, 'instruction-row-when-ran': isEntryTriggerType(instruction.type), 'instruction-row-header': isHeaderType(instruction.type), 'instruction-row-cap': isCapType(instruction.type, instruction) }"
+    :class="[{ 'row-first': isFirst, 'row-last': isLast, 'instruction-row-when-ran': isEntryTriggerType(instruction.type), 'instruction-row-header': isHeaderType(instruction.type), 'instruction-row-cap': isCapType(instruction.type, instruction) }, appearance?.classes]"
+    :style="appearance?.style"
     :data-index="index"
     :data-instr-id="instruction.id"
     @pointerdown="onRowPointerDown"

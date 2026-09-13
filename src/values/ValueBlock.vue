@@ -22,7 +22,8 @@
 import { computed, ref, watchEffect } from 'vue';
 import { getHost } from '../canvas/host';
 import { locationsEqual } from '../graph/blockGraph';
-import type { ValueLocation } from '../graph/blockGraph';
+import type { BlockNode, ValueLocation } from '../graph/blockGraph';
+import InstructionList from '../canvas/InstructionList.vue';
 import { beginValuePickup, dragReveal, evalPreview, isCapsuleLocation } from './valueDrag';
 import { labelForOp, specForOp } from '../graph/operatorRegistry';
 import AutosizeInput from '../ui/AutosizeInput.vue';
@@ -65,6 +66,17 @@ const callPieces = computed(() => {
   let argIndex = 0;
   return pieces.map(piece => (piece.kind === 'Input' ? { piece, argIndex: argIndex++ } : { piece, argIndex: -1 }));
 });
+const callBranches = computed(() => callPieces.value.flatMap((item, index) => item.piece.kind === 'Branch' ? [index] : []));
+const callBranchBodies = computed(() => displayValue.value.kind === 'Call'
+  ? ((displayValue.value as ValueNode & { branches?: BlockNode[][] }).branches ?? []) : []);
+function callBranchId(index: number): string {
+  return `value-branch:${btoa(JSON.stringify({ location: props.location, branch: index }))}`;
+}
+const callHead = computed(() => callPieces.value.filter((item, index) => index < callBranches.value[0] || item.piece.kind === 'Input'));
+function callSeparator(ordinal: number) {
+  return callPieces.value.slice(callBranches.value[ordinal] + 1, callBranches.value[ordinal + 1])
+    .filter(item => item.piece.kind === 'Label');
+}
 
 function onEnumEdit(step: number, v: string) {
   getHost().backend.editValueField(childLocation(step), v);
@@ -152,7 +164,7 @@ function onContextMenu(e: MouseEvent) {
   <span
     ref="rootEl"
     class="value-block"
-    :class="{ 'value-card-shape': boxed && !isBool, 'value-card-shape-bool': boxed && isBool, 'value-hex-blank': !boxed && isBool }"
+    :class="{ 'value-card-shape': boxed && !isBool, 'value-card-shape-bool': boxed && isBool, 'value-hex-blank': !boxed && isBool, 'blockwork-branch-reporter': callBranches.length > 0 }"
     :style="isBool ? { '--blockstitch-bh': blockHeight + 'px' } : undefined"
     :data-value-location="JSON.stringify(location)"
     @pointerdown="onPointerDown"
@@ -177,7 +189,22 @@ function onContextMenu(e: MouseEvent) {
       <span class="value-op">{{ displayValue.name }}</span>
     </template>
     <template v-else-if="displayValue.kind === 'Call'">
-      <template v-for="(item, i) in callPieces" :key="i">
+      <span v-if="callBranches.length" class="instruction-row instruction-row-wrap blockwork-custom-block blockwork-reporter-caller">
+        <span class="wrap-head-line">
+          <template v-for="(item, i) in callHead" :key="i">
+            <span v-if="item.piece.kind === 'Label'" class="value-op">{{ item.piece.text }}</span>
+            <ValueBlock v-else-if="item.piece.kind === 'Input'" :location="childLocation(item.argIndex)" :value="displayValue.args[item.argIndex]" />
+          </template>
+        </span>
+        <template v-for="(branch, ordinal) in callBranches" :key="branch">
+          <span v-if="ordinal > 0" class="wrap-mid-bar">
+            <template v-for="(item, i) in callSeparator(ordinal - 1)" :key="i"><span v-if="item.piece.kind === 'Label'" class="value-op">{{ item.piece.text }}</span></template>
+          </span>
+          <span class="wrap-mouth"><InstructionList :strand-id="callBranchId(ordinal)" :base-path="[]" :instructions="callBranchBodies[ordinal] ?? []" :show-empty-hint="false" /></span>
+        </template>
+        <span class="wrap-foot-bar" />
+      </span>
+      <template v-else v-for="(item, i) in callPieces" :key="i">
         <span v-if="item.piece.kind === 'Label'" class="value-op">{{ item.piece.text }}</span>
         <ValueBlock v-else :location="childLocation(item.argIndex)" :value="displayValue.args[item.argIndex]" />
       </template>

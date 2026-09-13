@@ -6,6 +6,7 @@
 // `op`/`block_id` are free-form strings, so a host's own operator vocabulary
 // (registered via graph/operatorRegistry.ts) and custom-block ids both fit
 // through unchanged.
+import type { BlockNode } from '../graph/blockGraph';
 export type ValueNode =
   | { kind: 'Number'; value: number }
   | { kind: 'Text'; value: string }
@@ -17,7 +18,7 @@ export type ValueNode =
   | { kind: 'Op'; op: string; args: ValueNode[]; saved: ValueNode }
   | { kind: 'Var'; name: string }
   | { kind: 'Param'; name: string }
-  | { kind: 'Call'; block_id: string; args: ValueNode[]; saved: ValueNode };
+  | { kind: 'Call'; block_id: string; args: ValueNode[]; branches: BlockNode[][]; saved: ValueNode };
 
 // Narrow return types (a single union member each, not the whole
 // `ValueNode`) so a host with its own narrower value-node type — whose `Op`

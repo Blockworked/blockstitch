@@ -712,7 +712,7 @@ function updateSnapTarget(e: PointerEvent, target: { snap: { targetId: string; p
   for (const container of containers) {
     const id = container.dataset.strandId;
     if (!id || id === excludeId) continue;
-    const cardEl = container.closest<HTMLElement>('.strand-card');
+    const cardEl = container.closest<HTMLElement>('.strand-card, .value-floating-card');
     if (!cardEl) continue;
     // This container's own left edge — not the outer strand card's. For a
     // nested wrap-block body, the actual attach point sits well to the right
@@ -736,7 +736,9 @@ function updateSnapTarget(e: PointerEvent, target: { snap: { targetId: string; p
     // when that's a header block (nothing may end up above it); only
     // possible at a strand's own top level (basePath: []), since a header
     // can never live nested inside a wrap-block body.
-    const listInstructions = resolveInstructionList(findStrand(id) as { id: string; instructions: BlockNode[] } | undefined, basePath);
+    const listInstructions = findStrand(id)
+      ? resolveInstructionList(findStrand(id) as { id: string; instructions: BlockNode[] }, basePath)
+      : rows.map(row => ({ id: row.dataset.instrId ?? '', type: row.dataset.type ?? '' }));
     const headIsHeader = basePath.length === 0 && listInstructions[0] && isHeaderType(listInstructions[0].type);
     for (let idx = 0; idx < boundaries.length; idx++) {
       if (idx === 0 && headIsHeader) continue;
@@ -823,14 +825,17 @@ export function clientToCanvas(clientX: number, clientY: number): [number, numbe
 // moved into it — the block dragged is literally the strand itself.
 function startDrag(e: PointerEvent, candidate: DragCandidate) {
   const { strandId, path, pointerId } = candidate;
-  const strand = findStrand(strandId);
+  const virtualBranch = strandId.startsWith('value-branch:');
+  const strand = findStrand(strandId) ?? (virtualBranch
+    ? { id: strandId, x: 0, y: 0, instructions: [] as BlockNode[] }
+    : undefined);
   if (!strand) return;
 
   const cardEl = document.querySelector<HTMLElement>(`.strand-card[data-strand-id="${cssEscape(strandId)}"]`);
   // Only a true top-level index-0 grab picks up the whole strand card as a
   // unit — anything nested inside a wrap-block body, or a non-zero
   // top-level index, always goes through the split-off-a-tail path below.
-  const wholeStrandGrab = path.length === 1 && path[0].index === 0;
+  const wholeStrandGrab = !virtualBranch && path.length === 1 && path[0].index === 0;
 
   const ghost = document.createElement('div');
   ghost.className = 'strand-drag-ghost';

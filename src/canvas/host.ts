@@ -31,7 +31,7 @@ export interface CommentLike {
 
 /** One piece of a custom block's rendered prototype, in declaration order —
  * a fixed label, or a slot for one of the call's `args`. */
-export type CallPiece = { kind: 'Label'; text: string } | { kind: 'Input' };
+export type CallPiece = { kind: 'Label'; text: string } | { kind: 'Input' } | { kind: 'Branch' };
 
 export interface CanvasDocument<TNode extends BlockNode = BlockNode> {
   /** Identifies which document this is — the canvas resets pan/zoom and
@@ -127,6 +127,8 @@ export interface CanvasHost<TNode extends BlockNode = BlockNode> {
    * input positions) for rendering — `undefined` if the block id isn't
    * known. Only needed if the host uses `Call` value nodes at all. */
   resolveCallPieces?(blockId: string): CallPiece[] | undefined;
+  /** Host styling included in reactive row updates, including hover changes. */
+  instructionAppearance?(instruction: BlockNode): { classes?: Record<string, boolean>; style?: Record<string, string> } | undefined;
   /** Looks up the backend's echoed raw text for a numeric leaf currently
    * being edited (present while the typed text doesn't parse to a valid
    * value yet) and whether it's still invalid. Omit if the host has no such

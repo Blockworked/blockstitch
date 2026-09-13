@@ -15,7 +15,7 @@ import type { BlockNode, NodePath, PathStep } from '../graph/blockGraph';
 import InstructionRow from './InstructionRow.vue';
 import { beginPickup } from './canvasDrag';
 
-const props = defineProps<{ strandId: string; basePath: PathStep[]; instructions: BlockNode[] }>();
+const props = defineProps<{ strandId: string; basePath: PathStep[]; instructions: BlockNode[]; showEmptyHint?: boolean }>();
 
 function childPath(index: number): NodePath {
   return [...props.basePath, { index }];
@@ -30,7 +30,7 @@ function onEmptyHintPointerDown(e: PointerEvent) {
 // is just blank space inside the bracket, matching Scratch/PenguinMod; it's
 // still a real drop target (updateSnapTarget falls back to this container's
 // own rect when it has no rows), just with no placeholder copy.
-const isTopLevel = props.basePath.length === 0;
+const isTopLevel = props.basePath.length === 0 && props.showEmptyHint !== false;
 </script>
 
 <template>
