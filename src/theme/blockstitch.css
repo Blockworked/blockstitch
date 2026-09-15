@@ -2092,11 +2092,14 @@ body:not(.bs-dragging) .instruction-row:hover > .instruction-shape { background:
    hover-highlighting elsewhere is suppressed for a drag's duration (see the
    `body:not(.bs-dragging)` guards on .instruction-row/.instruction-row-wrap's
    own hover rules), so only the thing actually being picked up reads as
-   "this is what's selected," never whatever the ghost happens to float over. */
-.strand-drag-ghost .instruction-row::before {
+   "this is what's selected," never whatever the ghost happens to float over.
+   Only the grabbed block (the ghost's first top-level row) gets it — not the
+   blocks carried along under it, nor anything nested inside a wrap body
+   (which is also a `.strand-body`, hence the anchored child combinators). */
+.strand-drag-ghost > .strand-card > .strand-body > .instruction-row:first-child::before {
   background: var(--blockstitch-accent);
 }
-.strand-drag-ghost .instruction-row.instruction-row-wrap {
+.strand-drag-ghost > .strand-card > .strand-body > .instruction-row.instruction-row-wrap:first-child {
   --blockstitch-wrap-fill: linear-gradient(to right, var(--blockstitch-bg3), var(--blockstitch-bg3));
   --blockstitch-wrap-outline: var(--blockstitch-accent);
 }

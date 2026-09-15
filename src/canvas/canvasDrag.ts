@@ -714,6 +714,8 @@ function updateSnapTarget(e: PointerEvent, target: { snap: { targetId: string; p
     if (!id || id === excludeId) continue;
     const cardEl = container.closest<HTMLElement>('.strand-card, .value-floating-card');
     if (!cardEl) continue;
+    // Never a drop target inside the dragged ghost itself.
+    if (container.closest('.strand-drag-ghost')) continue;
     // This container's own left edge — not the outer strand card's. For a
     // nested wrap-block body, the actual attach point sits well to the right
     // of the card's edge (past the spine's indent), so checking against
@@ -744,7 +746,10 @@ function updateSnapTarget(e: PointerEvent, target: { snap: { targetId: string; p
       if (idx === 0 && headIsHeader) continue;
       // A boundary below a cap block would attach something underneath it —
       // never allowed, since it ends this list's flow.
-      if (idx > 0 && isCapType(listInstructions[idx - 1].type, listInstructions[idx - 1])) continue;
+      // (A row with no model counterpart means DOM and model are out of sync
+      // — skip rather than throw.)
+      const above = idx > 0 ? listInstructions[idx - 1] : undefined;
+      if (idx > 0 && (!above || isCapType(above.type, above))) continue;
       const y = boundaries[idx];
       const refY = ghostRect ? ghostRect.top : e.clientY;
       const dist = Math.abs(refY - y);
@@ -870,6 +875,11 @@ function startDrag(e: PointerEvent, candidate: DragCandidate) {
       // so hiding first would make the clone invisible too.
       const clone = el.cloneNode(true) as HTMLElement;
       clone.style.visibility = '';
+      // Same reason as showSnapPreview: a cloned wrap block's nested body
+      // keeps `.instruction-list` plus the SOURCE strand's data-strand-id and
+      // a data-path that stops resolving once splitStrand removes the tail —
+      // strip the marker so updateSnapTarget never scans the ghost's copy.
+      clone.querySelectorAll('.instruction-list').forEach(c => c.classList.remove('instruction-list'));
       ghostBody.appendChild(clone);
       el.style.visibility = 'hidden';
     });
