@@ -16,6 +16,9 @@
   --blockstitch-yellow-rgb: 255, 214, 10;
   --blockstitch-yellow-bg: #2d2200;
   --blockstitch-yellow-border: #7d6200;
+  /* Yellow as foreground. `--blockstitch-yellow` is tuned for dark surfaces
+     and drops to ~1.5:1 on a light one, so text and icons use this instead. */
+  --blockstitch-yellow-text: #ffd60a;
   --blockstitch-accent-light: #3aa0ff;
   --blockstitch-radius: 6px;
   --blockstitch-radius-lg: 14px;
@@ -65,6 +68,7 @@
   --blockstitch-text-dim: #6e6e73;
   --blockstitch-yellow-bg: #fff6d8;
   --blockstitch-yellow-border: #e6c200;
+  --blockstitch-yellow-text: #6b4e00;
 
   --blockstitch-glass-bg: rgba(255, 255, 255, 0.6);
   --blockstitch-glass-bg-strong: rgba(230, 230, 236, 0.75);
@@ -2242,7 +2246,7 @@ body:not(.bs-dragging) .instruction-row:hover > .instruction-shape { background:
   gap: 8px;
   background: var(--blockstitch-yellow-bg);
   border: 1px solid var(--blockstitch-yellow-border);
-  color: var(--blockstitch-yellow);
+  color: var(--blockstitch-yellow-text);
   padding: 8px 12px;
   border-radius: var(--blockstitch-radius-lg);
   font-size: 13px;
@@ -2498,7 +2502,7 @@ body:not(.bs-dragging) .instruction-row:hover > .instruction-shape { background:
   gap: var(--blockstitch-spacing-sm);
 }
 .warning-icon {
-  color: var(--blockstitch-yellow);
+  color: var(--blockstitch-yellow-text);
   flex-shrink: 0;
 }
 .danger-icon {
@@ -2953,7 +2957,7 @@ input.make-block-piece-input-el:focus {
 /* ── Confirm highlight ───────────────────────────────────────────────────── */
 button.confirm-armed {
   border-color: var(--blockstitch-yellow);
-  color: var(--blockstitch-yellow);
+  color: var(--blockstitch-yellow-text);
   animation: confirmPulse var(--blockstitch-dur-slow) var(--blockstitch-ease-spring);
 }
 @keyframes confirmPulse {
