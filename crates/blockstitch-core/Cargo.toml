@@ -1,0 +1,20 @@
+[package]
+name = "blockstitch-core"
+version = "0.1.0"
+edition = "2024"
+description = "Backend model, value system and editor operations for the blockstitch block editor."
+license = "MIT"
+
+[lib]
+name = "blockstitch_core"
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+uuid = { version = "1.24.0", features = ["v4"] }
+rand = "0.10.2"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+# Standalone workspace: this crate lives in a repo that is otherwise a
+# TypeScript package, and is consumed by host apps as a path/git dependency.
+[workspace]
