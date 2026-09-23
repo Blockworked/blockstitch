@@ -13,9 +13,10 @@ pub enum InputValueType {
     Bool,
 }
 
-/// One piece of a custom block's prototype: static label text, or a named
-/// input read in the body via `Value::Param`. `id` never changes, so it
-/// still identifies the input after a rename.
+/// One piece of a custom block's prototype: static label text, a named
+/// input read in the body via `Value::Param`, or a named branch callback
+/// supplied at the call site and run by the host's branch-execution block.
+/// `id` never changes, so it still identifies the piece after a rename.
 #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum BlockPiece {
@@ -29,12 +30,16 @@ pub enum BlockPiece {
         #[serde(default)]
         value_type: InputValueType,
     },
+    Branch {
+        id: String,
+        name: String,
+    },
 }
 
 impl BlockPiece {
     pub fn id(&self) -> &str {
         match self {
-            BlockPiece::Label { id, .. } | BlockPiece::Input { id, .. } => id,
+            BlockPiece::Label { id, .. } | BlockPiece::Input { id, .. } | BlockPiece::Branch { id, .. } => id,
         }
     }
 }
@@ -134,7 +139,17 @@ impl BlockDef {
     pub fn input_names(&self) -> impl Iterator<Item = &str> {
         self.pieces.iter().filter_map(|p| match p {
             BlockPiece::Input { name, .. } => Some(name.as_str()),
-            BlockPiece::Label { .. } => None,
+            BlockPiece::Label { .. } | BlockPiece::Branch { .. } => None,
+        })
+    }
+
+    /// Declared branch names, in prototype order - the positional key a call
+    /// site's branch bodies line up against, and what the host's
+    /// branch-execution block looks up at runtime.
+    pub fn branch_names(&self) -> impl Iterator<Item = &str> {
+        self.pieces.iter().filter_map(|p| match p {
+            BlockPiece::Branch { name, .. } => Some(name.as_str()),
+            BlockPiece::Label { .. } | BlockPiece::Input { .. } => None,
         })
     }
 
@@ -143,34 +158,51 @@ impl BlockDef {
     pub fn input_types(&self) -> impl Iterator<Item = InputValueType> + '_ {
         self.pieces.iter().filter_map(|p| match p {
             BlockPiece::Input { value_type, .. } => Some(*value_type),
-            BlockPiece::Label { .. } => None,
+            BlockPiece::Label { .. } | BlockPiece::Branch { .. } => None,
         })
     }
 
     /// Validates a candidate `pieces` list: the trimmed labels must spell
-    /// out a name, and every input needs a non-empty, unique one.
+    /// out a name, every input needs a non-empty, unique one, and branch
+    /// callbacks share that same name pool (a branch runs in the body's
+    /// scope, so its name must not collide with an input's).
     pub fn validate_pieces(pieces: &[BlockPiece]) -> Result<(), String> {
         let flat_label: String = pieces
             .iter()
             .filter_map(|p| match p {
                 BlockPiece::Label { text, .. } => Some(text.trim()),
-                BlockPiece::Input { .. } => None,
+                BlockPiece::Input { .. } | BlockPiece::Branch { .. } => None,
             })
             .collect::<Vec<_>>()
             .join(" ");
         if flat_label.trim().is_empty() {
             return Err("Give the block a name".to_string());
         }
+        if pieces.iter().filter(|p| matches!(p, BlockPiece::Branch { .. })).count() > u8::MAX as usize {
+            return Err("A block can have at most 255 branches".to_string());
+        }
         let mut seen = std::collections::HashSet::new();
         for p in pieces {
-            if let BlockPiece::Input { name, .. } = p {
-                let trimmed = name.trim();
-                if trimmed.is_empty() {
-                    return Err("Every input needs a name".to_string());
+            match p {
+                BlockPiece::Input { name, .. } => {
+                    let trimmed = name.trim();
+                    if trimmed.is_empty() {
+                        return Err("Every input needs a name".to_string());
+                    }
+                    if !seen.insert(trimmed) {
+                        return Err(format!("Input name \"{trimmed}\" is used more than once"));
+                    }
                 }
-                if !seen.insert(trimmed) {
-                    return Err(format!("Input name \"{trimmed}\" is used more than once"));
+                BlockPiece::Branch { name, .. } => {
+                    let trimmed = name.trim();
+                    if trimmed.is_empty() {
+                        return Err("Every branch needs a name".to_string());
+                    }
+                    if !seen.insert(trimmed) {
+                        return Err(format!("Branch name \"{trimmed}\" is used more than once"));
+                    }
                 }
+                BlockPiece::Label { .. } => {}
             }
         }
         Ok(())
@@ -220,6 +252,56 @@ mod tests {
         assert!(BlockDef::validate_pieces(&[label("jump"), input("a", " ")]).is_err());
         assert!(
             BlockDef::validate_pieces(&[label("jump"), input("a", "x"), input("b", "x")]).is_err()
+        );
+    }
+
+    #[test]
+    fn branch_pieces_round_trip_and_validate() {
+        let branch = |id: &str, name: &str| BlockPiece::Branch {
+            id: id.to_string(),
+            name: name.to_string(),
+        };
+        let label = |text: &str| BlockPiece::Label {
+            id: "l".to_string(),
+            text: text.to_string(),
+        };
+        // The exact shape the Make-a-Block dialog sends: must deserialize,
+        // not fail with "unknown variant `Branch`".
+        let pieces: Vec<BlockPiece> = serde_json::from_value(serde_json::json!([
+            { "kind": "Label", "id": "l", "text": "run" },
+            { "kind": "Branch", "id": "b1", "name": "callback" },
+        ]))
+        .expect("Branch pieces must deserialize");
+        assert!(BlockDef::validate_pieces(&pieces).is_ok());
+        assert_eq!(
+            pieces[1].id(),
+            "b1",
+            "Branch keeps a stable id for call-site reconciliation"
+        );
+        let def = BlockDef {
+            id: "b".to_string(),
+            pieces,
+            shape: BlockShape::Normal,
+            color: default_block_color(),
+        };
+        assert_eq!(
+            def.branch_names().collect::<Vec<_>>(),
+            vec!["callback"],
+            "branch names line up positionally against call-site bodies"
+        );
+        assert!(def.input_names().next().is_none());
+        // Branches share the name pool with inputs.
+        assert!(
+            BlockDef::validate_pieces(&[
+                label("run"),
+                branch("b1", "x"),
+                BlockPiece::Input {
+                    id: "i".to_string(),
+                    name: "x".to_string(),
+                    value_type: InputValueType::Any,
+                },
+            ])
+            .is_err()
         );
     }
 }

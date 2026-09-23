@@ -48,6 +48,8 @@ pub enum Value {
     Call {
         block_id: String,
         args: Vec<Value>,
+        #[serde(default)]
+        branches: Vec<Vec<serde_json::Value>>,
         saved: Box<Value>,
     },
 }
@@ -518,6 +520,7 @@ impl Value {
                 block_id: id,
                 args,
                 saved,
+                ..
             } => {
                 if id == block_id {
                     f(args);
@@ -549,6 +552,7 @@ impl Value {
                 block_id: id,
                 args,
                 saved,
+                ..
             } => {
                 if id == block_id {
                     *self = Value::number(0.0);
@@ -616,10 +620,12 @@ impl Value {
             Value::Call {
                 block_id,
                 args,
+                branches,
                 saved,
             } => Value::Call {
                 block_id: block_id.clone(),
                 args: args.iter().map(|a| a.resolve_vars(env)).collect(),
+                branches: branches.clone(),
                 saved: Box::new(saved.resolve_vars(env)),
             },
         }
@@ -659,11 +665,13 @@ impl std::hash::Hash for Value {
             Value::Call {
                 block_id,
                 args,
+                branches,
                 saved,
             } => {
                 5u8.hash(state);
                 block_id.hash(state);
                 args.hash(state);
+                serde_json::to_string(branches).unwrap_or_default().hash(state);
                 saved.hash(state);
             }
         }
@@ -708,6 +716,8 @@ impl<'de> Deserialize<'de> for Value {
             Call {
                 block_id: String,
                 args: Vec<Value>,
+                #[serde(default)]
+                branches: Vec<Vec<serde_json::Value>>,
                 #[serde(default = "default_saved")]
                 saved: Box<Value>,
             },
@@ -749,10 +759,12 @@ impl<'de> Deserialize<'de> for Value {
             ValueDe::Current(Tagged::Call {
                 block_id,
                 args,
+                branches,
                 saved,
             }) => Value::Call {
                 block_id,
                 args,
+                branches,
                 saved,
             },
             ValueDe::Current(Tagged::BinaryOp {

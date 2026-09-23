@@ -256,7 +256,7 @@ impl<K: BlockKind> BlockGraph<K> {
             .iter()
             .filter_map(|p| match p {
                 BlockPiece::Input { id, value_type, .. } => Some((id.as_str(), *value_type)),
-                BlockPiece::Label { .. } => None,
+                BlockPiece::Label { .. } | BlockPiece::Branch { .. } => None,
             })
             .collect();
         // For each new input slot, which old slot (if any) it carries over from.
