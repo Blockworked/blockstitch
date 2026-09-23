@@ -21,6 +21,16 @@ export { default as ListPanel } from './lists/ListPanel.vue';
 export { default as ListEditorOverlay } from './lists/ListEditorOverlay.vue';
 export { default as MakeListDialog } from './lists/MakeListDialog.vue';
 
+// ── Dicts (document-scoped literal key/value collections + monitors) ─────
+export * from './dicts/dictTypes';
+export * from './dicts/dictOperators';
+export * from './dicts/dictNames';
+export * from './dicts/dictEditors';
+export * from './dicts/dictDialogs';
+export { default as DictPanel } from './dicts/DictPanel.vue';
+export { default as DictEditorOverlay } from './dicts/DictEditorOverlay.vue';
+export { default as MakeDictDialog } from './dicts/MakeDictDialog.vue';
+
 // ── Canvas host wiring ──────────────────────────────────────────────────────
 export * from './canvas/host';
 export {

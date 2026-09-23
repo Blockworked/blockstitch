@@ -58,6 +58,13 @@ pub trait BlockKind:
         None
     }
 
+    /// The dict name this kind *writes* (a set/delete/load block), so a
+    /// rename can follow it. Reporter reads live in values and need nothing
+    /// here.
+    fn dict_target_mut(&mut self) -> Option<&mut String> {
+        None
+    }
+
     /// True if this is a command-position invocation of `block_id`.
     fn calls_block(&self, _block_id: &str) -> bool {
         false
@@ -183,6 +190,21 @@ impl<K: BlockKind> Instruction<K> {
             }
             ins.kind.visit_values_mut(&mut |value, _| {
                 crate::graph::lists::rename_list_in_value(value, old, new)
+            });
+        });
+    }
+
+    /// Renames dict references: a dict block's own target name plus reporter
+    /// name args inside every value tree.
+    pub fn rename_dict(&mut self, old: &str, new: &str) {
+        self.walk_mut(&mut |ins| {
+            if let Some(target) = ins.kind.dict_target_mut()
+                && target == old
+            {
+                *target = new.to_string();
+            }
+            ins.kind.visit_values_mut(&mut |value, _| {
+                crate::graph::dicts::rename_dict_in_value(value, old, new)
             });
         });
     }

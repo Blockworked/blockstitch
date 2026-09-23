@@ -3,6 +3,7 @@
 
 use crate::graph::block::{BlockDef, BlockPiece, BlockShape, InputValueType};
 use crate::graph::canvas::{Comment, FloatingValue, Strand, VariableDef};
+use crate::graph::dicts::{DictDef, DictEntry, rename_dict_in_value};
 use crate::graph::instruction::{BlockKind, Instruction};
 use crate::graph::lists::{ListDef, ListItem, rename_list_in_value};
 use crate::graph::new_id;
@@ -31,6 +32,9 @@ pub struct BlockGraph<K> {
     /// User-declared document-wide lists - see [`ListDef`].
     #[serde(default)]
     pub lists: Vec<ListDef>,
+    /// User-declared document-wide dicts - see [`DictDef`].
+    #[serde(default)]
+    pub dicts: Vec<DictDef>,
     /// User-defined custom blocks - see [`BlockDef`]. Each def's body lives
     /// in its own header strand within `strands`.
     #[serde(default)]
@@ -45,6 +49,7 @@ impl<K> Default for BlockGraph<K> {
             comments: Vec::new(),
             variables: Vec::new(),
             lists: Vec::new(),
+            dicts: Vec::new(),
             block_defs: Vec::new(),
         }
     }
@@ -192,6 +197,75 @@ impl<K> BlockGraph<K> {
         list.editor_y = y.max(0);
         Ok(())
     }
+
+    /// Declared dicts and their persisted entries, as a runtime store wants them.
+    pub fn dict_values(&self) -> HashMap<String, Vec<DictEntry>> {
+        self.dicts
+            .iter()
+            .map(|dict| (dict.name.clone(), dict.entries.clone()))
+            .collect()
+    }
+
+    /// Writes live runtime dict contents back into their declared dicts.
+    pub fn sync_dicts_from(&mut self, values: &HashMap<String, Vec<DictEntry>>) {
+        for dict in &mut self.dicts {
+            if let Some(entries) = values.get(&dict.name) {
+                dict.entries = entries.clone();
+            }
+        }
+    }
+
+    /// Declares a dict starting empty, returning its trimmed name.
+    pub fn create_dict(&mut self, name: &str) -> Result<String, String> {
+        let trimmed = name.trim().to_string();
+        if trimmed.is_empty() {
+            return Err("Dict name can't be empty".to_string());
+        }
+        if self.dicts.iter().any(|dict| dict.name == trimmed) {
+            return Err(format!("A dict named \"{trimmed}\" already exists"));
+        }
+        self.dicts.push(DictDef {
+            name: trimmed.clone(),
+            entries: Vec::new(),
+            editor_visible: false,
+            editor_x: 0,
+            editor_y: 0,
+        });
+        Ok(trimmed)
+    }
+
+    /// Removes `name` from the declared dicts. Existing references are left
+    /// in place - reporters on an unknown dict read as empty.
+    pub fn remove_dict(&mut self, name: &str) {
+        self.dicts.retain(|dict| dict.name != name);
+    }
+
+    /// Replaces a dict's entries. `DictEntry` values are literal-only by
+    /// construction, which enforces the literal-only dict contract.
+    pub fn set_dict_entries(&mut self, name: &str, entries: Vec<DictEntry>) -> Result<(), String> {
+        let Some(dict) = self.dicts.iter_mut().find(|dict| dict.name == name) else {
+            return Err("Dict not found".to_string());
+        };
+        dict.entries = entries;
+        Ok(())
+    }
+
+    /// Saves whether a dict's editable canvas monitor is open and where it sits.
+    pub fn set_dict_editor_state(
+        &mut self,
+        name: &str,
+        visible: bool,
+        x: i32,
+        y: i32,
+    ) -> Result<(), String> {
+        let Some(dict) = self.dicts.iter_mut().find(|dict| dict.name == name) else {
+            return Err("Dict not found".to_string());
+        };
+        dict.editor_visible = visible;
+        dict.editor_x = x.max(0);
+        dict.editor_y = y.max(0);
+        Ok(())
+    }
 }
 
 impl<K: BlockKind> BlockGraph<K> {
@@ -303,6 +377,37 @@ impl<K: BlockKind> BlockGraph<K> {
         }
         for floating in &mut self.floating_values {
             rename_list_in_value(&mut floating.value, old, new);
+        }
+        Ok(trimmed)
+    }
+
+    /// Renames a declared dict and every reference to it, returning the
+    /// trimmed name. Renaming to its own current name is a no-op success.
+    /// Command targets rename via [`BlockKind::dict_target_mut`]; reporter
+    /// name args rename inside every value tree.
+    pub fn rename_dict(&mut self, old: &str, new: &str) -> Result<String, String> {
+        let trimmed = new.trim().to_string();
+        if trimmed.is_empty() {
+            return Err("Dict name can't be empty".to_string());
+        }
+        if trimmed != old && self.dicts.iter().any(|dict| dict.name == trimmed) {
+            return Err(format!("A dict named \"{trimmed}\" already exists"));
+        }
+        let Some(dict) = self.dicts.iter_mut().find(|dict| dict.name == old) else {
+            return Err("Dict not found".to_string());
+        };
+        if trimmed == old {
+            return Ok(trimmed);
+        }
+        dict.name = trimmed.clone();
+        let new = trimmed.as_str();
+        for strand in &mut self.strands {
+            for ins in &mut strand.instructions {
+                ins.rename_dict(old, new);
+            }
+        }
+        for floating in &mut self.floating_values {
+            rename_dict_in_value(&mut floating.value, old, new);
         }
         Ok(trimmed)
     }

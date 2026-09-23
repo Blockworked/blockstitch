@@ -1,4 +1,4 @@
-// List reporter operators shared by every blockstitch host. The seven
+// List reporter operators shared by every blockstitch host. The eight
 // reporters read a document-scoped list by name; that name arg is a fixed
 // dropdown (a plain `Text` leaf), at the second position except for the
 // three below where it is the first. Mirrors blockstitch-core's
@@ -7,7 +7,7 @@
 import type { OperatorKindSpec } from '../graph/operatorRegistry';
 import type { ValueNode } from '../values/valueNode';
 
-/** Wire names of the seven list reporters. */
+/** Wire names of the eight list reporters. */
 export const LIST_REPORTER_OPS = [
   'ListItem',
   'ListItemNumber',
@@ -16,6 +16,7 @@ export const LIST_REPORTER_OPS = [
   'ListContains',
   'ListItemExists',
   'ListIsEmpty',
+  'ListAsJson',
 ] as const;
 
 export type ListReporterOp = (typeof LIST_REPORTER_OPS)[number];
@@ -29,6 +30,7 @@ export const LIST_NAME_ARG_INDEX: Partial<Record<string, number>> = {
   ListContains: 0,
   ListItemExists: 1,
   ListIsEmpty: 0,
+  ListAsJson: 0,
 };
 
 export function isListReporterOp(op: string): boolean {
@@ -41,7 +43,7 @@ export interface ListNameOption {
 }
 
 /**
- * The seven list-reporter palette specs, bound to the host's live
+ * The eight list-reporter palette specs, bound to the host's live
  * list-name choices. `nameOptions`/`emptyOptions` are the reactive arrays
  * from `./listNames` (kept stable so specs see renames); the `is ... empty?`
  * entry gets its own array only because its phrasing needs a different
@@ -60,6 +62,7 @@ export function listReporterSpecs(
     { kind: 'ListContains', op: 'ListContains', arity: 2, argTypes: ['text', 'text'], resultType: 'bool', infix: 'contains', enumArg: { index: 0, ...listArg } },
     { kind: 'ListItemExists', op: 'ListItemExists', arity: 2, argTypes: ['number', 'text'], resultType: 'bool', prefix: 'item', infix: 'exists in', enumArg: { index: 1, ...listArg } },
     { kind: 'ListIsEmpty', op: 'ListIsEmpty', arity: 1, argTypes: ['text'], resultType: 'bool', prefix: 'is', suffix: 'empty?', enumArg: { index: 0, options: emptyOptions } },
+    { kind: 'ListAsJson', op: 'ListAsJson', arity: 1, argTypes: ['text'], resultType: 'text', suffix: 'as JSON', enumArg: { index: 0, ...listArg } },
   ];
 }
 

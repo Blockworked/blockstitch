@@ -87,11 +87,11 @@ impl std::hash::Hash for ListDef {
 
 /// Arg index holding the list name for a list-reporter op, by wire name.
 /// The name is the second arg except for `ListLength`/`ListContains`/
-/// `ListIsEmpty`, where it is the first.
+/// `ListIsEmpty`/`ListAsJson`, where it is the first.
 pub fn list_reporter_name_index(op_name: &str) -> Option<usize> {
     match op_name {
         "ListItem" | "ListItemNumber" | "ListAmount" | "ListItemExists" => Some(1),
-        "ListLength" | "ListContains" | "ListIsEmpty" => Some(0),
+        "ListLength" | "ListContains" | "ListIsEmpty" | "ListAsJson" => Some(0),
         _ => None,
     }
 }
@@ -174,7 +174,7 @@ pub fn resolve_list_reporter(
     let list_name = match op_name {
         "ListItem" | "ListItemNumber" | "ListAmount" | "ListItemExists" => text(1)?,
         "ListContains" => text(0)?,
-        "ListLength" | "ListIsEmpty" => text(0)?,
+        "ListLength" | "ListIsEmpty" | "ListAsJson" => text(0)?,
         _ => return Err("not a list reporter".to_string()),
     };
     let list = lists.get(&list_name).cloned().unwrap_or_default();
@@ -205,9 +205,58 @@ pub fn resolve_list_reporter(
         }
         "ListItemExists" => Evaluated::Bool(list_index(number(0)?, list.len(), false).is_some()),
         "ListIsEmpty" => Evaluated::Bool(list.is_empty()),
+        "ListAsJson" => Evaluated::Text(list_to_json(&list)),
         _ => unreachable!("validated by is_list_reporter"),
     };
     Ok(evaluated.into_value())
+}
+
+/// Serializes list items as a JSON array, in order. Numbers stay numeric,
+/// text is quoted - the inverse of [`parse_json_array`].
+pub fn list_to_json(items: &[ListItem]) -> String {
+    let mut out = String::from("[");
+    for (index, item) in items.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        match item {
+            ListItem::Number(value) => {
+                if value.is_finite() {
+                    out.push_str(&serde_json::to_string(value).unwrap_or_else(|_| "null".to_string()));
+                } else {
+                    out.push_str("null");
+                }
+            }
+            ListItem::Text(value) => {
+                out.push_str(&serde_json::to_string(value).unwrap_or_else(|_| "\"\"".to_string()))
+            }
+        }
+    }
+    out.push(']');
+    out
+}
+
+/// Parses a JSON array into list items, in order. Only numbers and strings
+/// are valid elements - anything else (booleans, null, nested objects or
+/// arrays) is an error naming the offending position.
+pub fn parse_json_array(text: &str) -> Result<Vec<ListItem>, String> {
+    let json: serde_json::Value =
+        serde_json::from_str(text).map_err(|_| "that text isn't a JSON array".to_string())?;
+    let serde_json::Value::Array(elements) = json else {
+        return Err("that text isn't a JSON array".to_string());
+    };
+    elements
+        .into_iter()
+        .enumerate()
+        .map(|(index, json)| match json {
+            serde_json::Value::Number(value) => value
+                .as_f64()
+                .map(ListItem::Number)
+                .ok_or_else(|| format!("item {} isn't a number or text", index + 1)),
+            serde_json::Value::String(value) => Ok(ListItem::Text(value)),
+            _ => Err(format!("item {} isn't a number or text", index + 1)),
+        })
+        .collect()
 }
 
 /// Replaces list reporter nodes with their values from `lists`, without
@@ -312,6 +361,19 @@ mod tests {
             resolve_list_reporters(&length, &lists).and_then(|value| value.eval_text()),
             Ok("2".to_string())
         );
+    }
+
+    #[test]
+    fn list_json_round_trips_flat_arrays() {
+        let items = vec![ListItem::Number(2.0), ListItem::Text("a\"b".into())];
+        let json = list_to_json(&items);
+        assert_eq!(json, r#"[2.0,"a\"b"]"#);
+        assert_eq!(parse_json_array(&json).unwrap(), items);
+        assert!(parse_json_array(r#"{"a":1}"#).is_err());
+        assert!(parse_json_array("[true]").is_err());
+        assert!(parse_json_array("[null]").is_err());
+        assert!(parse_json_array("[[1]]").is_err());
+        assert!(parse_json_array("nope").is_err());
     }
 
     #[test]
