@@ -45,5 +45,5 @@ pub mod editor;
 pub mod graph;
 pub mod value;
 
-pub use graph::{BlockGraph, BlockKind, Instruction};
+pub use graph::{BlockGraph, BlockKind, Instruction, ListDef, ListItem, ListStore};
 pub use value::{Evaluated, Op, Value};

@@ -4,6 +4,7 @@
 use crate::graph::block::{BlockDef, BlockPiece, BlockShape, InputValueType};
 use crate::graph::canvas::{Comment, FloatingValue, Strand, VariableDef};
 use crate::graph::instruction::{BlockKind, Instruction};
+use crate::graph::lists::{ListDef, ListItem, rename_list_in_value};
 use crate::graph::new_id;
 use crate::value::{Evaluated, Value};
 use serde::{Deserialize, Serialize};
@@ -27,6 +28,9 @@ pub struct BlockGraph<K> {
     /// User-declared document-wide variables - see [`VariableDef`].
     #[serde(default)]
     pub variables: Vec<VariableDef>,
+    /// User-declared document-wide lists - see [`ListDef`].
+    #[serde(default)]
+    pub lists: Vec<ListDef>,
     /// User-defined custom blocks - see [`BlockDef`]. Each def's body lives
     /// in its own header strand within `strands`.
     #[serde(default)]
@@ -40,6 +44,7 @@ impl<K> Default for BlockGraph<K> {
             floating_values: Vec::new(),
             comments: Vec::new(),
             variables: Vec::new(),
+            lists: Vec::new(),
             block_defs: Vec::new(),
         }
     }
@@ -117,6 +122,75 @@ impl<K> BlockGraph<K> {
     /// left in place - `Value::resolve_vars` defaults an unknown name to `0`.
     pub fn remove_variable(&mut self, name: &str) {
         self.variables.retain(|v| v.name != name);
+    }
+
+    /// Declared lists and their persisted items, as a runtime store wants them.
+    pub fn list_values(&self) -> HashMap<String, Vec<ListItem>> {
+        self.lists
+            .iter()
+            .map(|list| (list.name.clone(), list.items.clone()))
+            .collect()
+    }
+
+    /// Writes live runtime list contents back into their declared lists.
+    pub fn sync_lists_from(&mut self, values: &HashMap<String, Vec<ListItem>>) {
+        for list in &mut self.lists {
+            if let Some(items) = values.get(&list.name) {
+                list.items = items.clone();
+            }
+        }
+    }
+
+    /// Declares a list starting empty, returning its trimmed name.
+    pub fn create_list(&mut self, name: &str) -> Result<String, String> {
+        let trimmed = name.trim().to_string();
+        if trimmed.is_empty() {
+            return Err("List name can't be empty".to_string());
+        }
+        if self.lists.iter().any(|list| list.name == trimmed) {
+            return Err(format!("A list named \"{trimmed}\" already exists"));
+        }
+        self.lists.push(ListDef {
+            name: trimmed.clone(),
+            items: Vec::new(),
+            editor_visible: false,
+            editor_x: 0,
+            editor_y: 0,
+        });
+        Ok(trimmed)
+    }
+
+    /// Removes `name` from the declared lists. Existing references are left
+    /// in place - reporters on an unknown list read as empty.
+    pub fn remove_list(&mut self, name: &str) {
+        self.lists.retain(|list| list.name != name);
+    }
+
+    /// Replaces a list's items. `ListItem` is literal-only by construction,
+    /// which enforces the literal-only list contract.
+    pub fn set_list_items(&mut self, name: &str, items: Vec<ListItem>) -> Result<(), String> {
+        let Some(list) = self.lists.iter_mut().find(|list| list.name == name) else {
+            return Err("List not found".to_string());
+        };
+        list.items = items;
+        Ok(())
+    }
+
+    /// Saves whether a list's editable canvas monitor is open and where it sits.
+    pub fn set_list_editor_state(
+        &mut self,
+        name: &str,
+        visible: bool,
+        x: i32,
+        y: i32,
+    ) -> Result<(), String> {
+        let Some(list) = self.lists.iter_mut().find(|list| list.name == name) else {
+            return Err("List not found".to_string());
+        };
+        list.editor_visible = visible;
+        list.editor_x = x.max(0);
+        list.editor_y = y.max(0);
+        Ok(())
     }
 }
 
@@ -198,6 +272,37 @@ impl<K: BlockKind> BlockGraph<K> {
         }
         for floating in &mut self.floating_values {
             floating.value.rename_var(old, new);
+        }
+        Ok(trimmed)
+    }
+
+    /// Renames a declared list and every reference to it, returning the
+    /// trimmed name. Renaming to its own current name is a no-op success.
+    /// Command targets rename via [`BlockKind::list_target_mut`]; reporter
+    /// name args rename inside every value tree.
+    pub fn rename_list(&mut self, old: &str, new: &str) -> Result<String, String> {
+        let trimmed = new.trim().to_string();
+        if trimmed.is_empty() {
+            return Err("List name can't be empty".to_string());
+        }
+        if trimmed != old && self.lists.iter().any(|list| list.name == trimmed) {
+            return Err(format!("A list named \"{trimmed}\" already exists"));
+        }
+        let Some(list) = self.lists.iter_mut().find(|list| list.name == old) else {
+            return Err("List not found".to_string());
+        };
+        if trimmed == old {
+            return Ok(trimmed);
+        }
+        list.name = trimmed.clone();
+        let new = trimmed.as_str();
+        for strand in &mut self.strands {
+            for ins in &mut strand.instructions {
+                ins.rename_list(old, new);
+            }
+        }
+        for floating in &mut self.floating_values {
+            rename_list_in_value(&mut floating.value, old, new);
         }
         Ok(trimmed)
     }

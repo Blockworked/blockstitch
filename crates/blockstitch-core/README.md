@@ -28,7 +28,7 @@ resolving the value a drag targeted, dropping one in, and undo/redo.
 | module   | what's in it                                                                                                   |
 | -------- | -------------------------------------------------------------------------------------------------------------- |
 | `value`  | `Value` expression trees, `Evaluated` results, the built-in `Op` set, and the host operator registry             |
-| `graph`  | `BlockGraph` (strands, instructions, parked values, notes, variables, custom blocks) and the `BlockKind` trait   |
+| `graph`  | `BlockGraph` (strands, instructions, parked values, notes, variables, lists, custom blocks) and the `BlockKind` trait   |
 | `editor` | `PathStep`/`ValueLocation` addressing, the undo `History`, and every structural edit a canvas gesture performs   |
 
 Editor operations validate first and mutate second, and none of them lock,

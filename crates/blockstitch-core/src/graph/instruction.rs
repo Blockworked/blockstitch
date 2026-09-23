@@ -51,6 +51,13 @@ pub trait BlockKind:
         None
     }
 
+    /// The list name this kind *writes* (an add/delete/insert/replace block),
+    /// so a rename can follow it. Reporter reads live in values and need
+    /// nothing here.
+    fn list_target_mut(&mut self) -> Option<&mut String> {
+        None
+    }
+
     /// True if this is a command-position invocation of `block_id`.
     fn calls_block(&self, _block_id: &str) -> bool {
         false
@@ -162,6 +169,21 @@ impl<K: BlockKind> Instruction<K> {
             }
             ins.kind
                 .visit_values_mut(&mut |value, _| value.rename_var(old, new));
+        });
+    }
+
+    /// Renames list references: a list block's own target name plus reporter
+    /// name args inside every value tree.
+    pub fn rename_list(&mut self, old: &str, new: &str) {
+        self.walk_mut(&mut |ins| {
+            if let Some(target) = ins.kind.list_target_mut()
+                && target == old
+            {
+                *target = new.to_string();
+            }
+            ins.kind.visit_values_mut(&mut |value, _| {
+                crate::graph::lists::rename_list_in_value(value, old, new)
+            });
         });
     }
 

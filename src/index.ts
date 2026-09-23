@@ -11,6 +11,16 @@ export * from './graph/shapeRegistry';
 export * from './graph/fieldRegistry';
 export * from './graph/operatorRegistry';
 
+// ── Lists (document-scoped literal collections + monitors) ────────────────
+export * from './lists/listTypes';
+export * from './lists/listOperators';
+export * from './lists/listNames';
+export * from './lists/listEditors';
+export * from './lists/listDialogs';
+export { default as ListPanel } from './lists/ListPanel.vue';
+export { default as ListEditorOverlay } from './lists/ListEditorOverlay.vue';
+export { default as MakeListDialog } from './lists/MakeListDialog.vue';
+
 // ── Canvas host wiring ──────────────────────────────────────────────────────
 export * from './canvas/host';
 export {
