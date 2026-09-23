@@ -17,6 +17,7 @@ Item {
     signal dragCanceled()
     signal activated()
     signal keyCaptureRequested()
+    signal appPickerRequested(var instruction)
     signal detailsRequested(string type)
     implicitWidth: block.implicitWidth
     implicitHeight: block.implicitHeight
@@ -27,6 +28,7 @@ Item {
         instruction: root.instruction; variables: root.variables; lists: root.lists; blockDefinitions: root.blockDefinitions
         keyCapture: root.keyCapture; blockColor: root.blockColor; paletteMode: true; locked: true
         onKeyCaptureRequested: root.keyCaptureRequested()
+        onAppPickerRequested: (sid, p, i) => root.appPickerRequested(i)
         onDetailsRequested: type => root.detailsRequested(type)
         onDragBegan: (sid, p, tail, sx, sy, ox, oy) => root.dragStarted(root.spec, sx, sy, ox, oy)
         onDragMoved: (sx, sy) => root.dragMoved(sx, sy)

@@ -30,6 +30,7 @@ Item {
     signal valueEdited(var location, string text)
     signal runBranchRequested(string strandId, var path, string name)
     signal keyCaptureRequested(string strandId, var path)
+    signal appPickerRequested(string strandId, var path, var instruction)
     signal detailsRequested(string type)
 
     readonly property string type: instruction ? instruction.type : ""
@@ -44,16 +45,29 @@ Item {
     readonly property real footHeight: 26
     readonly property real emptyMouth: 26
     readonly property bool hovered: grab.hovered && !grab.dragging
-    // 0: unaffected, 1: moves with the dragged block (it or a later sibling), 2: contains the dragged block
+    // 0: unaffected, 1: moves with the dragged block (it or a later sibling), 2: contains the dragged block.
+    // While `settling` (dropped, waiting for the daemon round trip) the tail
+    // keeps its drop offset so it doesn't visibly snap back and teleport.
     readonly property int dragRole: {
         const d = dragState;
-        if (!d || !d.active || d.strandId !== strandId) return 0;
-        const a = d.path, b = path;
-        if (b.length > a.length) return 0;
-        for (let i = 0; i < b.length - 1; ++i)
-            if (b[i].index !== a[i].index || (b[i].slot || 0) !== (a[i].slot || 0)) return 0;
-        if (b.length < a.length) return b[b.length - 1].index === a[b.length - 1].index ? 2 : 0;
-        return b[b.length - 1].index >= a[a.length - 1].index ? 1 : 0;
+        if (!d) return 0;
+        if (d.active && d.strandId === strandId) {
+            const a = d.path, b = path;
+            if (b.length > a.length) return 0;
+            for (let i = 0; i < b.length - 1; ++i)
+                if (b[i].index !== a[i].index || (b[i].slot || 0) !== (a[i].slot || 0)) return 0;
+            if (b.length < a.length) return b[b.length - 1].index === a[b.length - 1].index ? 2 : 0;
+            return b[b.length - 1].index >= a[a.length - 1].index ? 1 : 0;
+        }
+        if (d.settling && d.settleStrandId === strandId) {
+            const a = d.settlePath || [], b = path;
+            if (!a.length || b.length > a.length) return 0;
+            for (let i = 0; i < b.length - 1; ++i)
+                if (b[i].index !== a[i].index || (b[i].slot || 0) !== (a[i].slot || 0)) return 0;
+            if (b.length < a.length) return b[b.length - 1].index === a[b.length - 1].index ? 2 : 0;
+            return b[b.length - 1].index >= a[a.length - 1].index ? 1 : 0;
+        }
+        return 0;
     }
     readonly property color displayColor: {
         if (instruction && ["CallBlock","BranchCallBlock","BlockHeader"].indexOf(type) >= 0) {
@@ -64,7 +78,19 @@ Item {
     implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 36))
     implicitHeight: isWrap ? headHeight + mouthTotal + Math.max(0, slotCount() - 1) * midHeight + footHeight + tabDepth : rowHeight
     z: dragRole > 0 ? 50 : hovered ? 2 : 1
-    transform: Translate { x: root.dragRole === 1 ? root.dragState.dx : 0; y: root.dragRole === 1 ? root.dragState.dy : 0 }
+    readonly property real dragOffsetX: {
+        if (!dragState || dragRole !== 1) return 0;
+        if (dragState.active) return dragState.dx;
+        if (dragState.settling) return dragState.settleDx;
+        return 0;
+    }
+    readonly property real dragOffsetY: {
+        if (!dragState || dragRole !== 1) return 0;
+        if (dragState.active) return dragState.dy;
+        if (dragState.settling) return dragState.settleDy;
+        return 0;
+    }
+    transform: Translate { x: root.dragOffsetX; y: root.dragOffsetY }
 
     // Heights/widths of each mouth's nested content, reported by the mouth delegates.
     property var mouthHeights: []
@@ -198,9 +224,9 @@ Item {
         Text { visible:root.type==="Command"; text:"Run command:"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
         BwTextField { visible:root.type==="Command"; text:instruction&&instruction.command?instruction.command:""; placeholderText:"command"; implicitWidth:150; implicitHeight:30; font.pixelSize:12; onEditingFinished:root.setField("command",text) }
         Text { visible:root.type==="OpenApp"; text:"Open app:"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-        BwButton { visible:root.type==="OpenApp"; text:instruction&&instruction.name?instruction.name:"Choose app…"; implicitHeight:30; font.pixelSize:12 }
+        BwButton { visible:root.type==="OpenApp"; text:instruction&&instruction.name?instruction.name:"Choose app…"; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
         Text { visible:root.type==="CloseApp"; text:"Close app:"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-        BwButton { visible:root.type==="CloseApp"; text:instruction&&instruction.name?instruction.name:"Choose app…"; implicitHeight:30; font.pixelSize:12 }
+        BwButton { visible:root.type==="CloseApp"; text:instruction&&instruction.name?instruction.name:"Choose app…"; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
         Text { visible:root.type==="SetVariable"; text:"set"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
         BwComboBox { visible:root.type==="SetVariable"; model:Array.from(root.variables||[]); currentIndex:instruction?Array.from(root.variables||[]).indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:"Choose variable"); implicitWidth:106; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("name",currentText) }
         Text { visible:root.type==="SetVariable"; text:"to"; color:Theme.textDim; anchors.verticalCenter:parent.verticalCenter }
@@ -303,6 +329,7 @@ Item {
                             item.valueEdited.connect((l, t) => root.valueEdited(l, t));
                             item.runBranchRequested.connect((s, p, n) => root.runBranchRequested(s, p, n));
                             item.keyCaptureRequested.connect((s, p) => root.keyCaptureRequested(s, p));
+                            item.appPickerRequested.connect((s, p, i) => root.appPickerRequested(s, p, i));
                             item.detailsRequested.connect(t => root.detailsRequested(t));
                             item.dragBegan.connect(root.dragBegan); item.dragMoved.connect(root.dragMoved);
                             item.dragEnded.connect(root.dragEnded); item.dragCanceled.connect(root.dragCanceled);

@@ -33,10 +33,15 @@ Rectangle {
     signal listItemsEdited(string name, var items)
     signal listEditorStateChanged(string name, bool visible, int x, int y)
     signal keyCaptureRequested(string strandId, var path)
+    signal appPickerRequested(string strandId, var path, var instruction)
     signal detailsRequested(string type)
     color:Theme.canvas; clip:true
 
     // Drag session for blocks picked up on the canvas. Blocks read this to follow the pointer.
+    // After a drop we keep a "settle" offset so the dragged blocks stay at
+    // the drop point until the daemon round trip confirms the move. Without
+    // this the transform snaps back to 0 on drop (visible revert) and the
+    // block only teleports to its new position once the new state arrives.
     QtObject {
         id: dragSession
         property bool active: false
@@ -51,13 +56,57 @@ Rectangle {
         property real dy: 0
         property real sceneX: 0    // pointer, scene coordinates
         property real sceneY: 0
+        // Set on drop, cleared once the new strands confirm the move (or on timeout).
+        property bool settling: false
+        property string settleStrandId: ""
+        property var settlePath: []
+        property real settleDx: 0
+        property real settleDy: 0
     }
     readonly property bool dragging: dragSession.active
     readonly property real dragSceneX: dragSession.sceneX
     readonly property real dragSceneY: dragSession.sceneY
     function strandById(id) { const list = root.strands || []; for (let i = 0; i < list.length; ++i) if (list[i].id === id) return list[i]; return null; }
+    // Stable strand model: a plain `Repeater { model: root.strands }` over a
+    // JS array destroys and recreates *every* strand delegate whenever the
+    // array identity changes (which is every daemon state push, since
+    // appState is re-parsed from JSON). That reads as all blocks flickering
+    // at once. Syncing into a ListModel keyed by strand id instead keeps
+    // untouched strands' delegates (and their nested blocks) alive: moves
+    // only touch x/y roles, content changes only touch that strand.
+    // NOTE: the instruction list is stored as a JSON *string* role. Storing
+    // the raw JS array in a ListModel role does not round-trip: reads come
+    // back as non-array sequences (no .length, Array.isArray false) and
+    // setProperty with an array wipes the role, emptying every strand.
+    ListModel { id: strandModel }
+    function syncStrands() {
+        const list = root.strands || [];
+        for (let i = strandModel.count - 1; i >= 0; --i) {
+            const sid = strandModel.get(i).sid;
+            let alive = false;
+            for (let j = 0; j < list.length; ++j) if (list[j].id === sid) { alive = true; break; }
+            if (!alive) strandModel.remove(i);
+        }
+        for (let j = 0; j < list.length; ++j) {
+            const s = list[j];
+            const payload = JSON.stringify(s.instructions || []);
+            let at = -1;
+            for (let i = 0; i < strandModel.count; ++i) if (strandModel.get(i).sid === s.id) { at = i; break; }
+            if (at === -1) {
+                strandModel.insert(j, { sid: s.id, sx: s.x, sy: s.y, payload: payload });
+            } else {
+                if (at !== j) { strandModel.move(at, j, 1); at = j; }
+                if (strandModel.get(at).sx !== s.x) strandModel.setProperty(at, "sx", s.x);
+                if (strandModel.get(at).sy !== s.y) strandModel.setProperty(at, "sy", s.y);
+                if (strandModel.get(at).payload !== payload)
+                    strandModel.setProperty(at, "payload", payload);
+            }
+        }
+        while (strandModel.count > list.length) strandModel.remove(strandModel.count - 1);
+    }
     function beginDrag(strandId, path, tailCount, sx, sy, ox, oy) {
         const p = workspace.mapFromItem(null, sx, sy);
+        dragSession.settling = false;
         dragSession.strandId = strandId; dragSession.path = path; dragSession.tailCount = tailCount;
         dragSession.startX = p.x; dragSession.startY = p.y; dragSession.originX = p.x - ox; dragSession.originY = p.y - oy;
         dragSession.dx = 0; dragSession.dy = 0; dragSession.active = true;
@@ -74,12 +123,24 @@ Rectangle {
         const strandId = dragSession.strandId, path = dragSession.path, tail = dragSession.tailCount;
         const dx = dragSession.dx, dy = dragSession.dy, ox = dragSession.originX, oy = dragSession.originY;
         dragSession.active = false;
-        if (!root.contains(root.mapFromItem(null, sx, sy))) { root.blockDragOutside(strandId, path, tail, sx, sy); return; }
+        if (!root.contains(root.mapFromItem(null, sx, sy))) { dragSession.settling = false; root.blockDragOutside(strandId, path, tail, sx, sy); return; }
+        // Optimistic settle: keep rendering the dragged tail at the drop
+        // point until the backend state confirms the move/split. Cleared in
+        // onStrandsChanged or by settleTimer below.
+        dragSession.settleStrandId = strandId;
+        dragSession.settlePath = path;
+        dragSession.settleDx = dx;
+        dragSession.settleDy = dy;
+        dragSession.settling = true;
+        settleTimer.restart();
         const strand = strandById(strandId);
         if (path.length === 1 && path[0].index === 0 && strand) root.strandMoved(strandId, Math.round(strand.x + dx), Math.round(strand.y + dy));
         else root.instructionSplit(strandId, path, Math.round(ox + dx), Math.round(oy + dy));
     }
-    function cancelDrag() { dragSession.active = false; }
+    function cancelDrag() { dragSession.active = false; dragSession.settling = false; }
+    Timer { id: settleTimer; interval: 1500; onTriggered: dragSession.settling = false }
+    onStrandsChanged: { syncStrands(); if (dragSession.settling) dragSession.settling = false; }
+    Component.onCompleted: syncStrands()
     // Workspace coordinates for a scene point, or null when it is outside the canvas.
     function workspacePoint(sx, sy) {
         if (!root.contains(root.mapFromItem(null, sx, sy))) return null;
@@ -107,22 +168,29 @@ Rectangle {
                 }
             }
             Repeater {
-                model:root.strands||[]
+                model: strandModel
                 delegate:Column {
-                    id:strand; required property var modelData; required property int index
-                    x:modelData.x; y:modelData.y; spacing:-8
-                    z: dragSession.active && dragSession.strandId === modelData.id ? 100 : 0
+                    id:strand
+                    required property string sid
+                    required property real sx
+                    required property real sy
+                    required property string payload
+                    required property int index
+                    readonly property var blockList: JSON.parse(payload || "[]")
+                    x:sx; y:sy; spacing:-8
+                    z: (dragSession.active && dragSession.strandId === sid) || (dragSession.settling && dragSession.settleStrandId === sid) ? 100 : 0
                     Repeater {
-                        model:strand.modelData.instructions||[]
+                        model:strand.blockList||[]
                         delegate:InstructionBlock {
                             id:block; required property var modelData; required property int index
-                            instruction:modelData; strandId:strand.modelData.id; path:[{index:index}]; tailCount:(strand.modelData.instructions||[]).length-index; dragState:dragSession
+                            instruction:modelData; strandId:strand.sid; path:[{index:index}]; tailCount:(strand.blockList||[]).length-index; dragState:dragSession
                             variables:root.variables; lists:root.lists; blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; locked:root.locked
                             onRemoveRequested:(sid,p)=>root.instructionRemoved(sid,p)
                             onDuplicateRequested:(sid,p,i)=>root.instructionDuplicated(sid,p,i)
                             onCommentRequested:i=>root.commentForInstructionRequested(i)
                             onRecordingTargetRequested:sid=>root.recordingTargetRequested(sid)
                             onKeyCaptureRequested:(sid,p)=>root.keyCaptureRequested(sid,p)
+                            onAppPickerRequested:(sid,p,i)=>root.appPickerRequested(sid,p,i)
                             onDetailsRequested:type=>root.detailsRequested(type)
                             onInstructionEdited:(sid,p,i)=>root.instructionEdited(sid,p,i)
                             onRunBranchRequested:(sid,p,n)=>root.runBranchRequested(sid,p,n)
