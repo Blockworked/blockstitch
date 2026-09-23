@@ -17,7 +17,7 @@ Item {
     property var dragState: null
     // number of instructions from this one to the end of its list (inclusive)
     property int tailCount: 1
-    signal dragBegan(string strandId, var path, int tailCount, real sceneX, real sceneY, real offsetX, real offsetY)
+    signal dragBegan(string strandId, var path, int tailCount, real sceneX, real sceneY, real offsetX, real offsetY, real blockW, real blockH)
     signal dragMoved(real sceneX, real sceneY)
     signal dragEnded(real sceneX, real sceneY)
     signal dragCanceled()
@@ -90,13 +90,80 @@ Item {
         if (dragState.settling) return dragState.settleDy;
         return 0;
     }
-    transform: Translate { x: root.dragOffsetX; y: root.dragOffsetY }
+    // Attach preview gap: stationary rows at/after the snap insertion point
+    // shift down by exactly the dragged height, opening real room. Dragged
+    // rows (dragRole 1) are excluded - they already follow the pointer.
+    readonly property real snapShift: {
+        const d = dragState;
+        if (!d || !d.snapValid) return 0;
+        if (d.snapTargetId !== strandId) return 0;
+        if (dragRole === 1) return 0;
+        const sp = d.snapPath || [];
+        if (!sp.length || sp.length !== path.length) return 0;
+        for (let i = 0; i < path.length - 1; ++i) {
+            if (path[i].index !== sp[i].index) return 0;
+            const a = (path[i].slot === undefined || path[i].slot === null) ? null : path[i].slot;
+            const b = (sp[i].slot === undefined || sp[i].slot === null) ? null : sp[i].slot;
+            if (a !== b) return 0;
+        }
+        if (path[path.length - 1].index < sp[sp.length - 1].index) return 0;
+        return d.snapShiftAmt || Math.max(0, (d.snapHeight || 58) - 8);
+    }
+    transform: Translate { x: root.dragOffsetX; y: root.dragOffsetY + root.snapShift }
 
     // Heights/widths of each mouth's nested content, reported by the mouth delegates.
     property var mouthHeights: []
     property var mouthWidths: []
     property var flatEnds: []
-    readonly property real mouthTotal: { let sum = 0; for (let k = 0; k < slotCount(); ++k) sum += mouthHeights[k] || emptyMouth; return sum; }
+    function isSnapMouth(k) {
+        const d = dragState;
+        if (!d || !d.snapValid) return false;
+        if (d.snapTargetId !== strandId) return false;
+        const sp = d.snapPath || [];
+        if (sp.length !== path.length + 1) return false;
+        for (let i = 0; i < path.length; ++i) {
+            if (path[i].index !== sp[i].index) return false;
+            if (i < path.length - 1) {
+                const a = (path[i].slot === undefined || path[i].slot === null) ? null : path[i].slot;
+                const b = (sp[i].slot === undefined || sp[i].slot === null) ? null : sp[i].slot;
+                if (a !== b) return false;
+            }
+        }
+        const mouthSlot = (sp[path.length - 1].slot === undefined || sp[path.length - 1].slot === null) ? null : sp[path.length - 1].slot;
+        return mouthSlot === k;
+    }
+    // The mouth the dragged tail is being pulled out of (if this block's
+    // mouth is it): mirrors isSnapMouth against the drag's source container
+    // so the bracket shell collapses around the remaining prefix live.
+    function isSourceMouth(k) {
+        const d = dragState;
+        if (!d || (!d.active && !d.settling)) return false;
+        if (d.sourceStrandId !== strandId) return false;
+        const sp = d.sourceBasePath || [];
+        // NOTE: unlike a snap path (container + insertion step), the source
+        // base path addresses the container itself, so it is the same length
+        // as the owning wrap block's path.
+        if (!sp.length || sp.length !== path.length) return false;
+        for (let i = 0; i < path.length; ++i) {
+            if (path[i].index !== sp[i].index) return false;
+            if (i < path.length - 1) {
+                const a = (path[i].slot === undefined || path[i].slot === null) ? null : path[i].slot;
+                const b = (sp[i].slot === undefined || sp[i].slot === null) ? null : sp[i].slot;
+                if (a !== b) return false;
+            }
+        }
+        const mouthSlot = (sp[path.length - 1].slot === undefined || sp[path.length - 1].slot === null) ? null : sp[path.length - 1].slot;
+        return mouthSlot === k;
+    }
+    readonly property var effMouthHeights: {
+        const n = slotCount();
+        const out = [];
+        const grow = (dragState && dragState.snapGrowAmt !== undefined) ? dragState.snapGrowAmt : Math.max(0, ((dragState ? (dragState.snapHeight || 58) : 58) - 8));
+        const shrink = (dragState && (dragState.active || dragState.settling) && typeof dragState.sourceShrink === "number") ? dragState.sourceShrink : 0;
+        for (let k = 0; k < n; ++k) out.push(Math.max(emptyMouth, (mouthHeights[k] || emptyMouth) + (isSnapMouth(k) ? grow : 0) - (isSourceMouth(k) ? shrink : 0)));
+        return out;
+    }
+    readonly property real mouthTotal: { let sum = 0; const e = effMouthHeights; for (let k = 0; k < slotCount(); ++k) sum += e[k] || emptyMouth; return sum; }
     readonly property real bodyWidth: mouthWidths.reduce((m, w) => Math.max(m, w), 0)
     function setMouth(i, height, width, flat) {
         if (mouthHeights[i] === height && mouthWidths[i] === width && flatEnds[i] === flat) return;
@@ -104,7 +171,7 @@ Item {
         h[i] = height; w[i] = width; f[i] = flat;
         mouthHeights = h; mouthWidths = w; flatEnds = f;
     }
-    function mouthTop(k) { let y = headHeight; for (let i = 0; i < k; ++i) y += (mouthHeights[i] || emptyMouth) + midHeight; return y; }
+    function mouthTop(k) { let y = headHeight; const e = effMouthHeights; for (let i = 0; i < k; ++i) y += (e[i] || emptyMouth) + midHeight; return y; }
     function isCapType(t) { return ["Return","EscapeLoop","ContinueLoop"].indexOf(t) >= 0; }
     function lastIsCap(slot) { const b = body(slot); return b.length > 0 && isCapType(b[b.length - 1].type); }
 
@@ -160,7 +227,7 @@ Item {
         shape: root.isWrap ? "wrap" : root.isHeader ? "header" : root.isCap ? "cap" : "stack"
         fill: root.displayColor; hovered: root.hovered || root.dragRole === 1
         headHeight: root.headHeight; midHeight: root.midHeight; footHeight: root.footHeight; spine: root.spine
-        mouthHeights: root.isWrap ? Array.from({ length: root.slotCount() }, (_, k) => root.mouthHeights[k] || root.emptyMouth) : []
+        mouthHeights: root.isWrap ? root.effMouthHeights : []
         flatEnds: root.flatEnds
     }
     QtObject { id: hitMask; function contains(point) { return root.hitTest(point.x, point.y); } }
@@ -169,7 +236,7 @@ Item {
         anchors.fill: parent
         containmentMask: hitMask
         dragEnabled: root.paletteMode || !root.locked
-        onDragBegan: (sx, sy, ox, oy) => root.dragBegan(root.strandId, root.path, root.tailCount, sx, sy, ox, oy)
+        onDragBegan: (sx, sy, ox, oy) => root.dragBegan(root.strandId, root.path, root.tailCount, sx, sy, ox, oy, root.implicitWidth, root.implicitHeight)
         onDragMoved: (sx, sy) => root.dragMoved(sx, sy)
         onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
         onDragCanceled: root.dragCanceled()

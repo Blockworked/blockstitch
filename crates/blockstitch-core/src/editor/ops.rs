@@ -314,6 +314,134 @@ impl<K: BlockKind> BlockGraph<K> {
         Ok(())
     }
 
+    /// Moves the tail at and after `source_path` (same body list) into
+    /// `target_id` at `target_path` in one atomic step - the Qt canvas's
+    /// "attach on drop" without a split-then-merge round trip. Unlike
+    /// [`BlockGraph::merge_strand`] the dragged tail stays part of its strand
+    /// until the move, so `source_id == target_id` is allowed (same-strand
+    /// reorder); an insertion index past the shortened list clamps to the end.
+    pub fn merge_tail(
+        &mut self,
+        source_id: &str,
+        source_path: &[PathStep],
+        target_id: &str,
+        target_path: &[PathStep],
+    ) -> Result<(), String> {
+        let label = K::HEADER_LABEL;
+        // Read-only validation first so a rejected drop leaves everything
+        // untouched (mirrors merge_strand's validate-before-move).
+        let source = self.strand(source_id).ok_or("Unknown source strand")?;
+        let (source_list_len, _source_index, tail_first_is_header) = {
+            let Some((list, index)) = resolve_body(&source.instructions, source_path) else {
+                return Err("Unknown source instruction path".to_string());
+            };
+            if index >= list.len() {
+                return Err("Source index out of range".to_string());
+            }
+            (list.len(), index, list[index].is_header())
+        };
+        if tail_first_is_header {
+            return Err(format!(
+                "A {label} block can only be the first block in a strand"
+            ));
+        }
+        let target = self.strand(target_id).ok_or("Unknown target strand")?;
+        {
+            let Some((list, index)) = resolve_body(&target.instructions, target_path) else {
+                return Err("Unknown target instruction path".to_string());
+            };
+            // Same rule as merge_strand: nothing may land above a header.
+            if target_path.len() == 1
+                && index == 0
+                && list.first().is_some_and(Instruction::is_header)
+            {
+                return Err(format!("Can't attach a block above a {label} block"));
+            }
+            // A no-op drop back exactly where the tail already starts is fine
+            // (restores the list); anything deeper inside the dragged tail
+            // itself would vanish with it, so reject it explicitly instead of
+            // resolving to a dangling path after removal.
+            if source_id == target_id
+                && Self::path_contains(source_path, target_path, source_list_len)
+            {
+                return Err("Can't attach a block inside itself".to_string());
+            }
+        }
+        // Mutate: extract the tail, then insert it. On target failure put the
+        // tail back where it came from rather than dropping instructions.
+        let tail = {
+            let source_strand = self.strand_mut(source_id).ok_or("Unknown source strand")?;
+            let (list, index) =
+                resolve_body_mut(&mut source_strand.instructions, source_path)
+                    .ok_or("Unknown source instruction path")?;
+            if index >= list.len() {
+                return Err("Source index out of range".to_string());
+            }
+            list.split_off(index)
+        };
+        let Some(target_strand) = self.strand_mut(target_id) else {
+            // Target vanished between validation and mutation - restore.
+            if let Some(source_strand) = self.strand_mut(source_id)
+                && let Some((list, index)) =
+                    resolve_body_mut(&mut source_strand.instructions, source_path)
+            {
+                let index = index.min(list.len());
+                list.splice(index..index, tail);
+            }
+            return Err("Unknown target strand".to_string());
+        };
+        let Some((list, index)) = resolve_body_mut(&mut target_strand.instructions, target_path)
+        else {
+            if let Some(source_strand) = self.strand_mut(source_id)
+                && let Some((list, index)) =
+                    resolve_body_mut(&mut source_strand.instructions, source_path)
+            {
+                let index = index.min(list.len());
+                list.splice(index..index, tail);
+            }
+            return Err("Unknown target instruction path".to_string());
+        };
+        let index = index.min(list.len());
+        list.splice(index..index, tail);
+        Ok(())
+    }
+
+    /// Whether `target` (an insertion path) lies strictly inside the tail
+    /// starting at `source` (an instruction address) in the same strand:
+    /// same parent list with an index past the tail start, or nested deeper
+    /// inside any dragged block. `source_len` is the parent list's length
+    /// before removal.
+    fn path_contains(source: &[PathStep], target: &[PathStep], source_len: usize) -> bool {
+        if target.len() < source.len() {
+            return false;
+        }
+        // Parent steps must match (index and slot).
+        for (i, step) in source.iter().enumerate() {
+            if i == source.len() - 1 {
+                break;
+            }
+            let other = &target[i];
+            if step.index != other.index || step.slot != other.slot {
+                return false;
+            }
+        }
+        let last_source = &source[source.len() - 1];
+        let at_depth = &target[source.len() - 1];
+        if at_depth.index < last_source.index {
+            return false;
+        }
+        if target.len() == source.len() {
+            // Same list: insertion strictly inside the tail (past its start).
+            // Equality (index == source start) is the no-op restore, allowed.
+            return at_depth.index > last_source.index && at_depth.index < source_len;
+        }
+        // Deeper: the target descends into a block at an index the tail will
+        // remove (at or past the tail start). Insertion exactly at the tail
+        // start's own slot with index 0 would address the dragged block
+        // itself, still inside - reject.
+        at_depth.index >= last_source.index
+    }
+
     // ── Values ─────────────────────────────────────────────────────────────
 
     /// Resolves a [`ValueLocation`] to the specific value node it addresses.

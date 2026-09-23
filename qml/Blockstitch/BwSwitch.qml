@@ -13,6 +13,7 @@ Control {
         spacing: 9
         anchors.verticalCenter: parent.verticalCenter
         Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
             width: 38; height: 21; radius: 11
             color: root.checked ? Theme.accent : Theme.panelRaised
             border.color: root.checked ? Theme.accentHover : Theme.border
