@@ -14,8 +14,7 @@ Rectangle {
     property real zoom: 1.0
     signal strandMoved(string strandId, int x, int y)
     signal instructionSplit(string strandId, var path, int x, int y)
-    signal blockDropped(string type, int x, int y)
-    signal valueDropped(var value, int x, int y)
+    signal blockDragOutside(string strandId, var path, int tailCount, real sceneX, real sceneY)
     signal instructionRemoved(string strandId, var path)
     signal instructionDuplicated(string strandId, var path, var instruction)
     signal instructionEdited(string strandId, var path, var instruction)
@@ -37,6 +36,56 @@ Rectangle {
     signal detailsRequested(string type)
     color:Theme.canvas; clip:true
 
+    // Drag session for blocks picked up on the canvas. Blocks read this to follow the pointer.
+    QtObject {
+        id: dragSession
+        property bool active: false
+        property string strandId: ""
+        property var path: []
+        property int tailCount: 1
+        property real startX: 0    // pointer, workspace coordinates, at pick-up
+        property real startY: 0
+        property real originX: 0   // dragged block top-left, workspace coordinates, at pick-up
+        property real originY: 0
+        property real dx: 0
+        property real dy: 0
+        property real sceneX: 0    // pointer, scene coordinates
+        property real sceneY: 0
+    }
+    readonly property bool dragging: dragSession.active
+    readonly property real dragSceneX: dragSession.sceneX
+    readonly property real dragSceneY: dragSession.sceneY
+    function strandById(id) { const list = root.strands || []; for (let i = 0; i < list.length; ++i) if (list[i].id === id) return list[i]; return null; }
+    function beginDrag(strandId, path, tailCount, sx, sy, ox, oy) {
+        const p = workspace.mapFromItem(null, sx, sy);
+        dragSession.strandId = strandId; dragSession.path = path; dragSession.tailCount = tailCount;
+        dragSession.startX = p.x; dragSession.startY = p.y; dragSession.originX = p.x - ox; dragSession.originY = p.y - oy;
+        dragSession.dx = 0; dragSession.dy = 0; dragSession.active = true;
+    }
+    function moveDrag(sx, sy) {
+        if (!dragSession.active) return;
+        const p = workspace.mapFromItem(null, sx, sy);
+        dragSession.dx = p.x - dragSession.startX; dragSession.dy = p.y - dragSession.startY;
+        dragSession.sceneX = sx; dragSession.sceneY = sy;
+    }
+    function endDrag(sx, sy) {
+        if (!dragSession.active) return;
+        moveDrag(sx, sy);
+        const strandId = dragSession.strandId, path = dragSession.path, tail = dragSession.tailCount;
+        const dx = dragSession.dx, dy = dragSession.dy, ox = dragSession.originX, oy = dragSession.originY;
+        dragSession.active = false;
+        if (!root.contains(root.mapFromItem(null, sx, sy))) { root.blockDragOutside(strandId, path, tail, sx, sy); return; }
+        const strand = strandById(strandId);
+        if (path.length === 1 && path[0].index === 0 && strand) root.strandMoved(strandId, Math.round(strand.x + dx), Math.round(strand.y + dy));
+        else root.instructionSplit(strandId, path, Math.round(ox + dx), Math.round(oy + dy));
+    }
+    function cancelDrag() { dragSession.active = false; }
+    // Workspace coordinates for a scene point, or null when it is outside the canvas.
+    function workspacePoint(sx, sy) {
+        if (!root.contains(root.mapFromItem(null, sx, sy))) return null;
+        return workspace.mapFromItem(null, sx, sy);
+    }
+
     Canvas {
         id:grid; anchors.fill:parent
         onPaint:{ const c=getContext("2d"); c.reset(); c.fillStyle="#3d3e43"; const gap=22*root.zoom; const ox=(-flick.contentX)%gap,oy=(-flick.contentY)%gap; for(let x=ox;x<width;x+=gap)for(let y=oy;y<height;y+=gap){c.beginPath();c.arc(x,y,1.05,0,Math.PI*2);c.fill();} }
@@ -49,17 +98,25 @@ Rectangle {
         onContentYChanged:grid.requestPaint()
         Item {
             id:workspace; width:2600;height:1800; scale:root.zoom; transformOrigin:Item.TopLeft
-            MouseArea { anchors.fill:parent; z:-100; acceptedButtons:Qt.LeftButton; onClicked:flick.forceActiveFocus() }
+            MouseArea {
+                anchors.fill:parent; z:-100; acceptedButtons:Qt.LeftButton|Qt.RightButton
+                onClicked: mouse => { if (mouse.button === Qt.RightButton) { canvasMenu.canvasX = Math.round(mouse.x); canvasMenu.canvasY = Math.round(mouse.y); canvasMenu.popup(mouse.x, mouse.y); } else flick.forceActiveFocus(); }
+                BwMenu { id:canvasMenu;property int canvasX:0;property int canvasY:0
+                    BwMenuItem{iconName:"message-square";text:"Add Note";onTriggered:root.canvasNoteRequested(canvasMenu.canvasX,canvasMenu.canvasY)}
+                    BwMenuItem{iconName:"trash";danger:true;text:"Delete all blocks";onTriggered:root.clearRequested()}
+                }
+            }
             Repeater {
                 model:root.strands||[]
                 delegate:Column {
                     id:strand; required property var modelData; required property int index
                     x:modelData.x; y:modelData.y; spacing:-8
+                    z: dragSession.active && dragSession.strandId === modelData.id ? 100 : 0
                     Repeater {
                         model:strand.modelData.instructions||[]
                         delegate:InstructionBlock {
                             id:block; required property var modelData; required property int index
-                            instruction:modelData; strandId:strand.modelData.id; path:[{index:index}]
+                            instruction:modelData; strandId:strand.modelData.id; path:[{index:index}]; tailCount:(strand.modelData.instructions||[]).length-index; dragState:dragSession
                             variables:root.variables; lists:root.lists; blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; locked:root.locked
                             onRemoveRequested:(sid,p)=>root.instructionRemoved(sid,p)
                             onDuplicateRequested:(sid,p,i)=>root.instructionDuplicated(sid,p,i)
@@ -70,10 +127,10 @@ Rectangle {
                             onInstructionEdited:(sid,p,i)=>root.instructionEdited(sid,p,i)
                             onRunBranchRequested:(sid,p,n)=>root.runBranchRequested(sid,p,n)
                             onValueEdited:(l,t)=>root.valueEdited(l,t)
-                            onDragFinished:(sid,p,dx,dy)=>{
-                                if(p.length===1&&p[0].index===0) root.strandMoved(sid,Math.round(strand.modelData.x+dx),Math.round(strand.modelData.y+dy));
-                                else { const pos=block.mapToItem(workspace,0,0); root.instructionSplit(sid,p,Math.round(pos.x+dx),Math.round(pos.y+dy)); }
-                            }
+                            onDragBegan:(sid,p,tail,sx,sy,ox,oy)=>root.beginDrag(sid,p,tail,sx,sy,ox,oy)
+                            onDragMoved:(sx,sy)=>root.moveDrag(sx,sy)
+                            onDragEnded:(sx,sy)=>root.endDrag(sx,sy)
+                            onDragCanceled:root.cancelDrag()
                         }
                     }
                 }
@@ -91,8 +148,8 @@ Rectangle {
                     }
                     TextArea { visible:!commentCard.modelData.collapsed;anchors.fill:parent;anchors.topMargin:30;anchors.margins:7;text:commentCard.modelData.text;color:Theme.text;wrapMode:TextEdit.Wrap;background:null;onActiveFocusChanged:if(!activeFocus&&text!==commentCard.modelData.text)root.commentEdited(commentCard.modelData.id,text) }
                     DragHandler { enabled:!root.locked;target:commentCard;onActiveChanged:if(!active)root.commentMoved(commentCard.modelData.id,Math.round(commentCard.x),Math.round(commentCard.y)) }
-                    TapHandler { acceptedButtons:Qt.RightButton;onTapped:commentMenu.popup() }
-                    Menu { id:commentMenu;background:Rectangle{radius:7;color:Theme.panelRaised;border.color:Theme.border}BwMenuItem{iconName:"trash";danger:true;text:"Delete note";onTriggered:root.commentRemoved(commentCard.modelData.id)} }
+                    TapHandler { acceptedButtons:Qt.RightButton;gesturePolicy:TapHandler.ReleaseWithinBounds;onTapped:commentMenu.popup() }
+                    BwMenu { id:commentMenu;BwMenuItem{iconName:"trash";danger:true;text:"Delete note";onTriggered:root.commentRemoved(commentCard.modelData.id)} }
                 }
             }
             Repeater {
@@ -101,8 +158,8 @@ Rectangle {
                     id:floatingItem;required property var modelData;x:modelData.x;y:modelData.y;z:5;width:floatingChip.implicitWidth;height:floatingChip.implicitHeight
                     ValueChip { id:floatingChip;valueData:floatingItem.modelData.value;location:({kind:"Floating",floating_id:floatingItem.modelData.id,path:[]});boxed:true;onEditRequested:(l,t)=>root.valueEdited(l,t) }
                     DragHandler { enabled:!root.locked;target:floatingItem;onActiveChanged:if(!active)root.floatingValueMoved(floatingItem.modelData.id,Math.round(floatingItem.x),Math.round(floatingItem.y)) }
-                    TapHandler { acceptedButtons:Qt.RightButton;onTapped:floatingMenu.popup() }
-                    Menu { id:floatingMenu;background:Rectangle{radius:7;color:Theme.panelRaised;border.color:Theme.border}BwMenuItem{iconName:"info";text:"Details";onTriggered:root.detailsRequested(floatingItem.modelData.value.op||floatingItem.modelData.value.kind)}BwMenuItem{iconName:"trash";danger:true;text:"Delete value";onTriggered:root.floatingValueRemoved(floatingItem.modelData.id)} }
+                    TapHandler { acceptedButtons:Qt.RightButton;gesturePolicy:TapHandler.ReleaseWithinBounds;onTapped:floatingMenu.popup() }
+                    BwMenu { id:floatingMenu;BwMenuItem{iconName:"info";text:"Details";onTriggered:root.detailsRequested(floatingItem.modelData.value.op||floatingItem.modelData.value.kind)}BwMenuItem{iconName:"trash";danger:true;text:"Delete value";onTriggered:root.floatingValueRemoved(floatingItem.modelData.id)} }
                 }
             }
             Repeater {
@@ -144,17 +201,11 @@ Rectangle {
                 }
             }
         }
-        DropArea { anchors.fill:parent;keys:["blockwork-instruction","blockwork-value"];onDropped:drop=>{if(root.locked||!drop.source)return;const x=Math.round((drop.x+flick.contentX)/root.zoom),y=Math.round((drop.y+flick.contentY)/root.zoom);if(drop.source.valueData)root.valueDropped(drop.source.valueData,x,y);else if(drop.source.instructionType)root.blockDropped(drop.source.instructionType,x,y);} }
-        TapHandler { acceptedButtons:Qt.RightButton;onTapped:event=>{ canvasMenu.canvasX=Math.round((event.position.x+flick.contentX)/root.zoom);canvasMenu.canvasY=Math.round((event.position.y+flick.contentY)/root.zoom);canvasMenu.popup();} }
-        Menu { id:canvasMenu;property int canvasX:0;property int canvasY:0;background:Rectangle{radius:7;color:Theme.panelRaised;border.color:Theme.border}
-            BwMenuItem{iconName:"message-square";text:"Add Note";onTriggered:root.canvasNoteRequested(canvasMenu.canvasX,canvasMenu.canvasY)}
-            BwMenuItem{iconName:"trash";danger:true;text:"Delete all blocks";onTriggered:root.clearRequested()}
-        }
     }
     Column {
         anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:18;spacing:8
-        BwButton { iconName:"zoom-in";text:"";implicitWidth:40;implicitHeight:40;onClicked:root.zoom=Math.min(1.8,root.zoom+.1) }
-        BwButton { iconName:"zoom-out";text:"";implicitWidth:40;implicitHeight:40;onClicked:root.zoom=Math.max(.5,root.zoom-.1) }
-        BwButton { iconName:"rotate-ccw";text:"";implicitWidth:40;implicitHeight:40;onClicked:root.zoom=1 }
+        BwButton { iconName:"zoom-in";text:"";implicitWidth:40;implicitHeight:40;radius:20;onClicked:root.zoom=Math.min(1.8,root.zoom+.1) }
+        BwButton { iconName:"zoom-out";text:"";implicitWidth:40;implicitHeight:40;radius:20;onClicked:root.zoom=Math.max(.5,root.zoom-.1) }
+        BwButton { iconName:"rotate-ccw";text:"";implicitWidth:40;implicitHeight:40;radius:20;onClicked:root.zoom=1 }
     }
 }

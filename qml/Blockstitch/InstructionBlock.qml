@@ -13,11 +13,19 @@ Item {
     property bool paletteMode: false
     property bool locked: false
     property color blockColor: Theme.block
+    // shared drag session owned by BlockCanvas (null for palette/preview blocks)
+    property var dragState: null
+    // number of instructions from this one to the end of its list (inclusive)
+    property int tailCount: 1
+    signal dragBegan(string strandId, var path, int tailCount, real sceneX, real sceneY, real offsetX, real offsetY)
+    signal dragMoved(real sceneX, real sceneY)
+    signal dragEnded(real sceneX, real sceneY)
+    signal dragCanceled()
+    signal activated()
     signal removeRequested(string strandId, var path)
     signal duplicateRequested(string strandId, var path, var instruction)
     signal commentRequested(var instruction)
     signal recordingTargetRequested(string strandId)
-    signal dragFinished(string strandId, var path, real dx, real dy)
     signal instructionEdited(string strandId, var path, var instruction)
     signal valueEdited(var location, string text)
     signal runBranchRequested(string strandId, var path, string name)
@@ -29,16 +37,75 @@ Item {
     readonly property bool isHeader: type.indexOf("When") === 0 || type === "BlockHeader"
     readonly property bool isCap: ["Return","EscapeLoop","ContinueLoop"].indexOf(type) >= 0
     readonly property int rowHeight: 58
+    readonly property real tabDepth: 8
+    readonly property real spine: 20
+    readonly property real headHeight: 50
+    readonly property real midHeight: 34
+    readonly property real footHeight: 26
+    readonly property real emptyMouth: 26
+    readonly property bool hovered: grab.hovered && !grab.dragging
+    // 0: unaffected, 1: moves with the dragged block (it or a later sibling), 2: contains the dragged block
+    readonly property int dragRole: {
+        const d = dragState;
+        if (!d || !d.active || d.strandId !== strandId) return 0;
+        const a = d.path, b = path;
+        if (b.length > a.length) return 0;
+        for (let i = 0; i < b.length - 1; ++i)
+            if (b[i].index !== a[i].index || (b[i].slot || 0) !== (a[i].slot || 0)) return 0;
+        if (b.length < a.length) return b[b.length - 1].index === a[b.length - 1].index ? 2 : 0;
+        return b[b.length - 1].index >= a[a.length - 1].index ? 1 : 0;
+    }
     readonly property color displayColor: {
         if (instruction && ["CallBlock","BranchCallBlock","BlockHeader"].indexOf(type) >= 0) {
             const d = defFor(instruction.block_id); if (d && d.color) return d.color;
         }
         return blockColor;
     }
-    implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, bodyWidth + 24) : Math.max(isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 36))
-    implicitHeight: isWrap ? wrapColumn.implicitHeight : rowHeight
-    z: drag.active ? 50 : hover.hovered ? 2 : 1
-    transform: Translate { x: drag.active ? drag.translation.x : 0; y: drag.active ? drag.translation.y : 0 }
+    implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 36))
+    implicitHeight: isWrap ? headHeight + mouthTotal + Math.max(0, slotCount() - 1) * midHeight + footHeight + tabDepth : rowHeight
+    z: dragRole > 0 ? 50 : hovered ? 2 : 1
+    transform: Translate { x: root.dragRole === 1 ? root.dragState.dx : 0; y: root.dragRole === 1 ? root.dragState.dy : 0 }
+
+    // Heights/widths of each mouth's nested content, reported by the mouth delegates.
+    property var mouthHeights: []
+    property var mouthWidths: []
+    property var flatEnds: []
+    readonly property real mouthTotal: { let sum = 0; for (let k = 0; k < slotCount(); ++k) sum += mouthHeights[k] || emptyMouth; return sum; }
+    readonly property real bodyWidth: mouthWidths.reduce((m, w) => Math.max(m, w), 0)
+    function setMouth(i, height, width, flat) {
+        if (mouthHeights[i] === height && mouthWidths[i] === width && flatEnds[i] === flat) return;
+        const h = mouthHeights.slice(), w = mouthWidths.slice(), f = flatEnds.slice();
+        h[i] = height; w[i] = width; f[i] = flat;
+        mouthHeights = h; mouthWidths = w; flatEnds = f;
+    }
+    function mouthTop(k) { let y = headHeight; for (let i = 0; i < k; ++i) y += (mouthHeights[i] || emptyMouth) + midHeight; return y; }
+    function isCapType(t) { return ["Return","EscapeLoop","ContinueLoop"].indexOf(t) >= 0; }
+    function lastIsCap(slot) { const b = body(slot); return b.length > 0 && isCapType(b[b.length - 1].type); }
+
+    // Where a press grabs this block: its own bars, spine and connector tabs, but
+    // not the hollow mouths (those belong to the blocks nested in them or the canvas).
+    function inRect(x, y, rx, ry, rw, rh) { return x >= rx && x < rx + rw && y >= ry && y < ry + rh; }
+    function hitTest(x, y) {
+        const w = width, t = tabDepth;
+        if (!isWrap) {
+            const bottomTab = !isCap, body = bottomTab ? height - t : height;
+            if (inRect(x, y, 0, 0, w, body)) return !(!isHeader && inRect(x, y, 13, 0, 26, t));
+            return bottomTab && inRect(x, y, 13, body, 26, t);
+        }
+        if (inRect(x, y, 0, 0, w, headHeight)) return !inRect(x, y, 13, 0, 26, t);
+        if (inRect(x, y, spine + 13, headHeight, 26, t)) return true;
+        const n = slotCount();
+        let top = headHeight;
+        for (let k = 0; k < n; ++k) {
+            const mh = mouthHeights[k] || emptyMouth, barTop = top + mh, foot = k === n - 1;
+            if (inRect(x, y, 0, top, spine, mh)) return true;
+            const barH = foot ? footHeight : midHeight;
+            if (inRect(x, y, 0, barTop, w, barH)) return !(inRect(x, y, spine + 13, barTop, 26, t) && !flatEnds[k]);
+            if (inRect(x, y, foot ? 13 : spine + 13, barTop + barH, 26, t)) return true;
+            top = barTop + barH;
+        }
+        return false;
+    }
 
     function iconFor(t) {
         const p={WhenRan:"play",WhenBatteryDischargedTo:"battery-warning",WhenBatteryChargedTo:"battery-charging",WhenTime:"clock",WhenPowerPluggedIn:"plug-zap",WhenPowerUnplugged:"unplug",WhenClipboardChanged:"clipboard-check",Wait:"clock",Text:"text-cursor",Key:"keyboard",Button:"mouse-pointer-click",MoveMouse:"move",Scroll:"mouse",Command:"terminal",OpenApp:"app-window",CloseApp:"square-x",SetVariable:"equal",ChangeVariable:"trending-up",SetClipboard:"clipboard",AddToList:"plus",DeleteOfList:"trash",DeleteAllOfList:"trash",ShiftList:"arrow-left",InsertIntoList:"plus",ReplaceItemOfList:"repeat",ReverseList:"rotate",Return:"undo",If:"git-branch",IfElse:"git-fork",Repeat:"repeat",Forever:"infinity",While:"rotate",EscapeLoop:"log-out",ContinueLoop:"skip-forward",BlockHeader:"blocks",CallBlock:"blocks",BranchCallBlock:"blocks",RunBranch:"git-branch"};
@@ -63,22 +130,32 @@ Item {
     function headerBranches(){const d=instruction?defFor(instruction.block_id):null;return d?(d.pieces||[]).filter(p=>p.kind==="Branch"):[];}
 
     BlockSurface {
-        visible: !root.isWrap; anchors.fill: parent
-        shape: root.isHeader ? "header" : root.isCap ? "cap" : "stack"
-        fill: root.displayColor; hovered: hover.hovered || drag.active
+        anchors.fill: parent
+        shape: root.isWrap ? "wrap" : root.isHeader ? "header" : root.isCap ? "cap" : "stack"
+        fill: root.displayColor; hovered: root.hovered || root.dragRole === 1
+        headHeight: root.headHeight; midHeight: root.midHeight; footHeight: root.footHeight; spine: root.spine
+        mouthHeights: root.isWrap ? Array.from({ length: root.slotCount() }, (_, k) => root.mouthHeights[k] || root.emptyMouth) : []
+        flatEnds: root.flatEnds
     }
-    Canvas {
-        id: wrapSurface
-        visible: root.isWrap; anchors.fill: parent; antialiasing: true
-        onWidthChanged: requestPaint(); onHeightChanged: requestPaint()
-        Connections { target: root; function onDisplayColorChanged(){wrapSurface.requestPaint()} }
-        Connections { target: hover; function onHoveredChanged(){wrapSurface.requestPaint()} }
-        function rounded(c,x,y,w,h,r){c.beginPath();c.roundedRect(x,y,w,h,r,r);}
-        onPaint: {
-            const c=getContext("2d");c.reset();
-            rounded(c,.5,.5,width-1,height-1,6);c.fillStyle=hover.hovered?Theme.accent:Theme.border;c.fill();
-            rounded(c,1.7,1.7,width-3.4,height-3.4,5);const g=c.createLinearGradient(0,0,width,height);g.addColorStop(0,Qt.lighter(root.displayColor,1.11));g.addColorStop(1,root.displayColor);c.fillStyle=g;c.fill();
-            if(height>78){c.clearRect(20,51,width-20,height-77);c.strokeStyle=hover.hovered?Theme.accent:Theme.border;c.lineWidth=1;c.beginPath();c.moveTo(20,51);c.lineTo(width,51);c.moveTo(20,height-26);c.lineTo(width,height-26);c.stroke();}
+    QtObject { id: hitMask; function contains(point) { return root.hitTest(point.x, point.y); } }
+    BlockDragArea {
+        id: grab
+        anchors.fill: parent
+        containmentMask: hitMask
+        dragEnabled: root.paletteMode || !root.locked
+        onDragBegan: (sx, sy, ox, oy) => root.dragBegan(root.strandId, root.path, root.tailCount, sx, sy, ox, oy)
+        onDragMoved: (sx, sy) => root.dragMoved(sx, sy)
+        onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
+        onDragCanceled: root.dragCanceled()
+        onActivated: root.activated()
+        onContextRequested: (x, y) => blockMenu.popup(x, y)
+        BwMenu {
+            id: blockMenu
+            BwMenuItem { visible: !root.paletteMode; iconName: "target"; text: "Set Recording Target"; onTriggered: root.recordingTargetRequested(root.strandId) }
+            BwMenuItem { visible: !root.paletteMode; iconName: "corner-down-right"; text: "Duplicate block"; onTriggered: root.duplicateRequested(root.strandId, root.path, root.instruction) }
+            BwMenuItem { visible: !root.paletteMode; iconName: "message-square"; text: "Add Comment"; onTriggered: root.commentRequested(root.instruction) }
+            BwMenuItem { iconName: "info"; text: "Details"; onTriggered: root.detailsRequested(root.type) }
+            BwMenuItem { visible: !root.paletteMode; iconName: "trash"; danger: true; text: "Delete block"; onTriggered: root.removeRequested(root.strandId, root.path) }
         }
     }
     Row {
@@ -173,71 +250,86 @@ Item {
         Text { visible:root.type==="RunBranch"; text:"run branch "+(instruction?instruction.name:""); color:Theme.text; font.pixelSize:12; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
     }
 
-    Column {
-        id: wrapColumn; visible:root.isWrap; width:root.implicitWidth; spacing:0
-        Item {
-            width:root.implicitWidth; height:52
-            Row {
-                id:headContent; x:14; y:12; spacing:7
-                LucideIcon { name:root.iconFor(root.type); color:Theme.textDim; width:16;height:16; anchors.verticalCenter:parent.verticalCenter }
-                Text { visible:root.type==="If"||root.type==="IfElse"; text:"if"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                ValueChip { visible:root.type==="If"||root.type==="IfElse"||root.type==="While"; valueData:instruction?instruction.condition:null; location:root.fieldLocation("Condition"); boxed:true; onEditRequested:(l,t)=>root.valueEdited(l,t) }
-                Text { visible:root.type==="If"||root.type==="IfElse"; text:"then"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                Text { visible:root.type==="Repeat"; text:"repeat"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                ValueChip { visible:root.type==="Repeat"; valueData:instruction?instruction.count:null; location:root.fieldLocation("RepeatCount"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t) }
-                Text { visible:root.type==="Forever"; text:"forever"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                Text { visible:root.type==="While"; text:"while"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                Repeater { model:root.type==="BranchCallBlock"?root.callHeadPieces():[];delegate:Item {
-                    required property var modelData;width:modelData.kind==="Label"?branchPieceText.implicitWidth:branchPieceValue.implicitWidth;height:30
-                    Text{id:branchPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;anchors.centerIn:parent}
-                    ValueChip{id:branchPieceValue;visible:modelData.kind==="Input";valueData:instruction&&(instruction.args||[])[modelData.argIndex]?(instruction.args||[])[modelData.argIndex]:(modelData.bool?{kind:"Bool"}:{kind:"Number",value:0});location:root.fieldLocation("CallArg:"+modelData.argIndex);boxed:modelData.bool;anchors.centerIn:parent;onEditRequested:(l,t)=>root.valueEdited(l,t)}
-                }}
-            }
-        }
-        Column {
-            id:slotBodies;spacing:0
-            Repeater {
-                model:root.slotCount()
-                delegate:Column {
-                    id:slotDelegate;required property int index
-                    width:Math.max(230,headContent.implicitWidth+66,slotBody.implicitWidth+28);spacing:0
-                    Item {
-                        visible:index>0;width:parent.width;height:visible?34:0
-                        Rectangle{anchors.fill:parent;color:root.displayColor}
-                        Text{x:28;anchors.verticalCenter:parent.verticalCenter;text:root.type==="IfElse"?"else":root.branchSeparator(index-1);color:Theme.textDim;font.pixelSize:12}
-                    }
-                    Item {
-                        width:parent.width;height:Math.max(24,slotBody.implicitHeight)
-                        Rectangle{x:0;width:20;height:parent.height;color:root.displayColor}
-                        Column {
-                            id:slotBody;x:20;spacing:-8
-                            Repeater { model:root.body(index);delegate:Loader {
-                                required property var modelData;required property int index;source:"InstructionBlock.qml";width:item?item.implicitWidth:0;height:item?item.implicitHeight:0
-                                onLoaded:{item.instruction=modelData;item.strandId=root.strandId;item.path=root.childPath(slotDelegate.index,index);item.variables=root.variables;item.lists=root.lists;item.blockDefinitions=root.blockDefinitions;item.keyCapture=root.keyCapture;item.locked=root.locked;item.removeRequested.connect((s,p)=>root.removeRequested(s,p));item.duplicateRequested.connect((s,p,i)=>root.duplicateRequested(s,p,i));item.commentRequested.connect(i=>root.commentRequested(i));item.recordingTargetRequested.connect(s=>root.recordingTargetRequested(s));item.dragFinished.connect((s,p,dx,dy)=>root.dragFinished(s,p,dx,dy));item.instructionEdited.connect((s,p,i)=>root.instructionEdited(s,p,i));item.valueEdited.connect((l,t)=>root.valueEdited(l,t));item.runBranchRequested.connect((s,p,n)=>root.runBranchRequested(s,p,n));item.keyCaptureRequested.connect((s,p)=>root.keyCaptureRequested(s,p));item.detailsRequested.connect(t=>root.detailsRequested(t));}
-                            }}
+    // Head bar content, then one mouth per body (nested blocks) with separator bars between them.
+    Row {
+        id:headContent; visible:root.isWrap; x:14; y:Math.round((root.headHeight-height)/2); spacing:7
+        LucideIcon { name:root.iconFor(root.type); color:Theme.textDim; width:16;height:16; anchors.verticalCenter:parent.verticalCenter }
+        Text { visible:root.type==="If"||root.type==="IfElse"; text:"if"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+        ValueChip { visible:root.type==="If"||root.type==="IfElse"||root.type==="While"; valueData:instruction?instruction.condition:null; location:root.fieldLocation("Condition"); boxed:true; onEditRequested:(l,t)=>root.valueEdited(l,t) }
+        Text { visible:root.type==="If"||root.type==="IfElse"; text:"then"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+        Text { visible:root.type==="Repeat"; text:"repeat"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+        ValueChip { visible:root.type==="Repeat"; valueData:instruction?instruction.count:null; location:root.fieldLocation("RepeatCount"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t) }
+        Text { visible:root.type==="Forever"; text:"forever"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+        Text { visible:root.type==="While"; text:"while"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+        Repeater { model:root.type==="BranchCallBlock"?root.callHeadPieces():[];delegate:Item {
+            required property var modelData;width:modelData.kind==="Label"?branchPieceText.implicitWidth:branchPieceValue.implicitWidth;height:30
+            Text{id:branchPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;anchors.centerIn:parent}
+            ValueChip{id:branchPieceValue;visible:modelData.kind==="Input";valueData:instruction&&(instruction.args||[])[modelData.argIndex]?(instruction.args||[])[modelData.argIndex]:(modelData.bool?{kind:"Bool"}:{kind:"Number",value:0});location:root.fieldLocation("CallArg:"+modelData.argIndex);boxed:modelData.bool;anchors.centerIn:parent;onEditRequested:(l,t)=>root.valueEdited(l,t)}
+        }}
+    }
+
+    Repeater {
+        model: root.isWrap ? root.slotCount() : 0
+        delegate: Item {
+            id: slotDelegate; required property int index
+            readonly property real contentHeight: slotBody.implicitHeight
+            readonly property bool capEnd: root.lastIsCap(index)
+            // the block sitting last in a mouth overlaps the bar below by its connector tab
+            readonly property real mouthHeight: Math.max(root.emptyMouth, contentHeight - (capEnd || contentHeight === 0 ? 0 : root.tabDepth))
+            readonly property real contentWidth: slotBody.implicitWidth
+            function report() { root.setMouth(index, mouthHeight, contentWidth, capEnd); }
+            onMouthHeightChanged: report()
+            onContentWidthChanged: report()
+            onCapEndChanged: report()
+            Component.onCompleted: report()
+            x: 0; y: root.mouthTop(index); width: root.width; height: mouthHeight
+            Column {
+                id: slotBody; x: root.spine; spacing: -8
+                Repeater {
+                    model: root.body(slotDelegate.index)
+                    delegate: Loader {
+                        required property var modelData; required property int index
+                        source: "InstructionBlock.qml"; width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
+                        onLoaded: {
+                            item.instruction = modelData; item.strandId = root.strandId; item.path = root.childPath(slotDelegate.index, index);
+                            item.tailCount = root.body(slotDelegate.index).length - index;
+                            item.variables = root.variables; item.lists = root.lists; item.blockDefinitions = root.blockDefinitions; item.keyCapture = root.keyCapture; item.locked = root.locked;
+                            item.dragState = root.dragState;
+                            item.removeRequested.connect((s, p) => root.removeRequested(s, p));
+                            item.duplicateRequested.connect((s, p, i) => root.duplicateRequested(s, p, i));
+                            item.commentRequested.connect(i => root.commentRequested(i));
+                            item.recordingTargetRequested.connect(s => root.recordingTargetRequested(s));
+                            item.instructionEdited.connect((s, p, i) => root.instructionEdited(s, p, i));
+                            item.valueEdited.connect((l, t) => root.valueEdited(l, t));
+                            item.runBranchRequested.connect((s, p, n) => root.runBranchRequested(s, p, n));
+                            item.keyCaptureRequested.connect((s, p) => root.keyCaptureRequested(s, p));
+                            item.detailsRequested.connect(t => root.detailsRequested(t));
+                            item.dragBegan.connect(root.dragBegan); item.dragMoved.connect(root.dragMoved);
+                            item.dragEnded.connect(root.dragEnded); item.dragCanceled.connect(root.dragCanceled);
                         }
                     }
                 }
             }
+            // separator bar below this mouth (not for the last: that is the foot bar)
+            Text {
+                visible: slotDelegate.index < root.slotCount() - 1
+                x: root.spine + 8; y: slotDelegate.mouthHeight + Math.round((root.midHeight - height) / 2)
+                text: root.type === "IfElse" ? "else" : root.branchSeparator(slotDelegate.index)
+                color: root.type === "IfElse" ? Theme.textDim : Theme.text; font.pixelSize: 12
+            }
         }
-        Item { width:root.implicitWidth; height:26 }
     }
 
-    HoverHandler { id:hover }
-    DragHandler {
-        id:drag; enabled:!root.locked; target:null
-        onActiveChanged: if(!active && (Math.abs(translation.x)>3||Math.abs(translation.y)>3)) root.dragFinished(root.strandId,root.path,translation.x,translation.y)
+    function isCapturingKey() {
+        if (type !== "Key" || !keyCapture) return false;
+        if (paletteMode) return keyCapture.kind === "Standalone";
+        return keyCapture.kind === "Strand" && keyCapture.strand_id === strandId && samePath(keyCapture.index, path);
     }
-    TapHandler { acceptedButtons:Qt.RightButton; onTapped:blockMenu.popup() }
-    Menu {
-        id:blockMenu
-        background:Rectangle{radius:7;color:Theme.panelRaised;border.color:Theme.border}
-        BwMenuItem { visible:!root.paletteMode; height:visible?implicitHeight:0; iconName:"target"; text:"Set Recording Target"; onTriggered:root.recordingTargetRequested(root.strandId) }
-        BwMenuItem { visible:!root.paletteMode; height:visible?implicitHeight:0; iconName:"corner-down-right"; text:"Duplicate block"; onTriggered:root.duplicateRequested(root.strandId,root.path,root.instruction) }
-        BwMenuItem { visible:!root.paletteMode; height:visible?implicitHeight:0; iconName:"message-square"; text:"Add Comment"; onTriggered:root.commentRequested(root.instruction) }
-        BwMenuItem { iconName:"info"; text:"Details"; onTriggered:root.detailsRequested(root.type) }
-        BwMenuItem { visible:!root.paletteMode; height:visible?implicitHeight:0; iconName:"trash"; danger:true; text:"Delete block"; onTriggered:root.removeRequested(root.strandId,root.path) }
+    // Paths from the daemon carry an explicit `slot: null` on every step; ours omit it.
+    function samePath(a, b) {
+        if (!a || !b || a.length !== b.length) return false;
+        for (let i = 0; i < a.length; ++i)
+            if (a[i].index !== b[i].index || (a[i].slot === undefined || a[i].slot === null ? -1 : a[i].slot) !== (b[i].slot === undefined || b[i].slot === null ? -1 : b[i].slot)) return false;
+        return true;
     }
-    function isCapturingKey(){return type==="Key"&&keyCapture&&((paletteMode&&keyCapture.kind==="Standalone")||(!paletteMode&&keyCapture.kind==="Strand"&&keyCapture.strand_id===strandId&&JSON.stringify(keyCapture.index)===JSON.stringify(path)));}
-    readonly property real bodyWidth: slotBodies.implicitWidth
 }

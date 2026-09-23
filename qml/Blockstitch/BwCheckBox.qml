@@ -6,6 +6,7 @@ CheckBox {
     implicitHeight: 28
     spacing: 8
     font.pixelSize: 12
+    HoverHandler { cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
     indicator: Rectangle {
         implicitWidth: 17; implicitHeight: 17
         x: control.leftPadding; y: Math.round((control.height-height)/2)

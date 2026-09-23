@@ -7,7 +7,9 @@ MenuItem {
     property bool danger: false
     implicitWidth: 210
     implicitHeight: 34
+    height: visible ? implicitHeight : 0
     leftPadding: 10; rightPadding: 12
+    HoverHandler { cursorShape: Qt.PointingHandCursor }
     contentItem: Row {
         spacing: 9
         LucideIcon { name: control.iconName; visible: control.iconName.length>0; width: 15; height: 15; color: control.danger?Theme.danger:Theme.textDim; anchors.verticalCenter: parent.verticalCenter }

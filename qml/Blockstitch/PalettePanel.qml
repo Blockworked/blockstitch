@@ -11,7 +11,13 @@ Rectangle {
     property var blockDefinitions: []
     property var keyCapture: null
     property string standaloneKey: ""
+    property bool trashArmed: false   // a canvas block is being dragged over the panel
     signal blockActivated(string type)
+    signal dragStarted(var spec, real sceneX, real sceneY, real offsetX, real offsetY)
+    signal dragMoved(real sceneX, real sceneY)
+    signal dragEnded(real sceneX, real sceneY)
+    signal dragCanceled()
+    signal resizeRequested(real width)
     signal customBlockActivated(var definition)
     signal valueActivated(var value)
     signal makeVariableRequested()
@@ -81,11 +87,12 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill:parent; spacing:0
-        Item {
+        Rectangle {
             Layout.fillWidth:true; Layout.preferredHeight:76
+            color: root.trashArmed ? "#33ff4848" : "transparent"
             Column { anchors.centerIn:parent; spacing:5
-                LucideIcon { anchors.horizontalCenter:parent.horizontalCenter; name:"trash"; color:Theme.textDim; width:20;height:20; opacity:.65 }
-                Text { text:"Drag a block here to delete it"; color:Theme.textDim; font.pixelSize:11 }
+                LucideIcon { anchors.horizontalCenter:parent.horizontalCenter; name:"trash"; color:root.trashArmed?Theme.danger:Theme.textDim; width:20;height:20; opacity:root.trashArmed?1:.65 }
+                Text { text:root.trashArmed?"Release to delete":"Drag a block here to delete it"; color:root.trashArmed?Theme.danger:Theme.textDim; font.pixelSize:11 }
             }
         }
         Rectangle { Layout.fillWidth:true; height:1; color:Theme.borderSoft }
@@ -98,27 +105,24 @@ Rectangle {
                 width:Math.max(root.width-12, childrenRect.width); spacing:8; padding:8
                 Repeater {
                     model:root.instructionTypes
-                    delegate:Item {
-                        id:prefabItem; required property string modelData
-                        property string instructionType:modelData
-                        width:block.implicitWidth; height:block.implicitHeight
-                        InstructionBlock { id:block; instruction:root.prefab(prefabItem.instructionType); variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; paletteMode:true; locked:true; onKeyCaptureRequested:root.standaloneKeyCaptureRequested(); onDetailsRequested:type=>root.detailsRequested(type,type,"See what this block does and where it can be used.") }
-                        Item{id:dragToken;width:prefabItem.width;height:prefabItem.height;property string instructionType:prefabItem.instructionType;Drag.active:paletteDrag.active;Drag.source:dragToken;Drag.keys:["blockwork-instruction"];Drag.hotSpot.x:prefabItem.width/2;Drag.hotSpot.y:prefabItem.height/2}
-                        DragHandler { id:paletteDrag; target:dragToken; onActiveChanged:if(!active){dragToken.x=0;dragToken.y=0} }
-                        TapHandler { acceptedButtons:Qt.LeftButton; onDoubleTapped:root.blockActivated(prefabItem.instructionType) }
+                    delegate:PaletteBlock {
+                        required property string modelData
+                        instruction:root.prefab(modelData); spec:({kind:"instruction",type:modelData,instruction:instruction})
+                        variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
+                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                        onActivated:root.blockActivated(modelData); onKeyCaptureRequested:root.standaloneKeyCaptureRequested()
+                        onDetailsRequested:type=>root.detailsRequested(type,type,"See what this block does and where it can be used.")
                     }
                 }
                 Text { text:"OPERATORS"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; topPadding:8 }
                 Repeater {
                     model:root.operators
-                    delegate:Item {
-                        id:opItem; required property var modelData
-                        property var valueData:root.operatorValue(modelData)
-                        width:opChip.implicitWidth; height:opChip.implicitHeight
-                        ValueChip { id:opChip; valueData:opItem.valueData; editable:true; boxed:true; onDetailsRequested:kind=>root.detailsRequested(kind,kind,"A value or operator block that can be placed in an input.") }
-                        Item{id:opDragToken;width:opItem.width;height:opItem.height;property var valueData:opItem.valueData;Drag.active:opPaletteDrag.active;Drag.source:opDragToken;Drag.keys:["blockwork-value"];Drag.hotSpot.x:opItem.width/2;Drag.hotSpot.y:opItem.height/2}
-                        DragHandler{id:opPaletteDrag;target:opDragToken;onActiveChanged:if(!active){opDragToken.x=0;opDragToken.y=0}}
-                        TapHandler { acceptedButtons:Qt.LeftButton; onDoubleTapped:root.valueActivated(opItem.valueData) }
+                    delegate:PaletteValue {
+                        required property var modelData
+                        valueData:root.operatorValue(modelData); spec:({kind:"value",value:valueData})
+                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                        onActivated:root.valueActivated(valueData)
+                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,"A value or operator block that can be placed in an input.")
                     }
                 }
                 Row {
@@ -126,12 +130,15 @@ Rectangle {
                     Text { text:"VARIABLES"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
                     BwButton { text:"Make a Variable"; implicitHeight:28; font.pixelSize:11; onClicked:root.makeVariableRequested() }
                 }
-                Repeater { model:root.variables||[]; delegate:Item {
-                    id:varItem;required property string modelData;property var valueData:({kind:"Var",name:modelData});width:varChip.implicitWidth;height:varChip.implicitHeight
-                    ValueChip{id:varChip;valueData:varItem.valueData;editable:false;boxed:true}
-                    Item{id:varDragToken;width:varItem.width;height:varItem.height;property var valueData:varItem.valueData;Drag.active:varPaletteDrag.active;Drag.source:varDragToken;Drag.keys:["blockwork-value"];Drag.hotSpot.x:varItem.width/2;Drag.hotSpot.y:varItem.height/2}
-                    DragHandler{id:varPaletteDrag;target:varDragToken;onActiveChanged:if(!active){varDragToken.x=0;varDragToken.y=0}}
-                } }
+                Repeater {
+                    model:root.variables||[]
+                    delegate:PaletteValue {
+                        required property string modelData
+                        valueData:({kind:"Var",name:modelData}); editable:false; spec:({kind:"value",value:valueData})
+                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                        onActivated:root.valueActivated(valueData)
+                    }
+                }
                 Row {
                     spacing:8; topPadding:8
                     Text { text:"LISTS"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
@@ -144,7 +151,7 @@ Rectangle {
                         id:listRow; required property var modelData; width:Math.max(230,root.width-28); height:30; radius:Theme.radius; color:listHover.hovered?"#303134":"transparent"
                         Row {
                             anchors.fill:parent; anchors.leftMargin:6; anchors.rightMargin:6; spacing:7
-                            CheckBox {
+                            BwCheckBox {
                                 anchors.verticalCenter:parent.verticalCenter; checked:listRow.modelData.editor_visible
                                 Accessible.name:"Show "+listRow.modelData.name+" on canvas"
                                 onToggled:root.listEditorStateRequested(listRow.modelData.name,checked,listRow.modelData.editor_x||36,listRow.modelData.editor_y||36)
@@ -153,30 +160,29 @@ Rectangle {
                             Text { anchors.verticalCenter:parent.verticalCenter; text:String((listRow.modelData.items||[]).length); color:Theme.textDim; font.pixelSize:11 }
                         }
                         HoverHandler{id:listHover}
-                        TapHandler{acceptedButtons:Qt.RightButton;onTapped:listMenu.popup()}
-                        Menu{id:listMenu;background:Rectangle{radius:7;color:Theme.panelRaised;border.color:Theme.border}BwMenuItem{iconName:"equal";text:"Rename list";onTriggered:root.renameListRequested(listRow.modelData.name)}BwMenuItem{iconName:"info";text:"Details";onTriggered:root.detailsRequested(listRow.modelData.name,"List","A macro-wide ordered collection of text and number items.")}BwMenuItem{iconName:"trash";danger:true;text:"Delete list";onTriggered:root.deleteListRequested(listRow.modelData.name)}}
+                        TapHandler{acceptedButtons:Qt.RightButton;gesturePolicy:TapHandler.ReleaseWithinBounds;onTapped:listMenu.popup()}
+                        BwMenu{id:listMenu;BwMenuItem{iconName:"equal";text:"Rename list";onTriggered:root.renameListRequested(listRow.modelData.name)}BwMenuItem{iconName:"info";text:"Details";onTriggered:root.detailsRequested(listRow.modelData.name,"List","A macro-wide ordered collection of text and number items.")}BwMenuItem{iconName:"trash";danger:true;text:"Delete list";onTriggered:root.deleteListRequested(listRow.modelData.name)}}
                     }
                 }
                 Repeater {
                     model:root.listOperators
-                    delegate:Item {
-                        id:listOpItem; required property var modelData; property var valueData:root.operatorValue(modelData)
-                        width:listOpChip.implicitWidth; height:listOpChip.implicitHeight
-                        ValueChip{id:listOpChip;valueData:listOpItem.valueData;editable:true;boxed:true;onDetailsRequested:kind=>root.detailsRequested(kind,kind,"A list reporter block that reads data without changing the list.")}
-                        Item{id:listOpDragToken;width:listOpItem.width;height:listOpItem.height;property var valueData:listOpItem.valueData;Drag.active:listOpPaletteDrag.active;Drag.source:listOpDragToken;Drag.keys:["blockwork-value"];Drag.hotSpot.x:listOpItem.width/2;Drag.hotSpot.y:listOpItem.height/2}
-                        DragHandler{id:listOpPaletteDrag;target:listOpDragToken;onActiveChanged:if(!active){listOpDragToken.x=0;listOpDragToken.y=0}}
-                        TapHandler{acceptedButtons:Qt.LeftButton;onDoubleTapped:root.valueActivated(listOpItem.valueData)}
+                    delegate:PaletteValue {
+                        required property var modelData
+                        valueData:root.operatorValue(modelData); spec:({kind:"value",value:valueData})
+                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                        onActivated:root.valueActivated(valueData)
+                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,"A list reporter block that reads data without changing the list.")
                     }
                 }
                 Repeater {
                     model:root.listInstructionTypes
-                    delegate:Item {
-                        id:listPrefabItem;required property string modelData;property string instructionType:modelData
-                        width:listBlock.implicitWidth;height:listBlock.implicitHeight
-                        InstructionBlock{id:listBlock;instruction:root.prefab(listPrefabItem.instructionType);variables:Array.from(root.variables||[]);lists:Array.from(root.lists||[]);blockDefinitions:root.blockDefinitions;keyCapture:root.keyCapture;paletteMode:true;locked:true;onDetailsRequested:type=>root.detailsRequested(type,type,"See what this block does and where it can be used.")}
-                        Item{id:listDragToken;width:listPrefabItem.width;height:listPrefabItem.height;property string instructionType:listPrefabItem.instructionType;Drag.active:listPaletteDrag.active;Drag.source:listDragToken;Drag.keys:["blockwork-instruction"];Drag.hotSpot.x:listPrefabItem.width/2;Drag.hotSpot.y:listPrefabItem.height/2}
-                        DragHandler{id:listPaletteDrag;target:listDragToken;onActiveChanged:if(!active){listDragToken.x=0;listDragToken.y=0}}
-                        TapHandler{acceptedButtons:Qt.LeftButton;onDoubleTapped:root.blockActivated(listPrefabItem.instructionType)}
+                    delegate:PaletteBlock {
+                        required property string modelData
+                        instruction:root.prefab(modelData); spec:({kind:"instruction",type:modelData,instruction:instruction})
+                        variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
+                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                        onActivated:root.blockActivated(modelData)
+                        onDetailsRequested:type=>root.detailsRequested(type,type,"See what this block does and where it can be used.")
                     }
                 }
                 Row {
@@ -186,17 +192,48 @@ Rectangle {
                 }
                 Repeater {
                     model:root.blockDefinitions||[]
-                    delegate:Item {
-                        id:customItem; required property var modelData; width:root.isReporter(modelData)?customValue.implicitWidth:customBlock.implicitWidth; height:root.isReporter(modelData)?customValue.implicitHeight:customBlock.implicitHeight
-                        InstructionBlock { id:customBlock; visible:!root.isReporter(customItem.modelData); instruction:root.customInstruction(customItem.modelData); variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; paletteMode:true; locked:true; blockColor:customItem.modelData.color||Theme.block; onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,"A custom block defined in this macro.") }
-                        ValueChip{id:customValue;visible:root.isReporter(customItem.modelData);valueData:root.customValue(customItem.modelData);editable:false;boxed:true;forceBoolean:customItem.modelData.shape==="ReturnsBool";callDisplayLabel:root.customLabel(customItem.modelData);onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,"A custom reporter block defined in this macro.")}
-                        Item{id:customDragToken;width:customItem.width;height:customItem.height;property string instructionType:"__custom:"+customItem.modelData.id;property var valueData:root.isReporter(customItem.modelData)?root.customValue(customItem.modelData):null;Drag.active:customPaletteDrag.active;Drag.source:customDragToken;Drag.keys:[root.isReporter(customItem.modelData)?"blockwork-value":"blockwork-instruction"];Drag.hotSpot.x:customItem.width/2;Drag.hotSpot.y:customItem.height/2}
-                        DragHandler{id:customPaletteDrag;target:customDragToken;onActiveChanged:if(!active){customDragToken.x=0;customDragToken.y=0}}
-                        TapHandler { acceptedButtons:Qt.LeftButton; onDoubleTapped:{if(root.isReporter(customItem.modelData))root.valueActivated(root.customValue(customItem.modelData));else root.customBlockActivated(customItem.modelData);} }
+                    delegate:Loader {
+                        id:customItem; required property var modelData
+                        sourceComponent:root.isReporter(modelData)?customReporter:customCall
+                        Component {
+                            id:customCall
+                            PaletteBlock {
+                                instruction:root.customInstruction(customItem.modelData); spec:({kind:"custom",definition:customItem.modelData,instruction:instruction,color:blockColor})
+                                variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; blockColor:customItem.modelData.color||Theme.block
+                                onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                                onActivated:root.customBlockActivated(customItem.modelData)
+                                onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,"A custom block defined in this macro.")
+                            }
+                        }
+                        Component {
+                            id:customReporter
+                            PaletteValue {
+                                valueData:root.customValue(customItem.modelData); editable:false; forceBoolean:customItem.modelData.shape==="ReturnsBool"; callLabel:root.customLabel(customItem.modelData)
+                                spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,label:callLabel})
+                                onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                                onActivated:root.valueActivated(valueData)
+                                onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,"A custom reporter block defined in this macro.")
+                            }
+                        }
                     }
                 }
                 Item { width:1;height:8 }
             }
+        }
+    }
+
+    // Drag the right edge to resize the panel.
+    Rectangle {
+        anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.right: parent.right
+        width: 6; z: 5
+        color: Theme.accent; opacity: resizeArea.pressed || resizeArea.containsMouse ? 0.5 : 0
+        MouseArea {
+            id: resizeArea
+            anchors.fill: parent; hoverEnabled: true; preventStealing: true; cursorShape: Qt.SizeHorCursor
+            property real startWidth: 0
+            property real startX: 0
+            onPressed: mouse => { startWidth = root.width; startX = mapToItem(null, mouse.x, 0).x; }
+            onPositionChanged: mouse => { if (pressed) root.resizeRequested(startWidth + mapToItem(null, mouse.x, 0).x - startX); }
         }
     }
 }

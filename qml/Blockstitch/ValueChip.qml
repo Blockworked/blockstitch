@@ -37,6 +37,14 @@ Item {
             const g=c.createLinearGradient(0,0,width,height); g.addColorStop(0,"#37383c"); g.addColorStop(1,"#292a2d"); c.fillStyle=g; c.fill(); c.strokeStyle=Theme.border; c.lineWidth=1; c.stroke();
         }
     }
+    MouseArea {
+        anchors.fill: parent; acceptedButtons: Qt.RightButton
+        onPressed: mouse => valueMenu.popup(mouse.x, mouse.y)
+        BwMenu {
+            id: valueMenu
+            BwMenuItem { iconName: "info"; text: "Details"; onTriggered: root.detailsRequested(root.valueData && root.valueData.kind === "Op" ? root.valueData.op : (root.valueData ? root.valueData.kind : "Value")) }
+        }
+    }
     Row {
         id: content; anchors.centerIn: parent; spacing: 3
         Text { visible: root.opPrefix.length > 0; text: root.opPrefix; color: Theme.textDim; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
@@ -65,10 +73,5 @@ Item {
         Item { visible: !!root.valueData && root.valueData.kind === "Bool"; width: 24; height: 17 }
         Text { visible: !!root.valueData && root.valueData.kind === "Op" && root.opPrefix.length===0 && (root.valueData.args||[]).length===0; text: root.valueData && root.valueData.op ? root.valueData.op.toLowerCase() : ""; color: Theme.text; font.pixelSize: 12 }
         Text { visible: root.opSuffix.length>0; text:root.opSuffix; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-    }
-    TapHandler { acceptedButtons:Qt.RightButton; onTapped:valueMenu.popup() }
-    Menu {
-        id:valueMenu;background:Rectangle{radius:7;color:Theme.panelRaised;border.color:Theme.border}
-        BwMenuItem{iconName:"info";text:"Details";onTriggered:root.detailsRequested(root.valueData&&root.valueData.kind==="Op"?root.valueData.op:(root.valueData?root.valueData.kind:"Value"))}
     }
 }
