@@ -4,3 +4,5 @@ dist/
 .idea/
 
 crates/**/target
+/target/
+/Cargo.lock

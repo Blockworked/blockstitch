@@ -1,0 +1,17 @@
+import QtQuick
+import QtQuick.Controls
+
+MenuItem {
+    id: control
+    property string iconName: ""
+    property bool danger: false
+    implicitWidth: 210
+    implicitHeight: 34
+    leftPadding: 10; rightPadding: 12
+    contentItem: Row {
+        spacing: 9
+        LucideIcon { name: control.iconName; visible: control.iconName.length>0; width: 15; height: 15; color: control.danger?Theme.danger:Theme.textDim; anchors.verticalCenter: parent.verticalCenter }
+        Text { text: control.text; color: control.danger?Theme.danger:Theme.text; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter; verticalAlignment: Text.AlignVCenter }
+    }
+    background: Rectangle { radius: 5; color: control.highlighted ? "#3d3f44" : "transparent" }
+}
