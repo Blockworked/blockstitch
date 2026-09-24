@@ -122,6 +122,7 @@ Rectangle {
                     delegate:PaletteValue {
                         required property var modelData
                         valueData:root.operatorValue(modelData); spec:({kind:"value",value:valueData})
+                        blockDefinitions:root.blockDefinitions
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                         onActivated:root.valueActivated(valueData)
                         onDetailsRequested:kind=>root.detailsRequested(kind,kind,"A value or operator block that can be placed in an input.")
@@ -137,6 +138,7 @@ Rectangle {
                     delegate:PaletteValue {
                         required property string modelData
                         valueData:({kind:"Var",name:modelData}); editable:false; spec:({kind:"value",value:valueData})
+                        blockDefinitions:root.blockDefinitions
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                         onActivated:root.valueActivated(valueData)
                     }
@@ -171,6 +173,7 @@ Rectangle {
                     delegate:PaletteValue {
                         required property var modelData
                         valueData:root.operatorValue(modelData); spec:({kind:"value",value:valueData})
+                        blockDefinitions:root.blockDefinitions
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                         onActivated:root.valueActivated(valueData)
                         onDetailsRequested:kind=>root.detailsRequested(kind,kind,"A list reporter block that reads data without changing the list.")
@@ -211,6 +214,7 @@ Rectangle {
                             id:customReporter
                             PaletteValue {
                                 valueData:root.customValue(customItem.modelData); editable:false; forceBoolean:customItem.modelData.shape==="ReturnsBool"; callLabel:root.customLabel(customItem.modelData)
+                                blockDefinitions:root.blockDefinitions
                                 spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,label:callLabel})
                                 onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                                 onActivated:root.valueActivated(valueData)

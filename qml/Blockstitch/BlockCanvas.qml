@@ -37,6 +37,10 @@ Rectangle {
     signal keyCaptureRequested(string strandId, var path)
     signal appPickerRequested(string strandId, var path, var instruction)
     signal detailsRequested(string type)
+    signal valueTakeRequested(var location)
+    signal valuePutRequested(var location, var value)
+    signal valueCreateRequested(int x, int y, var value)
+    signal valueDragOutside(var location, var value, real sceneX, real sceneY)
     color:Theme.canvas; clip:true
     onZoomChanged: grid.requestPaint()
     // World coordinates have their origin at the center of the workspace:
@@ -138,13 +142,77 @@ Rectangle {
         property real settleDx: 0
         property real settleDy: 0
     }
-    readonly property bool dragging: dragSession.active
-    readonly property real dragSceneX: dragSession.sceneX
-    readonly property real dragSceneY: dragSession.sceneY
+    readonly property bool dragging: dragSession.active || valueDrag.active
+    // Read access to the value-drag session (active/target/targetValid).
+    // Blocks already receive dragSession the same way via dragState.
+    readonly property alias valueDragState: valueDrag
+    readonly property real dragSceneX: dragSession.active ? dragSession.sceneX : valueDrag.sceneX
+    readonly property real dragSceneY: dragSession.active ? dragSession.sceneY : valueDrag.sceneY
     // Palette live preview reads these (same object as the canvas snap above).
     readonly property bool paletteSnapValid: dragSession.snapValid
     readonly property string paletteSnapTargetId: dragSession.snapTargetId
     readonly property var paletteSnapPath: dragSession.snapPath
+    // ---- value (operator) drag session ----
+    // Separate from the block/strand drag above: values can only land in
+    // value slots (fields) or as new floating blocks, never in a strand.
+    QtObject {
+        id: valueDrag
+        property bool active: false
+        property var sourceLocation: null
+        property var sourceValue: null
+        property real startX: 0
+        property real startY: 0
+        property real originX: 0
+        property real originY: 0
+        property real dx: 0
+        property real dy: 0
+        property real sceneX: 0
+        property real sceneY: 0
+        property real draggedWidth: 120
+        property real draggedHeight: 32
+        property var target: null
+        property bool targetValid: false
+        property var highlightItem: null
+    }
+    // Highlight set by the sidebar while a fresh palette value hovers the
+    // canvas (palette drags are owned by the editor, not by valueDrag).
+    property var paletteValueTarget: null
+    property var paletteHighlightItem: null
+    function clearPaletteHighlight() {
+        if (paletteHighlightItem && paletteHighlightItem.dropHighlighted !== undefined) paletteHighlightItem.dropHighlighted = false;
+        paletteHighlightItem = null; paletteValueTarget = null;
+    }
+    function setPaletteHighlight(item, loc) {
+        if (paletteHighlightItem && paletteHighlightItem !== item && paletteHighlightItem.dropHighlighted !== undefined) paletteHighlightItem.dropHighlighted = false;
+        paletteHighlightItem = item;
+        if (item && item.dropHighlighted !== undefined) item.dropHighlighted = true;
+        paletteValueTarget = loc ? JSON.parse(JSON.stringify(loc)) : null;
+    }
+    // Returns the value-slot location under a scene point (for sidebar
+    // palette drags), highlighting it. Pass null when the pointer leaves.
+    // Targeting is proximity-based, not point-based: the nearest slot rect
+    // to the dragged ghost rect within valueDropRadius wins (see
+    // resolveValueSlot). The optional ghost scene rect (g-numbers) lets the
+    // caller pass the dragged block's footprint; without it the pointer
+    // alone is used as a zero-size ghost.
+    function updatePaletteValueTarget(sx, sy) {
+        if (sx === null || sx === undefined || sy === null || sy === undefined) { clearPaletteHighlight(); return null; }
+        return updatePaletteValueTargetRect(sx, sy, sx, sy, sx, sy);
+    }
+    function updatePaletteValueTargetRect(gsx, gsy, gex, gey, sx, sy) {
+        if (sx === null || sx === undefined || sy === null || sy === undefined) { clearPaletteHighlight(); return null; }
+        if (!root.contains(root.mapFromItem(null, sx, sy))) { clearPaletteHighlight(); return null; }
+        const tl = workspace.mapFromItem(null, gsx, gsy);
+        const br = workspace.mapFromItem(null, gex, gey);
+        const gx = Math.min(tl.x, br.x), gy = Math.min(tl.y, br.y);
+        const gw = Math.abs(br.x - tl.x), gh = Math.abs(br.y - tl.y);
+        const wp = workspace.mapFromItem(null, sx, sy);
+        const found = resolveValueSlot(gx, gy, gw, gh, wp.x, wp.y);
+        if (!found) { clearPaletteHighlight(); return null; }
+        const loc = JSON.parse(JSON.stringify(found.loc));
+        setPaletteHighlight(found.item, loc);
+        return loc;
+    }
     function strandById(id) { const list = root.strands || []; for (let i = 0; i < list.length; ++i) if (list[i].id === id) return list[i]; return null; }
     // ---- snap geometry (mirrors InstructionBlock row/wrap metrics) ----
     readonly property real snapThreshold: 36
@@ -416,6 +484,7 @@ Rectangle {
         while (strandModel.count > list.length) strandModel.remove(strandModel.count - 1);
     }
     function beginDrag(strandId, path, tailCount, sx, sy, ox, oy, bw, bh) {
+        cancelValueDrag(); clearPaletteHighlight();
         const p = workspace.mapFromItem(null, sx, sy);
         dragSession.settling = false;
         dragSession.strandId = strandId; dragSession.path = path; dragSession.tailCount = tailCount;
@@ -514,6 +583,207 @@ Rectangle {
         dragSession.active = false; dragSession.settling = false; clearSnap();
         dragSession.sourceStrandId = ""; dragSession.sourceBasePath = []; dragSession.sourceShrink = 0;
     }
+    // ---- value (operator) drag: hit-testing + session ----
+    function valueLocationsEqual(a, b) {
+        if (!a || !b) return false;
+        if (a.kind !== b.kind) return false;
+        if (a.kind === "Field") {
+            if (a.strand_id !== b.strand_id || a.field_id !== b.field_id) return false;
+            const ai = a.index || [], bi = b.index || [];
+            if (ai.length !== bi.length) return false;
+            for (let i = 0; i < ai.length; ++i) {
+                if (ai[i].index !== bi[i].index) return false;
+                const sa = (ai[i].slot === undefined || ai[i].slot === null) ? -1 : ai[i].slot;
+                const sb = (bi[i].slot === undefined || bi[i].slot === null) ? -1 : bi[i].slot;
+                if (sa !== sb) return false;
+            }
+        } else {
+            if (a.floating_id !== b.floating_id) return false;
+        }
+        const ap = a.path || [], bp = b.path || [];
+        if (ap.length !== bp.length) return false;
+        for (let i = 0; i < ap.length; ++i) if (ap[i] !== bp[i]) return false;
+        return true;
+    }
+    function isFloatingRootLocation(loc) { return !!loc && loc.kind === "Floating" && !(loc.path && loc.path.length); }
+    function isValueDescendantOrSelf(target, source) {
+        if (!target || !source || target.kind !== source.kind) return false;
+        if (target.kind === "Field") {
+            if (target.strand_id !== source.strand_id || target.field_id !== source.field_id) return false;
+            const ai = target.index || [], bi = source.index || [];
+            if (ai.length !== bi.length) return false;
+            for (let i = 0; i < ai.length; ++i) {
+                if (ai[i].index !== bi[i].index) return false;
+                const sa = (ai[i].slot === undefined || ai[i].slot === null) ? -1 : ai[i].slot;
+                const sb = (bi[i].slot === undefined || bi[i].slot === null) ? -1 : bi[i].slot;
+                if (sa !== sb) return false;
+            }
+        } else if (target.floating_id !== source.floating_id) return false;
+        const tp = target.path || [], sp = source.path || [];
+        if (tp.length < sp.length) return false;
+        for (let i = 0; i < sp.length; ++i) if (tp[i] !== sp[i]) return false;
+        return true;
+    }
+    // ---- value (operator) drop targeting: proximity, not point hits ----
+    // Slots are small and the dragged ghost covers the pointer, so a pure
+    // childAt(x, y) point query misses whenever the cursor sits just off a
+    // slot edge. Instead we measure the gap between the dragged ghost rect
+    // and every slot rect in workspace coordinates and take the nearest one
+    // inside valueDropRadius (same idea as the block snapThreshold above).
+    // Tie-breaks reproduce the old exact-hover behavior: among equidistant
+    // slots the one actually containing the pointer wins, then the smallest
+    // (deepest nested), then the one whose center is nearest the ghost.
+    readonly property real valueDropRadius: 32
+    function workspaceRectOf(item) {
+        try {
+            const tl = item.mapToItem(workspace, 0, 0);
+            const br = item.mapToItem(workspace, item.width, item.height);
+            return { x: Math.min(tl.x, br.x), y: Math.min(tl.y, br.y), w: Math.abs(br.x - tl.x), h: Math.abs(br.y - tl.y) };
+        } catch (e) { return null; }
+    }
+    function rectGap(ax, ay, aw, ah, bx, by, bw, bh) {
+        const dx = Math.max(bx - (ax + aw), ax - (bx + bw), 0);
+        const dy = Math.max(by - (ay + ah), ay - (by + bh), 0);
+        return Math.hypot(dx, dy);
+    }
+    function collectValueSlots(node, out) {
+        if (!node || node.visible === false) return;
+        const kids = node.children;
+        if (kids) for (let i = 0; i < kids.length; ++i) collectValueSlots(kids[i], out);
+        if (node.isValueChip && node.valueLocation && !isFloatingRootLocation(node.valueLocation)) {
+            const r = workspaceRectOf(node);
+            if (r) out.push({ item: node, loc: node.valueLocation, rect: r });
+        }
+    }
+    // gx/gy/gw/gh: dragged ghost rect in workspace coordinates (gw/gh 0 =
+    // unknown: pointer used as a zero-size ghost). px/py: pointer workspace
+    // point, used for tie-breaks. Returns { item, loc, rect } or null.
+    function resolveValueSlot(gx, gy, gw, gh, px, py) {
+        const slots = [];
+        collectValueSlots(workspace, slots);
+        const gcx = gx + gw / 2, gcy = gy + gh / 2;
+        let best = null, bestGap = 1e9, bestInside = false, bestArea = 1e9, bestCenter = 1e9;
+        for (let i = 0; i < slots.length; ++i) {
+            const s = slots[i], r = s.rect;
+            const gap = rectGap(gx, gy, gw, gh, r.x, r.y, r.w, r.h);
+            if (gap > valueDropRadius) continue;
+            const inside = px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+            const area = Math.max(1, r.w) * Math.max(1, r.h);
+            const cd = Math.hypot(gcx - (r.x + r.w / 2), gcy - (r.y + r.h / 2));
+            let take = false;
+            if (!best || gap < bestGap - 1e-6) take = true;
+            else if (Math.abs(gap - bestGap) <= 1e-6) {
+                if (inside && !bestInside) take = true;
+                else if (inside === bestInside) {
+                    if (area < bestArea - 1e-6) take = true;
+                    else if (Math.abs(area - bestArea) <= 1e-6 && cd < bestCenter) take = true;
+                }
+            }
+            if (take) { best = s; bestGap = gap; bestInside = inside; bestArea = area; bestCenter = cd; }
+        }
+        return best;
+    }
+    function findValueChip(item, x, y) {
+        let child = null;
+        try { child = item.childAt(x, y); } catch (e) { child = null; }
+        if (!child) return item.isValueChip ? item : null;
+        const cp = item.mapToItem(child, x, y);
+        const deep = findValueChip(child, cp.x, cp.y);
+        if (deep) return deep;
+        return item.isValueChip ? item : null;
+    }
+    // Deepest value slot under a scene point, or null. Floating roots are
+    // never slots (only their nested inputs are). `exclude` marks the drag
+    // source: dropping back onto it is a no-op, dropping into its own
+    // descendant is invalid - both still return the location so the caller
+    // can tell "cancel" apart from "open canvas".
+    function findValueTarget(sx, sy, exclude) {
+        if (!root.contains(root.mapFromItem(null, sx, sy))) return null;
+        const wp = workspace.mapFromItem(null, sx, sy);
+        const found = resolveValueSlot(wp.x, wp.y, 0, 0, wp.x, wp.y);
+        if (!found) return null;
+        return JSON.parse(JSON.stringify(found.loc));
+    }
+    function clearValueTarget() { valueDrag.target = null; valueDrag.targetValid = false; setValueHighlight(null); }
+    function setValueHighlight(item) {
+        if (valueDrag.highlightItem && valueDrag.highlightItem !== item && valueDrag.highlightItem.dropHighlighted !== undefined) valueDrag.highlightItem.dropHighlighted = false;
+        valueDrag.highlightItem = item;
+        if (item && item.dropHighlighted !== undefined) item.dropHighlighted = true;
+    }
+    function setPaletteValueTarget(loc) { paletteValueTarget = loc ? JSON.parse(JSON.stringify(loc)) : null; }
+    function beginValueDrag(location, value, sx, sy, ox, oy, w, h) {
+        if (root.locked) return;
+        cancelDrag();
+        const p = workspace.mapFromItem(null, sx, sy);
+        valueDrag.sourceLocation = JSON.parse(JSON.stringify(location));
+        valueDrag.sourceValue = JSON.parse(JSON.stringify(value));
+        valueDrag.startX = p.x; valueDrag.startY = p.y;
+        valueDrag.originX = p.x - ox; valueDrag.originY = p.y - oy;
+        valueDrag.dx = 0; valueDrag.dy = 0;
+        valueDrag.sceneX = sx; valueDrag.sceneY = sy;
+        valueDrag.draggedWidth = w || 120; valueDrag.draggedHeight = h || 32;
+        valueDrag.active = true;
+        clearValueTarget();
+        clearPaletteHighlight();
+        updateValueTarget(sx, sy);
+    }
+    function updateValueTarget(sx, sy) {
+        if (!valueDrag.active) return;
+        valueDrag.sceneX = sx; valueDrag.sceneY = sy;
+        const p = workspace.mapFromItem(null, sx, sy);
+        valueDrag.dx = p.x - valueDrag.startX; valueDrag.dy = p.y - valueDrag.startY;
+        if (!root.contains(root.mapFromItem(null, sx, sy))) { clearValueTarget(); return; }
+        // Ghost rect in workspace coordinates (draggedWidth/Height are item
+        // pixels, so normalize by zoom); the drop target is the nearest slot
+        // to this rect, not the item exactly under the cursor.
+        const z = Math.max(0.01, root.zoom);
+        const gx = valueDrag.originX + valueDrag.dx, gy = valueDrag.originY + valueDrag.dy;
+        const gw = (valueDrag.draggedWidth || 0) / z, gh = (valueDrag.draggedHeight || 0) / z;
+        const found = resolveValueSlot(gx, gy, gw, gh, p.x, p.y);
+        if (!found) { clearValueTarget(); return; }
+        const t = JSON.parse(JSON.stringify(found.loc));
+        // Dropping back onto the exact source slot, or into its own
+        // descendant, is never a move - keep the highlight for the
+        // exact-source no-op, clear it for a true self-nesting.
+        if (valueLocationsEqual(t, valueDrag.sourceLocation)) { valueDrag.target = t; valueDrag.targetValid = true; setValueHighlight(found.item); return; }
+        if (isValueDescendantOrSelf(t, valueDrag.sourceLocation)) { clearValueTarget(); return; }
+        valueDrag.target = t; valueDrag.targetValid = true; setValueHighlight(found.item);
+    }
+    function moveValueDrag(sx, sy) { updateValueTarget(sx, sy); }
+    function endValueDrag(sx, sy) {
+        if (!valueDrag.active) return;
+        updateValueTarget(sx, sy);
+        const source = valueDrag.sourceLocation ? JSON.parse(JSON.stringify(valueDrag.sourceLocation)) : null;
+        const value = valueDrag.sourceValue ? JSON.parse(JSON.stringify(valueDrag.sourceValue)) : null;
+        const target = valueDrag.targetValid && valueDrag.target ? JSON.parse(JSON.stringify(valueDrag.target)) : null;
+        valueDrag.active = false;
+        clearValueTarget();
+        if (!source || !value) return;
+        if (!root.contains(root.mapFromItem(null, sx, sy))) { root.valueDragOutside(source, value, sx, sy); return; }
+        if (target) {
+            if (valueLocationsEqual(target, source)) return; // no-op put-back
+            root.valueTakeRequested(source);
+            root.valuePutRequested(target, value);
+            return;
+        }
+        // Open canvas: a whole floating block just moves; anything pulled
+        // out of a field becomes a new floating block.
+        if (source.kind === "Floating" && !(source.path && source.path.length)) {
+            const at = workspacePoint(sx, sy);
+            // Center the block under the pointer like a fresh drop.
+            const fx = at ? Math.round(at.x - valueDrag.draggedWidth / 2) : 0;
+            const fy = at ? Math.round(at.y - valueDrag.draggedHeight / 2) : 0;
+            root.floatingValueMoved(source.floating_id, fx, fy);
+            return;
+        }
+        const at = workspacePoint(sx, sy);
+        if (!at) return;
+        const fx = Math.round(at.x - valueDrag.draggedWidth / 2);
+        const fy = Math.round(at.y - valueDrag.draggedHeight / 2);
+        root.valueTakeRequested(source);
+        root.valueCreateRequested(fx, fy, value);
+    }
+    function cancelValueDrag() { valueDrag.active = false; clearValueTarget(); }
     Timer { id: settleTimer; interval: 1500; onTriggered: dragSession.settling = false }
     onStrandsChanged: {
         syncStrands();
@@ -612,6 +882,10 @@ Rectangle {
                             onInstructionEdited:(sid,p,i)=>root.instructionEdited(sid,p,i)
                             onRunBranchRequested:(sid,p,n)=>root.runBranchRequested(sid,p,n)
                             onValueEdited:(l,t)=>root.valueEdited(l,t)
+                            onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.beginValueDrag(loc,val,sx,sy,ox,oy,w,h)
+                            onValueDragMoved:(sx,sy)=>root.moveValueDrag(sx,sy)
+                            onValueDragEnded:(sx,sy)=>root.endValueDrag(sx,sy)
+                            onValueDragCanceled:root.cancelValueDrag()
                             onDragBegan:(sid,p,tail,sx,sy,ox,oy,bw,bh)=>root.beginDrag(sid,p,tail,sx,sy,ox,oy,bw,bh)
                             onDragMoved:(sx,sy)=>root.moveDrag(sx,sy)
                             onDragEnded:(sx,sy)=>root.endDrag(sx,sy)
@@ -654,8 +928,7 @@ Rectangle {
                 model:root.floatingValues||[]
                 delegate:Item {
                     id:floatingItem;required property var modelData;x:modelData.x + root.originOffsetX;y:modelData.y + root.originOffsetY;z:5;width:floatingChip.implicitWidth;height:floatingChip.implicitHeight
-                    ValueChip { id:floatingChip;valueData:floatingItem.modelData.value;location:({kind:"Floating",floating_id:floatingItem.modelData.id,path:[]});boxed:true;onEditRequested:(l,t)=>root.valueEdited(l,t) }
-                    DragHandler { enabled:!root.locked;target:floatingItem;onActiveChanged:if(!active)root.floatingValueMoved(floatingItem.modelData.id,Math.round(floatingItem.x - root.originOffsetX),Math.round(floatingItem.y - root.originOffsetY)) }
+                    ValueChip { id:floatingChip;valueData:floatingItem.modelData.value;location:({kind:"Floating",floating_id:floatingItem.modelData.id,path:[]});boxed:true;blockDefinitions:root.blockDefinitions;onEditRequested:(l,t)=>root.valueEdited(l,t);onDetailsRequested:kind=>root.detailsRequested(kind);onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.beginValueDrag(loc,val,sx,sy,ox,oy,w,h);onValueDragMoved:(sx,sy)=>root.moveValueDrag(sx,sy);onValueDragEnded:(sx,sy)=>root.endValueDrag(sx,sy);onValueDragCanceled:root.cancelValueDrag() }
                     TapHandler { acceptedButtons:Qt.RightButton;gesturePolicy:TapHandler.ReleaseWithinBounds;onTapped:floatingMenu.popup() }
                     BwMenu { id:floatingMenu;BwMenuItem{iconName:"info";text:"Details";onTriggered:root.detailsRequested(floatingItem.modelData.value.op||floatingItem.modelData.value.kind)}BwMenuItem{iconName:"trash";danger:true;text:"Delete value";onTriggered:root.floatingValueRemoved(floatingItem.modelData.id)} }
                 }
@@ -718,6 +991,19 @@ Rectangle {
                     headHeight: 50; midHeight: 34; footHeight: 26; spine: 20
                     mouthHeights: dragSession.draggedMouths
                     flatEnds: dragSession.draggedFlat
+                }
+            }
+            // Ghost following the pointer while an existing value is dragged.
+            Item {
+                id: valueGhost
+                visible: valueDrag.active
+                x: valueDrag.originX + valueDrag.dx; y: valueDrag.originY + valueDrag.dy
+                width: Math.max(40, valueDrag.draggedWidth); height: Math.max(27, valueDrag.draggedHeight)
+                z: 95; enabled: false; opacity: 0.9
+                ValueChip {
+                    anchors.fill: parent
+                    valueData: valueDrag.sourceValue; boxed: true; editable: false
+                    blockDefinitions: root.blockDefinitions
                 }
             }
         }

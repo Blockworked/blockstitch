@@ -8,6 +8,7 @@ Item {
     property bool editable: true
     property bool forceBoolean: false
     property string callLabel: "custom block"
+    property var blockDefinitions: []
     signal dragStarted(var spec, real sceneX, real sceneY, real offsetX, real offsetY)
     signal dragMoved(real sceneX, real sceneY)
     signal dragEnded(real sceneX, real sceneY)
@@ -30,6 +31,7 @@ Item {
         id: chip
         valueData: root.valueData; editable: root.editable; boxed: true
         forceBoolean: root.forceBoolean; callDisplayLabel: root.callLabel
+        blockDefinitions: root.blockDefinitions; paletteMode: true
         onDetailsRequested: kind => root.detailsRequested(kind)
     }
 }
