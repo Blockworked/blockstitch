@@ -29,10 +29,15 @@ Item {
     readonly property bool isRef: !!valueData && ["Op", "Var", "Param", "Call"].indexOf(valueData.kind) >= 0
     readonly property bool showBox: boxed || isRef || booleanShape
     function defFor(id) { for (let i = 0; i < (blockDefinitions || []).length; ++i) if (blockDefinitions[i].id === id) return blockDefinitions[i]; return null; }
+    readonly property bool customCall: !!valueData && valueData.kind === "Call" && !!defFor(valueData.block_id)
     readonly property color refColor: {
         if (valueData && valueData.kind === "Call") { const d = defFor(valueData.block_id); if (d && d.color) return d.color; }
-        return "#37383c";
+        return Theme.accent;
     }
+    readonly property color quietRefColor: Qt.rgba(
+        refColor.r * .3 + Theme.border.r * .7,
+        refColor.g * .3 + Theme.border.g * .7,
+        refColor.b * .3 + Theme.border.b * .7, 1)
     readonly property bool hovered: (valueGrab.hovered && !valueGrab.dragging) || paletteHover.hovered
     // Sidebar prefabs have no location (so valueGrab never arms), but still
     // need the grab cursor + accent outline that blocks get from
@@ -67,18 +72,19 @@ Item {
         Connections { target: root; function onShowBoxChanged() { chipCanvas.requestPaint(); } }
         Connections { target: root; function onDropHighlightedChanged() { chipCanvas.requestPaint(); } }
         Connections { target: root; function onValueDataChanged() { chipCanvas.requestPaint(); } }
+        Connections { target: root; function onRefColorChanged() { chipCanvas.requestPaint(); } }
         onPaint: {
             const c=getContext("2d"); c.reset(); c.beginPath();
             if (root.booleanShape) { const n=Math.min(height*.32,width/2); c.moveTo(n,.5); c.lineTo(width-n,.5); c.lineTo(width-.5,height/2); c.lineTo(width-n,height-.5); c.lineTo(n,height-.5); c.lineTo(.5,height/2); c.closePath(); }
             else { c.roundedRect(.5,.5,width-1,height-1,5,5); }
             const g=c.createLinearGradient(0,0,width,height);
-            if (root.valueData && root.valueData.kind === "Call" && root.defFor(root.valueData.block_id)) { const base=root.refColor; g.addColorStop(0,Qt.lighter(base,1.11)); g.addColorStop(1,base); }
-            else { g.addColorStop(0,"#37383c"); g.addColorStop(1,"#292a2d"); }
+            g.addColorStop(0,"#37383c"); g.addColorStop(1,"#292a2d");
             c.fillStyle=g; c.fill();
             // Drop preview reads stronger than hover: thicker line plus glow
             // so it stays visible next to the dragged ghost covering the slot.
-            if (root.dropHighlighted) { c.shadowColor=Theme.accent; c.shadowBlur=9; }
-            c.strokeStyle=(root.hovered || root.dropHighlighted) ? Theme.accent : Theme.border; c.lineWidth=root.dropHighlighted ? 2.4 : (root.hovered ? 1.6 : 1); c.stroke();
+            if (root.dropHighlighted) { c.shadowColor=root.customCall ? root.refColor : Theme.accent; c.shadowBlur=9; }
+            c.strokeStyle=(root.hovered || root.dropHighlighted) ? (root.customCall ? root.refColor : Theme.accent) : (root.customCall ? root.quietRefColor : Theme.border);
+            c.lineWidth=root.dropHighlighted ? 2.4 : (root.hovered ? 1.6 : 1); c.stroke();
         }
     }
     // Press-and-drag surface for existing value blocks (fields + floating).

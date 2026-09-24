@@ -73,12 +73,17 @@ Item {
         }
         return 0;
     }
-    readonly property color displayColor: {
-        if (instruction && ["CallBlock","BranchCallBlock","BlockHeader"].indexOf(type) >= 0) {
-            const d = defFor(instruction.block_id); if (d && d.color) return d.color;
+    readonly property bool isCustomBlock: ["CallBlock","BranchCallBlock","BlockHeader"].indexOf(type) >= 0
+    readonly property color customColor: {
+        if (instruction && isCustomBlock) {
+            const d = defFor(instruction.block_id);
+            if (d && d.color) return d.color;
         }
-        return blockColor;
+        return Theme.accent;
     }
+    // Match the web canvas: the chosen color marks a custom block's icon and
+    // hover outline, while the block body stays in the neutral canvas palette.
+    readonly property color displayColor: isCustomBlock ? Theme.block : blockColor
     implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 36))
     implicitHeight: isWrap ? headHeight + mouthTotal + Math.max(0, slotCount() - 1) * midHeight + footHeight + tabDepth : rowHeight
     z: dragRole > 0 ? 50 : hovered ? 2 : 1
@@ -230,11 +235,12 @@ Item {
         anchors.fill: parent
         shape: root.isWrap ? "wrap" : root.isHeader ? "header" : root.isCap ? "cap" : "stack"
         fill: root.displayColor; hovered: root.hovered || root.dragRole === 1
+        hoverColor: root.isCustomBlock ? root.customColor : Theme.accent
         headHeight: root.headHeight; midHeight: root.midHeight; footHeight: root.footHeight; spine: root.spine
         mouthHeights: root.isWrap ? root.effMouthHeights : []
         flatEnds: root.flatEnds
     }
-    QtObject { id: hitMask; function contains(point) { return root.hitTest(point.x, point.y); } }
+    QtObject { id: hitMask; function contains(point: point): bool { return root.hitTest(point.x, point.y); } }
     BlockDragArea {
         id: grab
         anchors.fill: parent
@@ -257,8 +263,8 @@ Item {
     }
     Row {
         id: fields; visible: !root.isWrap; x: 14; y: Math.round((root.rowHeight-height-8)/2); spacing: 7
-        LucideIcon { visible: !root.isHeader; name: root.iconFor(root.type); color: Theme.textDim; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
-        LucideIcon { visible: root.isHeader; name: root.iconFor(root.type); color: Theme.accent; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
+        LucideIcon { visible: !root.isHeader; name: root.iconFor(root.type); color: root.isCustomBlock ? root.customColor : Theme.textDim; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
+        LucideIcon { visible: root.isHeader; name: root.iconFor(root.type); color: root.isCustomBlock ? root.customColor : Theme.accent; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
         Text { visible: root.type==="WhenRan"; text:"WHEN RAN"; color:Theme.textDim; font.pixelSize:12; font.weight:Font.DemiBold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
         Text { visible: root.type==="WhenBatteryDischargedTo"; text:"WHEN BATTERY DISCHARGED TO"; color:Theme.textDim; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
         ValueChip { visible: root.type==="WhenBatteryDischargedTo"; valueData:instruction?instruction.threshold:null; location:root.fieldLocation("BatteryDischargeThreshold"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
@@ -295,9 +301,9 @@ Item {
         Text { visible:root.type==="Command"; text:"Run command:"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
         BwTextField { visible:root.type==="Command"; text:instruction&&instruction.command?instruction.command:""; placeholderText:"command"; implicitWidth:150; implicitHeight:30; font.pixelSize:12; onEditingFinished:root.setField("command",text) }
         Text { visible:root.type==="OpenApp"; text:"Open app:"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-        BwButton { visible:root.type==="OpenApp"; text:instruction&&instruction.name?instruction.name:"Choose app…"; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
+        BwButton { visible:root.type==="OpenApp"; text:instruction&&instruction.name?instruction.name:"Choose app…"; iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
         Text { visible:root.type==="CloseApp"; text:"Close app:"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-        BwButton { visible:root.type==="CloseApp"; text:instruction&&instruction.name?instruction.name:"Choose app…"; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
+        BwButton { visible:root.type==="CloseApp"; text:instruction&&instruction.name?instruction.name:"Choose app…"; iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
         Text { visible:root.type==="SetVariable"; text:"set"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
         BwComboBox { visible:root.type==="SetVariable"; model:Array.from(root.variables||[]); currentIndex:instruction?Array.from(root.variables||[]).indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:"Choose variable"); implicitWidth:106; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("name",currentText) }
         Text { visible:root.type==="SetVariable"; text:"to"; color:Theme.textDim; anchors.verticalCenter:parent.verticalCenter }
@@ -350,7 +356,7 @@ Item {
     // Head bar content, then one mouth per body (nested blocks) with separator bars between them.
     Row {
         id:headContent; visible:root.isWrap; x:14; y:Math.round((root.headHeight-height)/2); spacing:7
-        LucideIcon { name:root.iconFor(root.type); color:Theme.textDim; width:16;height:16; anchors.verticalCenter:parent.verticalCenter }
+        LucideIcon { name:root.iconFor(root.type); color:root.isCustomBlock?root.customColor:Theme.textDim; width:16;height:16; anchors.verticalCenter:parent.verticalCenter }
         Text { visible:root.type==="If"||root.type==="IfElse"; text:"if"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
         ValueChip { visible:root.type==="If"||root.type==="IfElse"||root.type==="While"; valueData:instruction?instruction.condition:null; location:root.fieldLocation("Condition"); boxed:true; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         Text { visible:root.type==="If"||root.type==="IfElse"; text:"then"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }

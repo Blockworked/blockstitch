@@ -7,6 +7,10 @@ Button {
     property bool danger: false
     property string iconName: ""
     property bool iconFilled: false
+    // Raster image (e.g. an application icon as a data: URI) shown to the
+    // left of the label, mirroring the web frontend's <img> inside its
+    // chooser buttons. Takes precedence over the LucideIcon glyph.
+    property url iconSource: ""
     property real radius: Theme.radius
     implicitHeight: 38
     implicitWidth: Math.max(40, contentRow.implicitWidth + 24)
@@ -19,9 +23,12 @@ Button {
     contentItem: Item {
         Row {
             id: contentRow
-            spacing: (control.iconName.length > 0 && control.text.length > 0) ? 8 : 0
+            readonly property bool hasGlyph: control.iconName.length > 0 && control.iconSource.toString().length === 0
+            readonly property bool hasImage: control.iconSource.toString().length > 0
+            spacing: ((hasGlyph || hasImage) && control.text.length > 0) ? 8 : 0
             anchors.centerIn: parent
-            LucideIcon { visible: control.iconName.length > 0; name: control.iconName; filled: control.iconFilled; color: control.danger ? Theme.danger : (control.flat ? Theme.textDim : Theme.text); width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
+            Image { visible: contentRow.hasImage; source: control.iconSource; width: 16; height: 16; fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true; anchors.verticalCenter: parent.verticalCenter }
+            LucideIcon { visible: contentRow.hasGlyph; name: control.iconName; filled: control.iconFilled; color: control.danger ? Theme.danger : (control.flat ? Theme.textDim : Theme.text); width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
             Text { id: label; visible: control.text.length > 0; text: control.text; color: control.danger ? Theme.danger : Theme.text; font: control.font; elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter; verticalAlignment: Text.AlignVCenter }
         }
     }

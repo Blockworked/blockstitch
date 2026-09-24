@@ -9,6 +9,7 @@ Canvas {
     property string shape: "stack"
     property color fill: Theme.block
     property color outline: Theme.border
+    property color hoverColor: Theme.accent
     property bool hovered: false
 
     // wrap geometry: bar *body* heights (the bottom connector tab protrudes
@@ -24,6 +25,7 @@ Canvas {
     antialiasing: true
     onWidthChanged: requestPaint(); onHeightChanged: requestPaint()
     onFillChanged: requestPaint(); onOutlineChanged: requestPaint()
+    onHoverColorChanged: requestPaint()
     onHoveredChanged: requestPaint(); onShapeChanged: requestPaint()
     onMouthHeightsChanged: requestPaint(); onFlatEndsChanged: requestPaint()
     onHeadHeightChanged: requestPaint(); onMidHeightChanged: requestPaint(); onFootHeightChanged: requestPaint()
@@ -85,7 +87,7 @@ Canvas {
         g.addColorStop(0, Qt.lighter(fill, 1.11)); g.addColorStop(1, fill);
         ctx.fillStyle = g; ctx.fill();
         ctx.lineWidth = 1.3; ctx.lineJoin = "round";
-        ctx.strokeStyle = hovered ? Theme.accent : outline;
+        ctx.strokeStyle = hovered ? hoverColor : outline;
         ctx.stroke();
     }
 }
