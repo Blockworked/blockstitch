@@ -134,7 +134,11 @@ pub fn rename_list_in_value(value: &mut Value, old: &str, new: &str) {
             }
             rename_list_in_value(saved, old, new);
         }
-        Value::Number { .. } | Value::Text { .. } | Value::Bool | Value::Var { .. } | Value::Param { .. } => {}
+        Value::Number { .. }
+        | Value::Text { .. }
+        | Value::Bool
+        | Value::Var { .. }
+        | Value::Param { .. } => {}
     }
 }
 
@@ -222,7 +226,9 @@ pub fn list_to_json(items: &[ListItem]) -> String {
         match item {
             ListItem::Number(value) => {
                 if value.is_finite() {
-                    out.push_str(&serde_json::to_string(value).unwrap_or_else(|_| "null".to_string()));
+                    out.push_str(
+                        &serde_json::to_string(value).unwrap_or_else(|_| "null".to_string()),
+                    );
                 } else {
                     out.push_str("null");
                 }

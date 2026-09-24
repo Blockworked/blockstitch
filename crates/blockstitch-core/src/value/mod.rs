@@ -213,7 +213,9 @@ impl Value {
                 }
                 Ok(Evaluated::Text(s))
             }
-            Value::Op { op: Op::NewLine, .. } => Ok(Evaluated::Text("\n".to_string())),
+            Value::Op {
+                op: Op::NewLine, ..
+            } => Ok(Evaluated::Text("\n".to_string())),
             Value::Op { op: Op::Tab, .. } => Ok(Evaluated::Text("\t".to_string())),
             Value::Op {
                 op: Op::Length,
@@ -386,7 +388,9 @@ impl Value {
                 ..
             } => {
                 let operator = ext_operator(name).ok_or_else(|| {
-                    format!("unknown operator '{name}' - was the host's operator registry installed?")
+                    format!(
+                        "unknown operator '{name}' - was the host's operator registry installed?"
+                    )
                 })?;
                 let args = args
                     .iter()
@@ -671,7 +675,9 @@ impl std::hash::Hash for Value {
                 5u8.hash(state);
                 block_id.hash(state);
                 args.hash(state);
-                serde_json::to_string(branches).unwrap_or_default().hash(state);
+                serde_json::to_string(branches)
+                    .unwrap_or_default()
+                    .hash(state);
                 saved.hash(state);
             }
         }
@@ -1008,10 +1014,7 @@ mod tests {
 
     #[test]
     fn eval_text_letter_of_is_one_based() {
-        let v = Value::op(
-            Op::LetterOf,
-            vec![Value::number(1.0), Value::text("hello")],
-        );
+        let v = Value::op(Op::LetterOf, vec![Value::number(1.0), Value::text("hello")]);
         assert_eq!(v.eval_text(), Ok("h".to_string()));
     }
 
@@ -1190,9 +1193,8 @@ mod tests {
 
     #[test]
     fn eval_comparisons_are_numeric() {
-        let cmp = |op: Op, l: f64, r: f64| {
-            Value::op(op, vec![Value::number(l), Value::number(r)]).eval()
-        };
+        let cmp =
+            |op: Op, l: f64, r: f64| Value::op(op, vec![Value::number(l), Value::number(r)]).eval();
         assert_eq!(cmp(Op::Gt, 5.0, 3.0), Ok(Evaluated::Bool(true)));
         assert_eq!(cmp(Op::Lt, 5.0, 3.0), Ok(Evaluated::Bool(false)));
         assert_eq!(cmp(Op::Gte, 3.0, 3.0), Ok(Evaluated::Bool(true)));

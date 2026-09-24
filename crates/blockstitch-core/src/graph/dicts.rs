@@ -113,7 +113,11 @@ impl std::hash::Hash for DictDef {
 
 /// Looks up `key` in `entries`, last write wins when keys repeat.
 pub fn dict_lookup<'a>(entries: &'a [DictEntry], key: &str) -> Option<&'a DictItem> {
-    entries.iter().rev().find(|entry| entry.key == key).map(|entry| &entry.value)
+    entries
+        .iter()
+        .rev()
+        .find(|entry| entry.key == key)
+        .map(|entry| &entry.value)
 }
 
 /// Sets `key` to `value`, replacing the last entry with that key or pushing
@@ -182,7 +186,11 @@ pub fn rename_dict_in_value(value: &mut Value, old: &str, new: &str) {
             }
             rename_dict_in_value(saved, old, new);
         }
-        Value::Number { .. } | Value::Text { .. } | Value::Bool | Value::Var { .. } | Value::Param { .. } => {}
+        Value::Number { .. }
+        | Value::Text { .. }
+        | Value::Bool
+        | Value::Var { .. }
+        | Value::Param { .. } => {}
     }
 }
 
@@ -234,7 +242,10 @@ pub fn parse_json_object(text: &str) -> Result<Vec<DictEntry>, String> {
     map.into_iter()
         .map(|(key, json)| {
             json_item_value(&json)
-                .map(|value| DictEntry { key: key.clone(), value })
+                .map(|value| DictEntry {
+                    key: key.clone(),
+                    value,
+                })
                 .ok_or_else(|| format!("\"{key}\" isn't a number or text"))
         })
         .collect()
@@ -285,8 +296,10 @@ pub fn resolve_dict_reporter(
                     keys.push(entry.key.clone());
                 }
             }
-            let json: Vec<String> =
-                keys.iter().map(|key| serde_json::to_string(key).unwrap_or_default()).collect();
+            let json: Vec<String> = keys
+                .iter()
+                .map(|key| serde_json::to_string(key).unwrap_or_default())
+                .collect();
             Evaluated::Text(format!("[{}]", json.join(",")))
         }
         "DictAsJson" => Evaluated::Text(dict_to_json(&entries)),
@@ -383,8 +396,14 @@ mod tests {
     #[test]
     fn dict_json_round_trips_flat_objects() {
         let entries = vec![
-            DictEntry { key: "hp".to_string(), value: DictItem::Number(3.0) },
-            DictEntry { key: "name".to_string(), value: DictItem::Text("fi\"sh".into()) },
+            DictEntry {
+                key: "hp".to_string(),
+                value: DictItem::Number(3.0),
+            },
+            DictEntry {
+                key: "name".to_string(),
+                value: DictItem::Text("fi\"sh".into()),
+            },
         ];
         let json = dict_to_json(&entries);
         assert_eq!(json, r#"{"hp":3.0,"name":"fi\"sh"}"#);
@@ -400,7 +419,10 @@ mod tests {
         use crate::value::Value;
         let dicts = HashMap::from([(
             "save".to_string(),
-            vec![DictEntry { key: "hp".to_string(), value: DictItem::Number(3.0) }],
+            vec![DictEntry {
+                key: "hp".to_string(),
+                value: DictItem::Number(3.0),
+            }],
         )]);
         let value = Value::Op {
             op: Op::from_name("DictValue"),

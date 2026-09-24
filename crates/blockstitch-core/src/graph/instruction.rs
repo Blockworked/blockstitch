@@ -230,9 +230,8 @@ impl<K: BlockKind> Instruction<K> {
             if let Some(args) = ins.kind.call_args_mut(block_id) {
                 f(args);
             }
-            ins.kind.visit_values_mut(&mut |value, _| {
-                value.for_each_call_args_mut(block_id, &mut *f)
-            });
+            ins.kind
+                .visit_values_mut(&mut |value, _| value.for_each_call_args_mut(block_id, &mut *f));
         });
     }
 

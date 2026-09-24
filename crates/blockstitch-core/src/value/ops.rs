@@ -219,20 +219,67 @@ fn two_texts() -> Vec<Value> {
 }
 
 pub const BUILTIN_OPERATOR_KINDS: &[OperatorKindSpec] = &[
-    OperatorKindSpec { kind: "Add", op: "Add", arity: 2, default_args: two_zeroes },
-    OperatorKindSpec { kind: "Sub", op: "Sub", arity: 2, default_args: two_zeroes },
-    OperatorKindSpec { kind: "Mul", op: "Mul", arity: 2, default_args: two_zeroes },
-    OperatorKindSpec { kind: "Div", op: "Div", arity: 2, default_args: two_zeroes },
-    OperatorKindSpec { kind: "Mod", op: "Mod", arity: 2, default_args: two_zeroes },
-    OperatorKindSpec { kind: "Round", op: "Round", arity: 1, default_args: one_zero },
+    OperatorKindSpec {
+        kind: "Add",
+        op: "Add",
+        arity: 2,
+        default_args: two_zeroes,
+    },
+    OperatorKindSpec {
+        kind: "Sub",
+        op: "Sub",
+        arity: 2,
+        default_args: two_zeroes,
+    },
+    OperatorKindSpec {
+        kind: "Mul",
+        op: "Mul",
+        arity: 2,
+        default_args: two_zeroes,
+    },
+    OperatorKindSpec {
+        kind: "Div",
+        op: "Div",
+        arity: 2,
+        default_args: two_zeroes,
+    },
+    OperatorKindSpec {
+        kind: "Mod",
+        op: "Mod",
+        arity: 2,
+        default_args: two_zeroes,
+    },
+    OperatorKindSpec {
+        kind: "Round",
+        op: "Round",
+        arity: 1,
+        default_args: one_zero,
+    },
     OperatorKindSpec {
         kind: "Math",
         op: "Math",
         arity: 2,
-        default_args: || vec![Value::Text { value: "Abs".to_string() }, Value::number(0.0)],
+        default_args: || {
+            vec![
+                Value::Text {
+                    value: "Abs".to_string(),
+                },
+                Value::number(0.0),
+            ]
+        },
     },
-    OperatorKindSpec { kind: "Random", op: "Random", arity: 2, default_args: two_zeroes },
-    OperatorKindSpec { kind: "Join", op: "Join", arity: 2, default_args: two_texts },
+    OperatorKindSpec {
+        kind: "Random",
+        op: "Random",
+        arity: 2,
+        default_args: two_zeroes,
+    },
+    OperatorKindSpec {
+        kind: "Join",
+        op: "Join",
+        arity: 2,
+        default_args: two_texts,
+    },
     OperatorKindSpec {
         kind: "Join3",
         op: "Join",
@@ -240,31 +287,93 @@ pub const BUILTIN_OPERATOR_KINDS: &[OperatorKindSpec] = &[
         default_args: || vec![text_default(), text_default(), text_default()],
     },
     // `default_args` is unused for these - arity 0 means it's never called.
-    OperatorKindSpec { kind: "NewLine", op: "NewLine", arity: 0, default_args: Vec::new },
-    OperatorKindSpec { kind: "Tab", op: "Tab", arity: 0, default_args: Vec::new },
-    OperatorKindSpec { kind: "IndexOf", op: "IndexOf", arity: 2, default_args: two_texts },
-    OperatorKindSpec { kind: "LastIndexOf", op: "LastIndexOf", arity: 2, default_args: two_texts },
+    OperatorKindSpec {
+        kind: "NewLine",
+        op: "NewLine",
+        arity: 0,
+        default_args: Vec::new,
+    },
+    OperatorKindSpec {
+        kind: "Tab",
+        op: "Tab",
+        arity: 0,
+        default_args: Vec::new,
+    },
+    OperatorKindSpec {
+        kind: "IndexOf",
+        op: "IndexOf",
+        arity: 2,
+        default_args: two_texts,
+    },
+    OperatorKindSpec {
+        kind: "LastIndexOf",
+        op: "LastIndexOf",
+        arity: 2,
+        default_args: two_texts,
+    },
     OperatorKindSpec {
         kind: "LetterOf",
         op: "LetterOf",
         arity: 2,
         default_args: || vec![Value::number(1.0), text_default()],
     },
-    OperatorKindSpec { kind: "Length", op: "Length", arity: 1, default_args: || vec![text_default()] },
+    OperatorKindSpec {
+        kind: "Length",
+        op: "Length",
+        arity: 1,
+        default_args: || vec![text_default()],
+    },
     // `args[1]` defaults to the dropdown's "uppercase" option - see
     // `Op::Case`'s doc comment.
     OperatorKindSpec {
         kind: "Case",
         op: "Case",
         arity: 2,
-        default_args: || vec![text_default(), Value::Text { value: "Upper".to_string() }],
+        default_args: || {
+            vec![
+                text_default(),
+                Value::Text {
+                    value: "Upper".to_string(),
+                },
+            ]
+        },
     },
-    OperatorKindSpec { kind: "Eq", op: "Eq", arity: 2, default_args: two_zeroes },
-    OperatorKindSpec { kind: "Neq", op: "Neq", arity: 2, default_args: two_zeroes },
-    OperatorKindSpec { kind: "Gt", op: "Gt", arity: 2, default_args: two_zeroes },
-    OperatorKindSpec { kind: "Lt", op: "Lt", arity: 2, default_args: two_zeroes },
-    OperatorKindSpec { kind: "Gte", op: "Gte", arity: 2, default_args: two_zeroes },
-    OperatorKindSpec { kind: "Lte", op: "Lte", arity: 2, default_args: two_zeroes },
+    OperatorKindSpec {
+        kind: "Eq",
+        op: "Eq",
+        arity: 2,
+        default_args: two_zeroes,
+    },
+    OperatorKindSpec {
+        kind: "Neq",
+        op: "Neq",
+        arity: 2,
+        default_args: two_zeroes,
+    },
+    OperatorKindSpec {
+        kind: "Gt",
+        op: "Gt",
+        arity: 2,
+        default_args: two_zeroes,
+    },
+    OperatorKindSpec {
+        kind: "Lt",
+        op: "Lt",
+        arity: 2,
+        default_args: two_zeroes,
+    },
+    OperatorKindSpec {
+        kind: "Gte",
+        op: "Gte",
+        arity: 2,
+        default_args: two_zeroes,
+    },
+    OperatorKindSpec {
+        kind: "Lte",
+        op: "Lte",
+        arity: 2,
+        default_args: two_zeroes,
+    },
     OperatorKindSpec {
         kind: "And",
         op: "And",
@@ -277,17 +386,36 @@ pub const BUILTIN_OPERATOR_KINDS: &[OperatorKindSpec] = &[
         arity: 2,
         default_args: || vec![bool_default(), bool_default()],
     },
-    OperatorKindSpec { kind: "Not", op: "Not", arity: 1, default_args: || vec![bool_default()] },
+    OperatorKindSpec {
+        kind: "Not",
+        op: "Not",
+        arity: 1,
+        default_args: || vec![bool_default()],
+    },
     // Zero-arity, like NewLine/Tab - a standalone "true"/"false" block, not a toggle.
-    OperatorKindSpec { kind: "True", op: "True", arity: 0, default_args: Vec::new },
-    OperatorKindSpec { kind: "False", op: "False", arity: 0, default_args: Vec::new },
+    OperatorKindSpec {
+        kind: "True",
+        op: "True",
+        arity: 0,
+        default_args: Vec::new,
+    },
+    OperatorKindSpec {
+        kind: "False",
+        op: "False",
+        arity: 0,
+        default_args: Vec::new,
+    },
     // `args[0]` defaults to the dropdown's first ("Year") option, matching
     // what the frontend gives a freshly dragged block.
     OperatorKindSpec {
         kind: "CurrentTime",
         op: "CurrentTime",
         arity: 1,
-        default_args: || vec![Value::Text { value: "Year".to_string() }],
+        default_args: || {
+            vec![Value::Text {
+                value: "Year".to_string(),
+            }]
+        },
     },
 ];
 
@@ -314,7 +442,10 @@ pub fn ext_operator(op: &str) -> Option<&'static ExtOperator> {
         Ok(registry) => registry,
         Err(poisoned) => poisoned.into_inner(),
     };
-    registry.iter().find(|candidate| candidate.op == op).copied()
+    registry
+        .iter()
+        .find(|candidate| candidate.op == op)
+        .copied()
 }
 
 /// One palette entry, built-in or host-registered - what a sidebar drop

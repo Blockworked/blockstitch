@@ -52,7 +52,9 @@ impl<K: BlockKind> Strand<K> {
     /// True when this stack is headed by a header block - i.e. it's an
     /// entry point or a custom block's body rather than a loose stack.
     pub fn starts_with_header(&self) -> bool {
-        self.instructions.first().is_some_and(Instruction::is_header)
+        self.instructions
+            .first()
+            .is_some_and(Instruction::is_header)
     }
 
     /// The custom block this strand is the body of, if any.

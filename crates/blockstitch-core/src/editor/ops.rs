@@ -695,9 +695,7 @@ fn input_renames(old_pieces: &[BlockPiece], new_pieces: &[BlockPiece]) -> Vec<(S
         .iter()
         .filter_map(|new_piece| {
             let BlockPiece::Input {
-                id,
-                name: new_name,
-                ..
+                id, name: new_name, ..
             } = new_piece
             else {
                 return None;

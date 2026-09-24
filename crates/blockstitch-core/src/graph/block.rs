@@ -39,7 +39,9 @@ pub enum BlockPiece {
 impl BlockPiece {
     pub fn id(&self) -> &str {
         match self {
-            BlockPiece::Label { id, .. } | BlockPiece::Input { id, .. } | BlockPiece::Branch { id, .. } => id,
+            BlockPiece::Label { id, .. }
+            | BlockPiece::Input { id, .. }
+            | BlockPiece::Branch { id, .. } => id,
         }
     }
 }
@@ -178,7 +180,12 @@ impl BlockDef {
         if flat_label.trim().is_empty() {
             return Err("Give the block a name".to_string());
         }
-        if pieces.iter().filter(|p| matches!(p, BlockPiece::Branch { .. })).count() > u8::MAX as usize {
+        if pieces
+            .iter()
+            .filter(|p| matches!(p, BlockPiece::Branch { .. }))
+            .count()
+            > u8::MAX as usize
+        {
             return Err("A block can have at most 255 branches".to_string());
         }
         let mut seen = std::collections::HashSet::new();
