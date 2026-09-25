@@ -5,6 +5,8 @@ fn main() {
         QmlModule::new("com.blockworked.Blockstitch")
             .version(1, 0)
             .qml_file(QmlFile::from("qml/Blockstitch/Theme.qml").singleton(true))
+            .qml_file(QmlFile::from("qml/Blockstitch/BlockRegistry.qml").singleton(true))
+            .qml_file(QmlFile::from("qml/Blockstitch/Icons.qml").singleton(true))
             .qml_files([
                 "qml/Blockstitch/LucideIcon.qml",
                 "qml/Blockstitch/BlockSurface.qml",
@@ -21,6 +23,8 @@ fn main() {
                 "qml/Blockstitch/InstructionBlock.qml",
                 "qml/Blockstitch/PaletteBlock.qml",
                 "qml/Blockstitch/PaletteValue.qml",
+                "qml/Blockstitch/CollectionPanel.qml",
+                "qml/Blockstitch/NameDialog.qml",
                 "qml/Blockstitch/PalettePanel.qml",
                 "qml/Blockstitch/BlockCanvas.qml",
             ]),

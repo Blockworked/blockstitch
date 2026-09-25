@@ -8,9 +8,12 @@ Rectangle {
     property var floatingValues: []
     property var variables: []
     property var lists: []
+    property var dicts: []
     property var blockDefinitions: []
     property var keyCapture: null
     property bool locked: false
+    // Whether the canvas menu offers "Delete all blocks".
+    property bool offerClear: true
     property real zoom: 1.0
     signal strandMoved(string strandId, int x, int y)
     signal instructionSplit(string strandId, var path, int x, int y)
@@ -34,6 +37,15 @@ Rectangle {
     signal floatingValueRemoved(string floatingId)
     signal listItemsEdited(string name, var items)
     signal listEditorStateChanged(string name, bool visible, int x, int y)
+    signal dictEntriesEdited(string name, var entries)
+    signal dictEditorStateChanged(string name, bool visible, int x, int y)
+    signal blockMenuAction(string action, string strandId, var path, var instruction)
+    signal canvasMenuAction(string action, int x, int y)
+    // A parameter oval dragged out of a block header; the host runs it like a palette drag.
+    signal paletteDragStarted(var spec, real sceneX, real sceneY, real offsetX, real offsetY)
+    signal paletteDragMoved(real sceneX, real sceneY)
+    signal paletteDragEnded(real sceneX, real sceneY)
+    signal paletteDragCanceled()
     signal keyCaptureRequested(string strandId, var path)
     signal appPickerRequested(string strandId, var path, var instruction)
     signal detailsRequested(string type)
@@ -42,6 +54,9 @@ Rectangle {
     signal valueCreateRequested(int x, int y, var value)
     signal valueDragOutside(var location, var value, real sceneX, real sceneY)
     color:Theme.canvas; clip:true
+    // Reporter name dropdowns offer whatever this document declares.
+    onListsChanged: BlockRegistry.listNames = (lists || []).map(l => l.name)
+    onDictsChanged: BlockRegistry.dictNames = (dicts || []).map(d => d.name)
     onZoomChanged: grid.requestPaint()
     // World coordinates have their origin at the center of the workspace:
     // world (0, 0) renders at workspace-local (originOffsetX, originOffsetY).
@@ -217,21 +232,12 @@ Rectangle {
     // ---- snap geometry (mirrors InstructionBlock row/wrap metrics) ----
     readonly property real snapThreshold: 36
     readonly property real snapSticky: 8
-    function isWrapType(t) { return ["If","IfElse","Repeat","Forever","While","BranchCallBlock"].indexOf(t) >= 0; }
-    function isHeaderType(t) { return t === "BlockHeader" || (t && t.indexOf("When") === 0); }
-    function isCapType(t) { return ["Return","EscapeLoop","ContinueLoop"].indexOf(t) >= 0; }
-    function slotCountFor(ins) {
-        if (!ins) return 0;
-        if (ins.type === "BranchCallBlock") return (ins.branches || []).length;
-        if (ins.type === "IfElse") return 2;
-        return 1;
-    }
-    function bodyFor(ins, slot) {
-        if (!ins) return [];
-        if (ins.type === "BranchCallBlock") return (ins.branches || [])[slot] || [];
-        if (ins.type === "IfElse") return slot === 0 ? (ins.then_body || []) : (ins.else_body || []);
-        return ins.body || [];
-    }
+    function isWrapType(t) { return BlockRegistry.isWrap(t); }
+    function isHeaderType(t) { return BlockRegistry.isHeader(t); }
+    function isCapType(t) { return BlockRegistry.isCapType(t); }
+    function isCapBlock(ins) { return BlockRegistry.isCap(ins, root.blockDefinitions); }
+    function slotCountFor(ins) { return !ins ? 0 : ins.type === "BranchCallBlock" ? BlockRegistry.slotCount(ins) : Math.max(1, BlockRegistry.slotCount(ins)); }
+    function bodyFor(ins, slot) { return BlockRegistry.body(ins, slot); }
     function blockHeight(ins) {
         if (!ins) return 58;
         if (!isWrapType(ins.type)) return 58;
@@ -250,7 +256,7 @@ Rectangle {
         const ch = contentHeightFor(list);
         if (ch === 0) return 26;
         const last = list[list.length - 1];
-        const cap = last && isCapType(last.type);
+        const cap = last && isCapBlock(last);
         return Math.max(26, ch - (cap ? 0 : 8));
     }
     // Block silhouette of an instruction for the attach preview: same shape
@@ -259,15 +265,15 @@ Rectangle {
     function shapeInfoFor(ins) {
         if (!ins) return { shape: "stack", mouths: [], flat: [] };
         const t = ins.type || "";
-        if (t === "BlockHeader" || (t && t.indexOf("When") === 0)) return { shape: "header", mouths: [], flat: [] };
-        if (["Return", "EscapeLoop", "ContinueLoop"].indexOf(t) >= 0) return { shape: "cap", mouths: [], flat: [] };
+        if (isHeaderType(t)) return { shape: "header", mouths: [], flat: [] };
+        if (isCapBlock(ins)) return { shape: "cap", mouths: [], flat: [] };
         if (!isWrapType(t)) return { shape: "stack", mouths: [], flat: [] };
         const n = slotCountFor(ins);
         const mouths = [], flat = [];
         for (let k = 0; k < n; ++k) {
             const body = bodyFor(ins, k);
             mouths.push(mouthHeightFor(body));
-            flat.push(body.length > 0 && isCapType(body[body.length - 1].type));
+            flat.push(body.length > 0 && isCapBlock(body[body.length - 1]));
         }
         return { shape: "wrap", mouths: mouths, flat: flat };
     }
@@ -403,7 +409,7 @@ Rectangle {
                 if (idx === 0 && headIsHeader) continue;
                 if (idx > 0) {
                     const above = list[idx - 1];
-                    if (!above || isCapType(above.type)) continue;
+                    if (!above || isCapBlock(above)) continue;
                 }
                 const dist = Math.abs(ghostTop - b.y);
                 if (dist > root.snapThreshold) continue;
@@ -494,7 +500,7 @@ Rectangle {
         const si = shapeInfoFor(instructionAt(strandById(strandId), path));
         dragSession.draggedShape = si.shape; dragSession.draggedMouths = si.mouths; dragSession.draggedFlat = si.flat;
         const di = instructionAt(strandById(strandId), path);
-        dragSession.draggedIsCap = !!(di && isCapType(di.type));
+        dragSession.draggedIsCap = !!(di && isCapBlock(di));
         // Shrink the home mouth for the drag's duration (see sourceShrink).
         // Top-level tails have no mouth shell, so only nested paths shrink.
         dragSession.sourceStrandId = strandId;
@@ -543,7 +549,7 @@ Rectangle {
         if (!instruction || isHeaderType(instruction.type)) { clearSnap(); return; }
         const si = shapeInfoFor(instruction);
         dragSession.draggedShape = si.shape; dragSession.draggedMouths = si.mouths; dragSession.draggedFlat = si.flat;
-        dragSession.draggedIsCap = isCapType(instruction.type);
+        dragSession.draggedIsCap = isCapBlock(instruction);
         dragSession.draggedWidth = w || 200; dragSession.draggedHeight = blockHeight(instruction) || h || 58;
         const best = findSnap(ghostLeft + root.originOffsetX, ghostTop + root.originOffsetY, null, [], false, prevSnapObj());
         applySnap(best, dragSession.draggedWidth, dragSession.draggedHeight, dragSession.draggedIsCap);
@@ -851,7 +857,17 @@ Rectangle {
                 onClicked: mouse => { if (mouse.button === Qt.RightButton) { canvasMenu.canvasX = Math.round(mouse.x - root.originOffsetX); canvasMenu.canvasY = Math.round(mouse.y - root.originOffsetY); canvasMenu.popup(mouse.x, mouse.y); } else flick.forceActiveFocus(); }
                 BwMenu { id:canvasMenu;property int canvasX:0;property int canvasY:0
                     BwMenuItem{iconName:"message-square";text:"Add Note";onTriggered:root.canvasNoteRequested(canvasMenu.canvasX,canvasMenu.canvasY)}
-                    BwMenuItem{iconName:"trash";danger:true;text:"Delete all blocks";onTriggered:root.clearRequested()}
+                    BwMenuItem{visible:root.offerClear;iconName:"trash";danger:true;text:"Delete all blocks";onTriggered:root.clearRequested()}
+                }
+                Instantiator {
+                    model: BlockRegistry.canvasMenu
+                    delegate: BwMenuItem {
+                        required property var modelData
+                        iconName: modelData.icon || ""; text: modelData.text; danger: !!modelData.danger
+                        onTriggered: root.canvasMenuAction(modelData.id, canvasMenu.canvasX, canvasMenu.canvasY)
+                    }
+                    onObjectAdded: (index, object) => canvasMenu.insertItem(index, object)
+                    onObjectRemoved: (index, object) => canvasMenu.removeItem(object)
                 }
             }
             Repeater {
@@ -879,6 +895,11 @@ Rectangle {
                             onKeyCaptureRequested:(sid,p)=>root.keyCaptureRequested(sid,p)
                             onAppPickerRequested:(sid,p,i)=>root.appPickerRequested(sid,p,i)
                             onDetailsRequested:type=>root.detailsRequested(type)
+                            onMenuActionRequested:(a,sid,p,i)=>root.blockMenuAction(a,sid,p,i)
+                            onPaletteDragStarted:(sp,sx,sy,ox,oy)=>root.paletteDragStarted(sp,sx,sy,ox,oy)
+                            onPaletteDragMoved:(sx,sy)=>root.paletteDragMoved(sx,sy)
+                            onPaletteDragEnded:(sx,sy)=>root.paletteDragEnded(sx,sy)
+                            onPaletteDragCanceled:root.paletteDragCanceled()
                             onInstructionEdited:(sid,p,i)=>root.instructionEdited(sid,p,i)
                             onRunBranchRequested:(sid,p,n)=>root.runBranchRequested(sid,p,n)
                             onValueEdited:(l,t)=>root.valueEdited(l,t)
@@ -967,6 +988,50 @@ Rectangle {
                             BwButton{iconName:"plus";text:"Add item";implicitHeight:29;onClicked:listCard.addItem()}
                             Item{width:Math.max(0,listFoot.width-170);height:1}
                             Text{text:String((listCard.modelData.items||[]).length)+((listCard.modelData.items||[]).length===1?" item":" items");color:Theme.textDim;font.pixelSize:11;anchors.verticalCenter:parent.verticalCenter}
+                        }
+                    }
+                }
+            }
+            Repeater {
+                model:root.dicts||[]
+                delegate:Rectangle {
+                    id:dictCard;required property var modelData
+                    readonly property var entries: modelData.entries||[]
+                    visible:modelData.editor_visible;x:(modelData.editor_x || 36) + root.originOffsetX;y:(modelData.editor_y || 36) + root.originOffsetY;z:12
+                    width:360;height:Math.min(420,78+Math.max(38,entries.length*34));radius:8;color:Theme.panelRaised;border.color:Theme.border;clip:true
+                    // A monitor edit is a literal: finite numbers stay numeric.
+                    function itemFromText(value){const trimmed=value.trim();const number=Number(value);return trimmed.length&&Number.isFinite(number)?{kind:"Number",value:number}:{kind:"Text",value:value};}
+                    function save(next){root.dictEntriesEdited(modelData.name,next);}
+                    function copy(){return JSON.parse(JSON.stringify(entries));}
+                    function editKey(index,key){const next=copy();next[index].key=key;save(next);}
+                    function editValue(index,value){const next=copy();next[index].value=itemFromText(value);save(next);}
+                    function removeEntry(index){const next=copy();next.splice(index,1);save(next);}
+                    function addEntry(){const next=copy();next.push({key:"",value:{kind:"Text",value:""}});save(next);}
+                    Rectangle { id:dictHead;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;height:38;color:"#393a3e";border.color:Theme.borderSoft
+                        Row { anchors.fill:parent;anchors.margins:6;spacing:6
+                            LucideIcon{name:"book-key";color:Theme.textDim;width:16;height:16;anchors.verticalCenter:parent.verticalCenter}
+                            Text{text:dictCard.modelData.name;color:Theme.text;font.pixelSize:13;font.weight:Font.Bold;width:280;elide:Text.ElideRight;anchors.verticalCenter:parent.verticalCenter}
+                            BwButton{iconName:"x";text:"";implicitWidth:25;implicitHeight:25;onClicked:root.dictEditorStateChanged(dictCard.modelData.name,false,Math.round(dictCard.x - root.originOffsetX),Math.round(dictCard.y - root.originOffsetY))}
+                        }
+                        DragHandler{enabled:!root.locked;target:dictCard;onActiveChanged:if(!active)root.dictEditorStateChanged(dictCard.modelData.name,true,Math.round(dictCard.x - root.originOffsetX),Math.round(dictCard.y - root.originOffsetY))}
+                    }
+                    Flickable { anchors.left:parent.left;anchors.right:parent.right;anchors.top:dictHead.bottom;anchors.bottom:dictFoot.top;contentHeight:dictRows.implicitHeight;clip:true
+                        Column { id:dictRows;width:parent.width;spacing:2;padding:5
+                            Text{visible:!dictCard.entries.length;text:"This dict is empty.";color:Theme.textDim;font.pixelSize:12;padding:7}
+                            Repeater{model:dictCard.entries;delegate:Row{
+                                required property var modelData;required property int index;spacing:4;width:dictRows.width-10;height:32
+                                BwTextField{text:modelData.key;placeholderText:"key";width:128;implicitHeight:29;font.pixelSize:12;onEditingFinished:if(text!==modelData.key)dictCard.editKey(index,text)}
+                                LucideIcon{name:"arrow-right";color:Theme.textDim;width:13;height:13;anchors.verticalCenter:parent.verticalCenter}
+                                BwTextField{text:String(modelData.value.value);placeholderText:"value";color:modelData.value.kind==="Number"?Theme.accent:Theme.text;width:162;implicitHeight:29;font.pixelSize:12;onEditingFinished:if(text!==String(modelData.value.value))dictCard.editValue(index,text)}
+                                BwButton{iconName:"x";text:"";danger:true;implicitWidth:27;implicitHeight:27;onClicked:dictCard.removeEntry(index)}
+                            }}
+                        }
+                    }
+                    Rectangle { id:dictFoot;anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;height:40;color:Theme.panel;border.color:Theme.borderSoft
+                        Row { anchors.fill:parent;anchors.margins:5
+                            BwButton{iconName:"plus";text:"Add entry";implicitHeight:29;onClicked:dictCard.addEntry()}
+                            Item{width:Math.max(0,dictFoot.width-180);height:1}
+                            Text{text:String(dictCard.entries.length)+(dictCard.entries.length===1?" entry":" entries");color:Theme.textDim;font.pixelSize:11;anchors.verticalCenter:parent.verticalCenter}
                         }
                     }
                 }

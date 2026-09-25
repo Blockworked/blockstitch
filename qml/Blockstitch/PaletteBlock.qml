@@ -19,6 +19,8 @@ Item {
     signal keyCaptureRequested()
     signal appPickerRequested(var instruction)
     signal detailsRequested(string type)
+    // The prefab was edited in place; the palette keeps its own copy.
+    signal instructionEdited(var instruction)
     implicitWidth: block.implicitWidth
     implicitHeight: block.implicitHeight
     width: implicitWidth; height: implicitHeight
@@ -35,5 +37,6 @@ Item {
         onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
         onDragCanceled: root.dragCanceled()
         onActivated: root.activated()
+        onInstructionEdited: (sid, p, next) => { root.instruction = next; root.instructionEdited(next); }
     }
 }

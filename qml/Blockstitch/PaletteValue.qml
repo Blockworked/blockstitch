@@ -15,6 +15,8 @@ Item {
     signal dragCanceled()
     signal activated()
     signal detailsRequested(string kind)
+    // The prefab was edited in place (a typed number, a chosen dropdown entry).
+    signal valueEdited(var value)
     implicitWidth: chip.implicitWidth
     implicitHeight: chip.implicitHeight
     width: implicitWidth; height: implicitHeight
@@ -33,5 +35,14 @@ Item {
         forceBoolean: root.forceBoolean; callDisplayLabel: root.callLabel
         blockDefinitions: root.blockDefinitions; paletteMode: true
         onDetailsRequested: kind => root.detailsRequested(kind)
+        onLeafEdited: (path, leaf) => {
+            if (!path.length) { root.valueData = leaf; root.valueEdited(leaf); return; }
+            const next = JSON.parse(JSON.stringify(root.valueData));
+            let v = next;
+            for (let i = 0; i < path.length - 1; ++i) v = v.args[path[i]];
+            v.args[path[path.length - 1]] = leaf;
+            root.valueData = next;
+            root.valueEdited(next);
+        }
     }
 }
