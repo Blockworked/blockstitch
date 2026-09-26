@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Shapes
 
 Item {
     id: root
@@ -75,10 +76,11 @@ Item {
         return { kind: "Text", value: text };
     }
     function wireNested(item, index, data) {
-        item.location = root.childLocation(index);
-        item.editable = root.editable;
+        // Bound, not copied: a chip now outlives edits elsewhere on its block.
+        item.location = Qt.binding(() => root.childLocation(index));
+        item.editable = Qt.binding(() => root.editable);
         item.boxed = !!data && ["Op", "Var", "Param", "Call"].indexOf(data.kind) >= 0;
-        item.blockDefinitions = root.blockDefinitions;
+        item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
         item.dropHighlighted = root.dropHighlighted;
         item.editRequested.connect((where, text) => root.editRequested(where, text));
         item.leafEdited.connect((path, leaf) => root.leafEdited([index].concat(path), leaf));
@@ -92,33 +94,52 @@ Item {
     implicitWidth: Math.max(booleanShape ? 48 : 36, content.implicitWidth + (booleanShape ? 22 : showBox ? 12 : 0))
     implicitHeight: Math.max(27, content.implicitHeight + (showBox ? 4 : 0))
 
-    Canvas {
-        id: chipCanvas
-        // The box also renders while targeted as a drop preview, so even a
-        // bare Number/Text leaf (showBox false) lights up when an operator
-        // hovers it. Size stays untouched so the slot never shifts mid-drag.
-        anchors.fill: parent; visible: root.showBox || root.dropHighlighted; antialiasing: true
-        onWidthChanged: requestPaint(); onHeightChanged: requestPaint()
-        // HoverHandler lives in the drag area behind the content (see
-        // below), so request a repaint when its hover state changes.
-        Connections { target: valueGrab; function onHoveredChanged() { chipCanvas.requestPaint(); } }
-        Connections { target: paletteHover; function onHoveredChanged() { chipCanvas.requestPaint(); } }
-        Connections { target: root; function onShowBoxChanged() { chipCanvas.requestPaint(); } }
-        Connections { target: root; function onDropHighlightedChanged() { chipCanvas.requestPaint(); } }
-        Connections { target: root; function onValueDataChanged() { chipCanvas.requestPaint(); } }
-        Connections { target: root; function onRefColorChanged() { chipCanvas.requestPaint(); } }
-        onPaint: {
-            const c=getContext("2d"); c.reset(); c.beginPath();
-            if (root.booleanShape) { const n=Math.min(height*.32,width/2); c.moveTo(n,.5); c.lineTo(width-n,.5); c.lineTo(width-.5,height/2); c.lineTo(width-n,height-.5); c.lineTo(n,height-.5); c.lineTo(.5,height/2); c.closePath(); }
-            else { c.roundedRect(.5,.5,width-1,height-1,5,5); }
-            const g=c.createLinearGradient(0,0,width,height);
-            g.addColorStop(0,"#37383c"); g.addColorStop(1,"#292a2d");
-            c.fillStyle=g; c.fill();
-            // Drop preview reads stronger than hover: thicker line plus glow
-            // so it stays visible next to the dragged ghost covering the slot.
-            if (root.dropHighlighted) { c.shadowColor=root.customCall ? root.refColor : Theme.accent; c.shadowBlur=9; }
-            c.strokeStyle=(root.hovered || root.dropHighlighted) ? (root.customCall ? root.refColor : Theme.accent) : (root.customCall ? root.quietRefColor : Theme.border);
-            c.lineWidth=root.dropHighlighted ? 2.4 : (root.hovered ? 1.6 : 1); c.stroke();
+    // The box also renders while targeted as a drop preview, so even a
+    // bare Number/Text leaf (showBox false) lights up when an operator
+    // hovers it. Size stays untouched so the slot never shifts mid-drag.
+    // A bare leaf has no box, so it doesn't pay for one until then.
+    Loader {
+        anchors.fill: parent
+        active: root.showBox || root.dropHighlighted
+        sourceComponent: chipBox
+    }
+    Component {
+        id: chipBox
+        Shape {
+            id: chipShape
+            preferredRendererType: Shape.CurveRenderer
+            readonly property color edge: (root.hovered || root.dropHighlighted) ? (root.customCall ? root.refColor : Theme.accent) : (root.customCall ? root.quietRefColor : Theme.border)
+            readonly property string outline: {
+                const w = width, h = height;
+                if (w <= 0 || h <= 0) return "";
+                if (root.booleanShape) {
+                    const n = Math.min(h * .32, w / 2);
+                    return "M" + n + " .5 L" + (w - n) + " .5 L" + (w - .5) + " " + h / 2 + " L" + (w - n) + " " + (h - .5) + " L" + n + " " + (h - .5) + " L.5 " + h / 2 + " Z";
+                }
+                const r = 5, R = w - .5, B = h - .5;
+                return "M" + (.5 + r) + " .5 L" + (R - r) + " .5 Q" + R + " .5 " + R + " " + (.5 + r) + " L" + R + " " + (B - r) + " Q" + R + " " + B + " " + (R - r) + " " + B
+                    + " L" + (.5 + r) + " " + B + " Q.5 " + B + " .5 " + (B - r) + " L.5 " + (.5 + r) + " Q.5 .5 " + (.5 + r) + " .5 Z";
+            }
+            // Drop preview reads stronger than hover: a soft glow under a
+            // thicker line, so it stays visible next to the dragged ghost.
+            ShapePath {
+                strokeColor: root.dropHighlighted ? Qt.rgba(chipShape.edge.r, chipShape.edge.g, chipShape.edge.b, .35) : "transparent"
+                strokeWidth: root.dropHighlighted ? 6 : 0
+                fillColor: "transparent"
+                joinStyle: ShapePath.RoundJoin
+                PathSvg { path: chipShape.outline }
+            }
+            ShapePath {
+                strokeColor: chipShape.edge
+                strokeWidth: root.dropHighlighted ? 2.4 : (root.hovered ? 1.6 : 1)
+                joinStyle: ShapePath.RoundJoin
+                fillGradient: LinearGradient {
+                    x1: 0; y1: 0; x2: chipShape.width; y2: chipShape.height
+                    GradientStop { position: 0; color: "#37383c" }
+                    GradientStop { position: 1; color: "#292a2d" }
+                }
+                PathSvg { path: chipShape.outline }
+            }
         }
     }
     // Press-and-drag surface for existing value blocks (fields + floating).
@@ -144,11 +165,19 @@ Item {
         onDragCanceled: root.valueDragCanceled()
     }
     MouseArea {
+        id: menuArea
         anchors.fill: parent; acceptedButtons: Qt.RightButton
-        onPressed: mouse => valueMenu.popup(mouse.x, mouse.y)
-        BwMenu {
+        // Built on first use, like a block's menu.
+        property var menu: null
+        onPressed: mouse => {
+            if (!menu) menu = valueMenu.createObject(menuArea);
+            menu.popup(mouse.x, mouse.y);
+        }
+        Component {
             id: valueMenu
-            BwMenuItem { iconName: "info"; text: "Details"; onTriggered: root.detailsRequested(root.valueData && root.valueData.kind === "Op" ? root.valueData.op : (root.valueData ? root.valueData.kind : "Value")) }
+            BwMenu {
+                BwMenuItem { iconName: "info"; text: "Details"; onTriggered: root.detailsRequested(root.valueData && root.valueData.kind === "Op" ? root.valueData.op : (root.valueData ? root.valueData.kind : "Value")) }
+            }
         }
     }
     Row {
@@ -163,20 +192,24 @@ Item {
                 readonly property bool isEnum: index === root.enumIndex && !!modelData && modelData.kind === "Text"
                 anchors.verticalCenter: parent ? parent.verticalCenter : undefined
                 Text { visible: argRow.index > 0 && root.opInfix.length > 0; text: root.opInfix; color: Theme.textDim; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
-                BwComboBox {
-                    id: enumBox
-                    visible: argRow.isEnum
-                    readonly property var choices: argRow.isEnum ? BlockRegistry.enumChoices(root.opSpec.enumArg) : []
-                    readonly property int chosen: { const v = argRow.modelData ? argRow.modelData.value : ""; for (let i = 0; i < choices.length; ++i) if (choices[i].value === v) return i; return -1; }
-                    model: choices; textRole: "label"
-                    currentIndex: chosen
-                    displayText: chosen >= 0 ? choices[chosen].label : (argRow.modelData && argRow.modelData.value ? String(argRow.modelData.value) : "choose")
-                    width: visible ? implicitWidth : 0
-                    implicitWidth: Math.min(170, Math.max(56, enumMetrics.advanceWidth + 34)); implicitHeight: 27; font.pixelSize: 12
-                    leftPadding: 8; rightPadding: 26
-                    enabled: root.editable; anchors.verticalCenter: parent.verticalCenter
-                    TextMetrics { id: enumMetrics; font: enumBox.font; text: enumBox.displayText }
-                    onActivated: index => { const v = enumBox.choices[index].value; root.emitLeaf([argRow.index], { kind: "Text", value: v }, v); }
+                Loader {
+                    active: argRow.isEnum
+                    anchors.verticalCenter: parent.verticalCenter
+                    sourceComponent: Component {
+                        BwComboBox {
+                            id: enumBox
+                            readonly property var choices: argRow.isEnum ? BlockRegistry.enumChoices(root.opSpec.enumArg) : []
+                            readonly property int chosen: { const v = argRow.modelData ? argRow.modelData.value : ""; for (let i = 0; i < choices.length; ++i) if (choices[i].value === v) return i; return -1; }
+                            model: choices; textRole: "label"
+                            currentIndex: chosen
+                            displayText: chosen >= 0 ? choices[chosen].label : (argRow.modelData && argRow.modelData.value ? String(argRow.modelData.value) : "choose")
+                            implicitWidth: Math.min(170, Math.max(56, enumMetrics.advanceWidth + 34)); implicitHeight: 27; font.pixelSize: 12
+                            leftPadding: 8; rightPadding: 26
+                            enabled: root.editable
+                            TextMetrics { id: enumMetrics; font: enumBox.font; text: enumBox.displayText }
+                            onActivated: index => { const v = enumBox.choices[index].value; root.emitLeaf([argRow.index], { kind: "Text", value: v }, v); }
+                        }
+                    }
                 }
                 Loader {
                     active: !argRow.isEnum
@@ -186,16 +219,21 @@ Item {
                 }
             }
         }
-        BwTextField {
-            id: leafInput
-            visible: !!root.valueData && (root.valueData.kind === "Number" || root.valueData.kind === "Text")
-            readOnly: !root.editable; text: root.valueData ? String(root.valueData.value) : ""; selectByMouse: true
-            font.pixelSize: 12; color: Theme.text; implicitWidth: Math.max(36, Math.min(150, contentWidth + 18)); implicitHeight: 27
-            leftPadding: 7; rightPadding: 7; topPadding: 2; bottomPadding: 2
-            background: Rectangle { radius: 5; color: Theme.field; border.color: leafInput.activeFocus ? Theme.accent : Theme.border }
-            onEditingFinished: if (root.valueData && text !== String(root.valueData.value)) {
-                if (root.location) root.editRequested(root.location, text);
-                else root.leafEdited([], root.leafFromText(root.valueData, text));
+        Loader {
+            active: !!root.valueData && (root.valueData.kind === "Number" || root.valueData.kind === "Text")
+            anchors.verticalCenter: parent.verticalCenter
+            sourceComponent: Component {
+                BwTextField {
+                    id: leafInput
+                    readOnly: !root.editable; text: root.valueData ? String(root.valueData.value) : ""; selectByMouse: true
+                    font.pixelSize: 12; color: Theme.text; implicitWidth: Math.max(36, Math.min(150, contentWidth + 18)); implicitHeight: 27
+                    leftPadding: 7; rightPadding: 7; topPadding: 2; bottomPadding: 2
+                    background: Rectangle { radius: 5; color: Theme.field; border.color: leafInput.activeFocus ? Theme.accent : Theme.border }
+                    onEditingFinished: if (root.valueData && text !== String(root.valueData.value)) {
+                        if (root.location) root.editRequested(root.location, text);
+                        else root.leafEdited([], root.leafFromText(root.valueData, text));
+                    }
+                }
             }
         }
         Text { visible: !!root.valueData && ["Var","Param"].indexOf(root.valueData.kind)>=0; text: root.valueData && root.valueData.name ? root.valueData.name : ""; color: Theme.accent; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }

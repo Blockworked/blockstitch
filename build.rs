@@ -21,6 +21,7 @@ fn main() {
                 "qml/Blockstitch/BwSwitch.qml",
                 "qml/Blockstitch/ValueChip.qml",
                 "qml/Blockstitch/InstructionBlock.qml",
+                "qml/Blockstitch/InstructionList.qml",
                 "qml/Blockstitch/PaletteBlock.qml",
                 "qml/Blockstitch/PaletteValue.qml",
                 "qml/Blockstitch/CollectionPanel.qml",

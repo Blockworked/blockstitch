@@ -1,10 +1,13 @@
 import QtQuick
+import QtQuick.Shapes
 
 // Paints a block silhouette: a fill with a beveled gradient and an outline.
 // "stack" / "header" / "cap" are single rows; "wrap" is a C-shaped block
 // (head bar, one mouth per body, mid bars between bodies, foot bar) whose inner
 // connector notches/tabs line up with the blocks nested in its mouths.
-Canvas {
+// A Shape rather than a Canvas: a canvas per block is a texture per block,
+// repainted on the CPU on every hover, and blurred by the canvas zoom.
+Shape {
     id: root
     property string shape: "stack"
     property color fill: Theme.block
@@ -22,13 +25,7 @@ Canvas {
     property var flatEnds: []   // per mouth: last nested block has no bottom tab, so the bar below it has no notch
     readonly property real tab: 8
 
-    antialiasing: true
-    onWidthChanged: requestPaint(); onHeightChanged: requestPaint()
-    onFillChanged: requestPaint(); onOutlineChanged: requestPaint()
-    onHoverColorChanged: requestPaint()
-    onHoveredChanged: requestPaint(); onShapeChanged: requestPaint()
-    onMouthHeightsChanged: requestPaint(); onFlatEndsChanged: requestPaint()
-    onHeadHeightChanged: requestPaint(); onMidHeightChanged: requestPaint(); onFootHeightChanged: requestPaint()
+    preferredRendererType: Shape.CurveRenderer
 
     // connector profile, relative to the connector's left edge: [x, depth]
     readonly property var profile: [[0, 0], [4, 5], [8, 8], [18, 8], [22, 5], [26, 0]]
@@ -39,7 +36,6 @@ Canvas {
     function trace(ctx) {
         const ins = .6, r = 5, w = width, h = height;
         const L = ins, R = w - ins, T = ins;
-        ctx.beginPath();
         if (shape !== "wrap") {
             const topNotch = shape !== "header", bottomTab = shape !== "cap";
             const base = (bottomTab ? h - tab : h) - ins;
@@ -79,15 +75,34 @@ Canvas {
         ctx.closePath();
     }
 
-    onPaint: {
-        const ctx = getContext("2d");
-        ctx.reset();
-        trace(ctx);
-        const g = ctx.createLinearGradient(0, 0, width, height);
-        g.addColorStop(0, Qt.lighter(fill, 1.11)); g.addColorStop(1, fill);
-        ctx.fillStyle = g; ctx.fill();
-        ctx.lineWidth = 1.3; ctx.lineJoin = "round";
-        ctx.strokeStyle = hovered ? hoverColor : outline;
-        ctx.stroke();
+    // The outline as SVG path data, traced through a tiny canvas-like writer.
+    function writer() {
+        const parts = [];
+        const n = v => Math.round(v * 100) / 100;
+        return {
+            moveTo: (x, y) => parts.push("M" + n(x) + " " + n(y)),
+            lineTo: (x, y) => parts.push("L" + n(x) + " " + n(y)),
+            quadraticCurveTo: (cx, cy, x, y) => parts.push("Q" + n(cx) + " " + n(cy) + " " + n(x) + " " + n(y)),
+            closePath: () => parts.push("Z"),
+            text: () => parts.join(" ")
+        };
+    }
+    readonly property string outlinePath: {
+        if (width <= 0 || height <= 0) return "";
+        const w = writer();
+        trace(w);
+        return w.text();
+    }
+
+    ShapePath {
+        strokeColor: root.hovered ? root.hoverColor : root.outline
+        strokeWidth: 1.3
+        joinStyle: ShapePath.RoundJoin
+        fillGradient: LinearGradient {
+            x1: 0; y1: 0; x2: root.width; y2: root.height
+            GradientStop { position: 0; color: Qt.lighter(root.fill, 1.11) }
+            GradientStop { position: 1; color: root.fill }
+        }
+        PathSvg { path: root.outlinePath }
     }
 }
