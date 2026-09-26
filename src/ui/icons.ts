@@ -4,7 +4,7 @@
 // `registerIcons`, so every `icon="..."` string used anywhere in the host
 // app resolves the same way it always has.
 import type { Component } from 'vue';
-import { ChevronUp, ChevronDown, X, MessageSquare } from 'lucide-vue-next';
+import { ChevronUp, ChevronDown, X, MessageSquare } from '@lucide/vue';
 
 export type IconName = string;
 

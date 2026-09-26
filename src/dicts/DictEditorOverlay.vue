@@ -5,7 +5,7 @@
   must close the editor (e.g. via `setDictEditorOpen(name, false)`). -->
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
-import { Check, GripVertical, Pencil, Plus, X } from 'lucide-vue-next';
+import { Check, GripVertical, Pencil, Plus, X } from '@lucide/vue';
 import { dictEditors, renameDictEditor, saveDictEditorPosition } from './dictEditors';
 import { dictItemFromText, type DictDef, type DictEntry } from './dictTypes';
 

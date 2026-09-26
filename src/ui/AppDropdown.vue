@@ -5,7 +5,7 @@
 // from outside the browser engine, so every dropdown is built from real DOM
 // instead. This is a webview bug, unrelated to the JS framework.
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import { ChevronDown } from 'lucide-vue-next';
+import { ChevronDown } from '@lucide/vue';
 import { getIcon, type IconName } from './icons';
 import { registerOpen, unregisterOpen } from './dropdownRegistry';
 

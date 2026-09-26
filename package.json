@@ -11,12 +11,12 @@
     "./theme.css": "./src/theme/blockstitch.css"
   },
   "peerDependencies": {
-    "lucide-vue-next": "^0.469.0",
+    "@lucide/vue": "^1.48.0",
     "vue": "^3.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "lucide-vue-next": "^0.469.0",
+    "@lucide/vue": "^1.48.0",
     "typescript": "^5.7.0",
     "vue": "^3.5.43",
     "vue-tsc": "^2.2.0"

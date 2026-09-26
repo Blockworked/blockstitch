@@ -5,7 +5,7 @@
   must close the editor (e.g. via `setListEditorOpen(name, false)`). -->
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
-import { Check, GripVertical, Pencil, Plus, X } from 'lucide-vue-next';
+import { Check, GripVertical, Pencil, Plus, X } from '@lucide/vue';
 import { listEditors, renameListEditor, saveListEditorPosition } from './listEditors';
 import { listItemFromText, type ListDef, type ListItem } from './listTypes';
 

@@ -63,10 +63,101 @@ Rectangle {
     // All model coordinates (strands, comments, values, lists) are world;
     // everything rendered inside `workspace` adds the offset, and every
     // coordinate emitted back to the backend subtracts it again.
-    readonly property real worldW: 2600
-    readonly property real worldH: 1800
+    // The world grows symmetrically to fit its content: a fixed-size world
+    // clips strands placed far from the origin (and hides them from scroll),
+    // so expand it beyond the minimum whenever strands/comments/values or
+    // collection editors extend past it.
+    readonly property real minWorldW: 2600
+    readonly property real minWorldH: 1800
+    readonly property real canvasPad: 400
+    // Conservative width for a strand card. Heights come from the same
+    // deterministic block metrics the snap preview uses (contentHeightFor);
+    // widths depend on text metrics, so estimate generously - canvasPad
+    // absorbs the remainder.
+    readonly property real strandEstW: 360
+    readonly property real needHalfW: {
+        var hw = 0;
+        var sl = root.strands || [];
+        for (var i = 0; i < sl.length; ++i) {
+            var sx = (sl[i] && sl[i].x) || 0;
+            hw = Math.max(hw, Math.abs(sx), Math.abs(sx + root.strandEstW));
+        }
+        var fv = root.floatingValues || [];
+        for (var j = 0; j < fv.length; ++j) {
+            var fx = (fv[j] && fv[j].x) || 0;
+            hw = Math.max(hw, Math.abs(fx), Math.abs(fx + 160));
+        }
+        var cm = root.comments || [];
+        for (var k = 0; k < cm.length; ++k) {
+            var cx = (cm[k] && cm[k].x) || 0;
+            hw = Math.max(hw, Math.abs(cx), Math.abs(cx + 220));
+        }
+        var li = root.lists || [];
+        for (var m = 0; m < li.length; ++m) {
+            var lx = (li[m] && (li[m].editor_x || 36)) || 36;
+            hw = Math.max(hw, Math.abs(lx), Math.abs(lx + 300));
+        }
+        var di = root.dicts || [];
+        for (var n = 0; n < di.length; ++n) {
+            var dx = (di[n] && (di[n].editor_x || 36)) || 36;
+            hw = Math.max(hw, Math.abs(dx), Math.abs(dx + 360));
+        }
+        return hw;
+    }
+    readonly property real needHalfH: {
+        var hh = 0;
+        var sl = root.strands || [];
+        for (var i = 0; i < sl.length; ++i) {
+            var sy = (sl[i] && sl[i].y) || 0;
+            var sh = contentHeightFor((sl[i] && sl[i].instructions) || []);
+            hh = Math.max(hh, Math.abs(sy), Math.abs(sy + sh));
+        }
+        var fv = root.floatingValues || [];
+        for (var j = 0; j < fv.length; ++j) {
+            var fy = (fv[j] && fv[j].y) || 0;
+            hh = Math.max(hh, Math.abs(fy), Math.abs(fy + 40));
+        }
+        var cm = root.comments || [];
+        for (var k = 0; k < cm.length; ++k) {
+            var cy = (cm[k] && cm[k].y) || 0;
+            var chh = (cm[k] && cm[k].collapsed) ? 38 : 280;
+            hh = Math.max(hh, Math.abs(cy), Math.abs(cy + chh));
+        }
+        var li = root.lists || [];
+        for (var m = 0; m < li.length; ++m) {
+            var ly = (li[m] && (li[m].editor_y || 36)) || 36;
+            var lh = Math.min(400, 78 + Math.max(38, ((li[m] && li[m].items) || []).length * 34));
+            hh = Math.max(hh, Math.abs(ly), Math.abs(ly + lh));
+        }
+        var di = root.dicts || [];
+        for (var n = 0; n < di.length; ++n) {
+            var dy = (di[n] && (di[n].editor_y || 36)) || 36;
+            var dh = Math.min(420, 78 + Math.max(38, ((di[n] && di[n].entries) || []).length * 34));
+            hh = Math.max(hh, Math.abs(dy), Math.abs(dy + dh));
+        }
+        return hh;
+    }
+    readonly property real worldW: Math.max(root.minWorldW, 2 * (root.needHalfW + root.canvasPad))
+    readonly property real worldH: Math.max(root.minWorldH, 2 * (root.needHalfH + root.canvasPad))
     readonly property real originOffsetX: worldW / 2
     readonly property real originOffsetY: worldH / 2
+    // Growing the world moves the origin, which shifts every item's
+    // workspace position by half the growth. Compensate the scroll by the
+    // same amount so the view stays visually still instead of jumping.
+    property real _prevWorldW: 0
+    property real _prevWorldH: 0
+    onWorldWChanged: {
+        if (_prevWorldW > 0 && flick) {
+            flick.contentX = Math.max(0, Math.min(Math.max(0, flick.contentWidth - flick.width), flick.contentX + (worldW - _prevWorldW) * root.zoom / 2));
+        }
+        _prevWorldW = worldW;
+    }
+    onWorldHChanged: {
+        if (_prevWorldH > 0 && flick) {
+            flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), flick.contentY + (worldH - _prevWorldH) * root.zoom / 2));
+        }
+        _prevWorldH = worldH;
+    }
     property bool _centered: false
     // Zoom around a viewport point (vx, vy in Flickable viewport pixels) so
     // that point stays visually still, instead of drifting to the top-left.

@@ -4,7 +4,7 @@
   Right-click handling stays host-specific, surfaced as `menu`. -->
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Check } from 'lucide-vue-next';
+import { Check } from '@lucide/vue';
 import { isListEditorOpen, setListEditorOpen } from './listEditors';
 import type { ListDef } from './listTypes';
 

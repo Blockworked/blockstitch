@@ -1,7 +1,7 @@
 pragma Singleton
 import QtQuick
 
-// Exact SVG geometry from lucide-vue-next 0.469.0, the same package the web
+// Exact SVG geometry from @lucide/vue 1.x (formerly lucide-vue-next 0.469.0), the same package the web
 // frontends use, keyed by lucide's own kebab-case names.
 QtObject {
     readonly property var paths: ({
