@@ -371,9 +371,8 @@ impl<K: BlockKind> BlockGraph<K> {
         // tail back where it came from rather than dropping instructions.
         let tail = {
             let source_strand = self.strand_mut(source_id).ok_or("Unknown source strand")?;
-            let (list, index) =
-                resolve_body_mut(&mut source_strand.instructions, source_path)
-                    .ok_or("Unknown source instruction path")?;
+            let (list, index) = resolve_body_mut(&mut source_strand.instructions, source_path)
+                .ok_or("Unknown source instruction path")?;
             if index >= list.len() {
                 return Err("Source index out of range".to_string());
             }

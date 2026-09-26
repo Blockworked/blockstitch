@@ -16,7 +16,7 @@ ComboBox {
     delegate:ItemDelegate {
         width:ListView.view.width;implicitHeight:32;highlighted:control.highlightedIndex===index
         HoverHandler { cursorShape: Qt.PointingHandCursor }
-        contentItem:Text { text:control.textRole?model[control.textRole]:modelData;color:Theme.text;font:control.font;verticalAlignment:Text.AlignVCenter }
+        contentItem:Text { text:control.textRole?((modelData!==null&&typeof modelData==="object"&&modelData[control.textRole]!==undefined)?modelData[control.textRole]:model[control.textRole]):modelData;color:Theme.text;font:control.font;verticalAlignment:Text.AlignVCenter }
         background:Rectangle { radius:4;color:parent.highlighted?"#424348":"transparent" }
     }
 }
