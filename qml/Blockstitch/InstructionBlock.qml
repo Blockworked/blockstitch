@@ -51,10 +51,18 @@ Item {
     readonly property bool isCap: BlockRegistry.isCap(instruction, blockDefinitions)
     // The host's declarative row for this type, if it registered one.
     readonly property var rowSpec: BlockRegistry.row(type)
-    readonly property var headPieces: {
+    // A new pieces array rebuilds every control on the row, so it only
+    // changes when a different set of pieces shows.
+    property var headPieces: []
+    readonly property var wantedPieces: {
         BlockRegistry.revision;
         if (!rowSpec || !rowSpec.head) return [];
         return rowSpec.head.filter(p => !p.when || p.when(instruction));
+    }
+    onWantedPiecesChanged: {
+        const a = headPieces, b = wantedPieces;
+        if (a.length === b.length && a.every((p, i) => p === b[i])) return;
+        headPieces = b;
     }
     readonly property int rowHeight: 58
     readonly property real tabDepth: 8
@@ -273,32 +281,40 @@ Item {
         onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
         onDragCanceled: root.dragCanceled()
         onActivated: root.activated()
-        onContextRequested: (x, y) => blockMenu.popup(x, y)
+        onContextRequested: (x, y) => root.openMenu(x, y)
+    }
+    // Built on first use: a menu per block costs more than the block itself.
+    property var contextMenu: null
+    function openMenu(x, y) {
+        if (!contextMenu) contextMenu = blockMenuComponent.createObject(grab);
+        contextMenu.popup(x, y);
+    }
+    Component {
+        id: blockMenuComponent
         BwMenu {
-            id: blockMenu
+            id: menu
             BwMenuItem { visible: !root.paletteMode && BlockRegistry.recordingTargets; iconName: "target"; text: "Set Recording Target"; onTriggered: root.recordingTargetRequested(root.strandId) }
             BwMenuItem { visible: !root.paletteMode; iconName: "corner-down-right"; text: "Duplicate block"; onTriggered: root.duplicateRequested(root.strandId, root.path, root.instruction) }
             BwMenuItem { visible: !root.paletteMode; iconName: "message-square"; text: "Add Comment"; onTriggered: root.commentRequested(root.instruction) }
             BwMenuItem { iconName: "info"; text: "Details"; onTriggered: root.detailsRequested(root.type) }
             BwMenuItem { visible: !root.paletteMode; iconName: "trash"; danger: true; text: "Delete block"; onTriggered: root.removeRequested(root.strandId, root.path) }
-        }
-        Instantiator {
-            model: root.paletteMode ? [] : BlockRegistry.blockMenu
-            delegate: BwMenuItem {
-                required property var modelData
-                iconName: modelData.icon || ""; text: modelData.text; danger: !!modelData.danger
-                onTriggered: root.menuActionRequested(modelData.id, root.strandId, root.path, root.instruction)
+            Instantiator {
+                model: root.paletteMode ? [] : BlockRegistry.blockMenu
+                delegate: BwMenuItem {
+                    required property var modelData
+                    iconName: modelData.icon || ""; text: modelData.text; danger: !!modelData.danger
+                    onTriggered: root.menuActionRequested(modelData.id, root.strandId, root.path, root.instruction)
+                }
+                onObjectAdded: (index, object) => menu.insertItem(index, object)
+                onObjectRemoved: (index, object) => menu.removeItem(object)
             }
-            onObjectAdded: (index, object) => blockMenu.insertItem(index, object)
-            onObjectRemoved: (index, object) => blockMenu.removeItem(object)
         }
     }
     Row {
         id: fields; visible: !root.isWrap; x: 14; y: Math.round((root.rowHeight-height-8)/2); spacing: 7
-        LucideIcon { visible: !root.isHeader; name: root.iconFor(root.type); color: root.isCustomBlock ? root.customColor : Theme.textDim; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
-        LucideIcon { visible: root.isHeader; name: root.iconFor(root.type); color: root.isCustomBlock ? root.customColor : Theme.accent; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
+        LucideIcon { visible: !root.isWrap; name: root.isWrap ? "" : root.iconFor(root.type); color: root.isCustomBlock ? root.customColor : root.isHeader ? Theme.accent : Theme.textDim; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
         Loader {
-            active: !root.rowSpec; visible: active; anchors.verticalCenter: parent.verticalCenter
+            active: !!root.type && !root.isWrap && !root.rowSpec && !root.isCustomBlock && root.type !== "RunBranch"; visible: active; anchors.verticalCenter: parent.verticalCenter
             sourceComponent: Row {
                 spacing: 7
                 Text { visible: root.type==="WhenRan"; text:"WHEN RAN"; color:Theme.textDim; font.pixelSize:12; font.weight:Font.DemiBold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
@@ -379,6 +395,13 @@ Item {
                 ValueChip { visible:root.type==="Return"; valueData:instruction?instruction.value:null; location:root.fieldLocation("ReturnValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                 Text { visible:root.type==="EscapeLoop"; text:"break loop"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                 Text { visible:root.type==="ContinueLoop"; text:"continue loop"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+            }
+        }
+        // Custom block calls and definitions, drawn from their definition.
+        Loader {
+            active: !root.rowSpec && (root.type === "CallBlock" || root.type === "BlockHeader" || root.type === "RunBranch"); visible: active; anchors.verticalCenter: parent.verticalCenter
+            sourceComponent: Row {
+                spacing: 7
                 Repeater { model:root.type==="CallBlock"?root.callHeadPieces():[];delegate:Item {
                     required property var modelData;width:modelData.kind==="Label"?callPieceText.implicitWidth:callPieceValue.implicitWidth;height:30
                     Text{id:callPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;anchors.centerIn:parent}
@@ -401,9 +424,9 @@ Item {
     // Head bar content, then one mouth per body (nested blocks) with separator bars between them.
     Row {
         id:headContent; visible:root.isWrap; x:14; y:Math.round((root.headHeight-height)/2); spacing:7
-        LucideIcon { name:root.iconFor(root.type); color:root.isCustomBlock?root.customColor:Theme.textDim; width:16;height:16; anchors.verticalCenter:parent.verticalCenter }
+        LucideIcon { visible:root.isWrap; name:root.isWrap?root.iconFor(root.type):""; color:root.isCustomBlock?root.customColor:Theme.textDim; width:16;height:16; anchors.verticalCenter:parent.verticalCenter }
         Loader {
-            active: !root.rowSpec; visible: active; anchors.verticalCenter: parent.verticalCenter
+            active: root.isWrap && !root.rowSpec && root.type !== "BranchCallBlock"; visible: active; anchors.verticalCenter: parent.verticalCenter
             sourceComponent: Row {
                 spacing: 7
                 Text { visible:root.type==="If"||root.type==="IfElse"; text:"if"; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
@@ -440,16 +463,26 @@ Item {
             x: 0; y: root.mouthTop(index); width: root.width; height: mouthHeight
             Column {
                 id: slotBody; x: root.spine; spacing: -8
+                InstructionList { id: slotBlocks; instructions: root.body(slotDelegate.index) }
                 Repeater {
-                    model: root.body(slotDelegate.index)
+                    model: slotBlocks
                     delegate: Loader {
-                        required property var modelData; required property int index
+                        id: child
+                        required property string payload; required property int index
+                        readonly property var blockData: JSON.parse(payload)
                         source: "InstructionBlock.qml"; width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
                         onLoaded: {
-                            item.instruction = modelData; item.strandId = root.strandId; item.path = root.childPath(slotDelegate.index, index);
-                            item.tailCount = root.body(slotDelegate.index).length - index;
-                            item.variables = root.variables; item.lists = root.lists; item.blockDefinitions = root.blockDefinitions; item.keyCapture = root.keyCapture; item.locked = root.locked;
-                            item.dragState = root.dragState;
+                            // Bindings, not copies: the block outlives edits to itself and its neighbours.
+                            item.instruction = Qt.binding(() => child.blockData);
+                            item.strandId = Qt.binding(() => root.strandId);
+                            item.path = Qt.binding(() => root.childPath(slotDelegate.index, child.index));
+                            item.tailCount = Qt.binding(() => slotBlocks.count - child.index);
+                            item.variables = Qt.binding(() => root.variables);
+                            item.lists = Qt.binding(() => root.lists);
+                            item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
+                            item.keyCapture = Qt.binding(() => root.keyCapture);
+                            item.locked = Qt.binding(() => root.locked);
+                            item.dragState = Qt.binding(() => root.dragState);
                             item.removeRequested.connect((s, p) => root.removeRequested(s, p));
                             item.duplicateRequested.connect((s, p, i) => root.duplicateRequested(s, p, i));
                             item.commentRequested.connect(i => root.commentRequested(i));
@@ -485,24 +518,23 @@ Item {
         }
     }
 
-    // One piece of a registered row: a label, a value slot, a dropdown or a text field.
+    // One piece of a registered row: a label, a value slot, a dropdown or a
+    // text field. Only the control the piece needs is built.
     Component {
         id: pieceDelegate
-        Item {
+        Loader {
             id: piece
             required property var modelData
             readonly property string kind: modelData.kind
-            implicitWidth: kind === "label" ? pieceLabel.implicitWidth : kind === "value" ? (pieceValue.item ? pieceValue.item.implicitWidth : 0)
-                         : kind === "dropdown" ? pieceDrop.implicitWidth : pieceText.implicitWidth
-            implicitHeight: 30
-            width: implicitWidth; height: implicitHeight
             anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-            Text { id: pieceLabel; visible: piece.kind === "label"; text: piece.modelData.text || ""; color: Theme.text; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
-            Loader {
-                id: pieceValue
-                active: piece.kind === "value"
-                anchors.verticalCenter: parent.verticalCenter
-                sourceComponent: ValueChip {
+            sourceComponent: kind === "label" ? labelPiece : kind === "value" ? valuePiece : kind === "dropdown" ? dropdownPiece : textPiece
+            Component {
+                id: labelPiece
+                Text { text: piece.modelData.text || ""; color: Theme.text; font.pixelSize: 12; height: 30; verticalAlignment: Text.AlignVCenter }
+            }
+            Component {
+                id: valuePiece
+                ValueChip {
                     valueData: root.instruction ? (root.instruction[piece.modelData.key] || (piece.modelData.bool ? { kind: "Bool" } : { kind: "Number", value: 0 })) : null
                     location: root.paletteMode ? null : root.fieldLocation(piece.modelData.field)
                     boxed: !!piece.modelData.bool; forceBoolean: !!piece.modelData.bool && (!valueData || valueData.kind === "Bool")
@@ -516,28 +548,29 @@ Item {
                     onValueDragCanceled: root.valueDragCanceled()
                 }
             }
-            BwComboBox {
-                id: pieceDrop
-                visible: piece.kind === "dropdown"
-                readonly property var choices: visible ? root.pieceOptions(piece.modelData) : []
-                readonly property string current: visible ? root.pieceValue(piece.modelData) : ""
-                readonly property int chosen: { for (let i = 0; i < choices.length; ++i) if (choices[i].value === current) return i; return -1; }
-                model: choices; textRole: "label"; currentIndex: chosen
-                displayText: chosen >= 0 ? choices[chosen].label : (current.length ? current : (piece.modelData.placeholder || "choose"))
-                implicitWidth: Math.min(190, Math.max(56, dropMetrics.advanceWidth + 36)); implicitHeight: 28; font.pixelSize: 12
-                leftPadding: 8; rightPadding: 26
-                anchors.verticalCenter: parent.verticalCenter
-                TextMetrics { id: dropMetrics; font: pieceDrop.font; text: pieceDrop.displayText }
-                onActivated: index => root.setPiece(piece.modelData, pieceDrop.choices[index].value)
+            Component {
+                id: dropdownPiece
+                BwComboBox {
+                    id: pieceDrop
+                    readonly property var choices: root.pieceOptions(piece.modelData)
+                    readonly property string current: root.pieceValue(piece.modelData)
+                    readonly property int chosen: { for (let i = 0; i < choices.length; ++i) if (choices[i].value === current) return i; return -1; }
+                    model: choices; textRole: "label"; currentIndex: chosen
+                    displayText: chosen >= 0 ? choices[chosen].label : (current.length ? current : (piece.modelData.placeholder || "choose"))
+                    implicitWidth: Math.min(190, Math.max(56, dropMetrics.advanceWidth + 36)); implicitHeight: 28; font.pixelSize: 12
+                    leftPadding: 8; rightPadding: 26
+                    TextMetrics { id: dropMetrics; font: pieceDrop.font; text: pieceDrop.displayText }
+                    onActivated: index => root.setPiece(piece.modelData, pieceDrop.choices[index].value)
+                }
             }
-            BwTextField {
-                id: pieceText
-                visible: piece.kind === "text"
-                text: visible ? root.pieceValue(piece.modelData) : ""; placeholderText: piece.modelData.placeholder || ""
-                implicitWidth: Math.min(200, Math.max(64, contentWidth + 20)); implicitHeight: 28; font.pixelSize: 12
-                leftPadding: 7; rightPadding: 7; topPadding: 2; bottomPadding: 2
-                anchors.verticalCenter: parent.verticalCenter
-                onEditingFinished: if (text !== root.pieceValue(piece.modelData)) root.setField(piece.modelData.key, text)
+            Component {
+                id: textPiece
+                BwTextField {
+                    text: root.pieceValue(piece.modelData); placeholderText: piece.modelData.placeholder || ""
+                    implicitWidth: Math.min(200, Math.max(64, contentWidth + 20)); implicitHeight: 28; font.pixelSize: 12
+                    leftPadding: 7; rightPadding: 7; topPadding: 2; bottomPadding: 2
+                    onEditingFinished: if (text !== root.pieceValue(piece.modelData)) root.setField(piece.modelData.key, text)
+                }
             }
         }
     }

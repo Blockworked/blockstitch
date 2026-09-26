@@ -57,7 +57,6 @@ Rectangle {
     // Reporter name dropdowns offer whatever this document declares.
     onListsChanged: BlockRegistry.listNames = (lists || []).map(l => l.name)
     onDictsChanged: BlockRegistry.dictNames = (dicts || []).map(d => d.name)
-    onZoomChanged: grid.requestPaint()
     // World coordinates have their origin at the center of the workspace:
     // world (0, 0) renders at workspace-local (originOffsetX, originOffsetY).
     // All model coordinates (strands, comments, values, lists) are world;
@@ -897,16 +896,10 @@ Rectangle {
         return { x: p.x - root.originOffsetX, y: p.y - root.originOffsetY };
     }
 
-    Canvas {
-        id:grid; anchors.fill:parent
-        onPaint:{ const c=getContext("2d"); c.reset(); c.fillStyle="#46474d"; const gap=22*root.zoom; const r=1.15*root.zoom; const ox=(-flick.contentX)%gap,oy=(-flick.contentY)%gap; for(let x=ox;x<width;x+=gap)for(let y=oy;y<height;y+=gap){c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();} }
-    }
     Flickable {
         id:flick; anchors.fill:parent; contentWidth:root.worldW*root.zoom; contentHeight:root.worldH*root.zoom; boundsBehavior:Flickable.StopAtBounds
         ScrollBar.horizontal:ScrollBar{}
         ScrollBar.vertical:ScrollBar{}
-        onContentXChanged:grid.requestPaint()
-        onContentYChanged:grid.requestPaint()
         onWidthChanged: root.tryInitialCenter()
         onHeightChanged: root.tryInitialCenter()
         // While a wheel gesture is active the Flickable must not run its own
@@ -943,6 +936,20 @@ Rectangle {
         }
         Item {
             id:workspace; width:root.worldW;height:root.worldH; scale:root.zoom; transformOrigin:Item.TopLeft
+            // The dot grid lives in world space and moves with the content,
+            // so scrolling and zooming never repaint it. Each 22px tile holds a
+            // quarter dot in every corner, drawn at twice the size and scaled
+            // down so zooming in stays sharp; the margin covers a zoomed-out view.
+            Image {
+                id:grid; z:-200
+                readonly property int margin: 22 * 100
+                x:-margin; y:-margin; width:2*(root.worldW+2*margin); height:2*(root.worldH+2*margin)
+                scale:0.5; transformOrigin:Item.TopLeft
+                fillMode:Image.Tile; smooth:true
+                sourceSize: Qt.size(44, 44)
+                source: "data:image/svg+xml;utf8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><g fill='#46474d'>"
+                    + "<circle cx='0' cy='0' r='2.3'/><circle cx='44' cy='0' r='2.3'/><circle cx='0' cy='44' r='2.3'/><circle cx='44' cy='44' r='2.3'/></g></svg>")
+            }
             MouseArea {
                 anchors.fill:parent; z:-100; acceptedButtons:Qt.LeftButton|Qt.RightButton
                 onClicked: mouse => { if (mouse.button === Qt.RightButton) { canvasMenu.canvasX = Math.round(mouse.x - root.originOffsetX); canvasMenu.canvasY = Math.round(mouse.y - root.originOffsetY); canvasMenu.popup(mouse.x, mouse.y); } else flick.forceActiveFocus(); }
@@ -973,11 +980,12 @@ Rectangle {
                     readonly property var blockList: JSON.parse(payload || "[]")
                     x:sx + root.originOffsetX; y:sy + root.originOffsetY; spacing:-8
                     z: (dragSession.active && dragSession.strandId === sid) || (dragSession.settling && dragSession.settleStrandId === sid) ? 100 : 0
+                    InstructionList { id:strandBlocks; instructions:strand.blockList }
                     Repeater {
-                        model:strand.blockList||[]
+                        model:strandBlocks
                         delegate:InstructionBlock {
-                            id:block; required property var modelData; required property int index
-                            instruction:modelData; strandId:strand.sid; path:[{index:index}]; tailCount:(strand.blockList||[]).length-index; dragState:dragSession
+                            id:block; required property string payload; required property int index
+                            instruction:JSON.parse(payload); strandId:strand.sid; path:[{index:index}]; tailCount:strandBlocks.count-index; dragState:dragSession
                             variables:root.variables; lists:root.lists; blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; locked:root.locked
                             onRemoveRequested:(sid,p)=>root.instructionRemoved(sid,p)
                             onDuplicateRequested:(sid,p,i)=>root.instructionDuplicated(sid,p,i)
