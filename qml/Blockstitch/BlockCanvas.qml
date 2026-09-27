@@ -68,18 +68,44 @@ Rectangle {
     // collection editors extend past it.
     readonly property real minWorldW: 2600
     readonly property real minWorldH: 1800
-    readonly property real canvasPad: 400
-    // Conservative width for a strand card. Heights come from the same
-    // deterministic block metrics the snap preview uses (contentHeightFor);
-    // widths depend on text metrics, so estimate generously - canvasPad
-    // absorbs the remainder.
+    // Horizontal gets extra trailing room so the canvas extends a good
+    // distance past a strand's right edge (comfortable panning / drop
+    // space), while vertical keeps the tighter bound.
+    readonly property real canvasPadX: 800
+    readonly property real canvasPadY: 400
+    // Fallback width until a strand delegate reports its real implicitWidth.
     readonly property real strandEstW: 360
+    // Live measured strand widths (sid -> implicitWidth), reported by the
+    // strand delegates below. Reassigned as a whole on every report so
+    // needHalfW re-evaluates. Without this the world is sized from a fixed
+    // estimate, so wide strands eat the padding and the canvas ends right
+    // at (or inside) their right edge.
+    property var _strandWidths: ({})
+    function noteStrandWidth(sid, w) {
+        if (!sid || !(w > 0)) return;
+        if (_strandWidths[sid] === w) return;
+        var m = Object.assign({}, _strandWidths);
+        m[sid] = w;
+        _strandWidths = m;
+    }
+    function clearStrandWidth(sid) {
+        if (!sid || !(_strandWidths && (sid in _strandWidths))) return;
+        var m = Object.assign({}, _strandWidths);
+        delete m[sid];
+        _strandWidths = m;
+    }
+    function strandWidthFor(sid) {
+        var w = _strandWidths && _strandWidths[sid];
+        return (w > 0) ? w : root.strandEstW;
+    }
     readonly property real needHalfW: {
         var hw = 0;
+        var sw = root._strandWidths;
         var sl = root.strands || [];
         for (var i = 0; i < sl.length; ++i) {
             var sx = (sl[i] && sl[i].x) || 0;
-            hw = Math.max(hw, Math.abs(sx), Math.abs(sx + root.strandEstW));
+            var w = (sw && sw[sl[i].id] > 0) ? sw[sl[i].id] : root.strandEstW;
+            hw = Math.max(hw, Math.abs(sx), Math.abs(sx + w));
         }
         var fv = root.floatingValues || [];
         for (var j = 0; j < fv.length; ++j) {
@@ -136,8 +162,8 @@ Rectangle {
         }
         return hh;
     }
-    readonly property real worldW: Math.max(root.minWorldW, 2 * (root.needHalfW + root.canvasPad))
-    readonly property real worldH: Math.max(root.minWorldH, 2 * (root.needHalfH + root.canvasPad))
+    readonly property real worldW: Math.max(root.minWorldW, 2 * (root.needHalfW + root.canvasPadX))
+    readonly property real worldH: Math.max(root.minWorldH, 2 * (root.needHalfH + root.canvasPadY))
     readonly property real originOffsetX: worldW / 2
     readonly property real originOffsetY: worldH / 2
     // Growing the world moves the origin, which shifts every item's
@@ -980,6 +1006,13 @@ Rectangle {
                     readonly property var blockList: JSON.parse(payload || "[]")
                     x:sx + root.originOffsetX; y:sy + root.originOffsetY; spacing:-8
                     z: (dragSession.active && dragSession.strandId === sid) || (dragSession.settling && dragSession.settleStrandId === sid) ? 100 : 0
+                    // Report the real card width so the world extends past
+                    // actual strand content, not a fixed estimate.
+                    // (InstructionList below is a non-visual ListModel, so the
+                    // Column's implicitWidth is still the widest block.)
+                    onImplicitWidthChanged: root.noteStrandWidth(sid, implicitWidth)
+                    Component.onCompleted: root.noteStrandWidth(sid, implicitWidth)
+                    Component.onDestruction: root.clearStrandWidth(sid)
                     InstructionList { id:strandBlocks; instructions:strand.blockList }
                     Repeater {
                         model:strandBlocks
