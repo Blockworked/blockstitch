@@ -36,6 +36,11 @@ items, which come back through `blockMenuAction`/`canvasMenuAction`. An
 operator's `enumArg` may give its choices as an array, a function, or
 `"lists"`/`"dicts"` for the collection names the canvas was given.
 
+A row whose pieces depend on the instruction (one generic type that many
+app-defined blocks share) gives `head` as a function of the instruction, and
+a value piece may carry `index` to read and write one entry of an array held
+under its `key` instead of the key itself.
+
 ## Dicts
 
 `BlockCanvas.dicts` and `PalettePanel.dicts` take the document's dicts

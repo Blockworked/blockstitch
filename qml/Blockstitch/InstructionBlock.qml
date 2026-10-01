@@ -57,7 +57,8 @@ Item {
     readonly property var wantedPieces: {
         BlockRegistry.revision;
         if (!rowSpec || !rowSpec.head) return [];
-        return rowSpec.head.filter(p => !p.when || p.when(instruction));
+        const head = typeof rowSpec.head === "function" ? rowSpec.head(instruction) : rowSpec.head;
+        return (head || []).filter(p => !p.when || p.when(instruction));
     }
     onWantedPiecesChanged: {
         const a = headPieces, b = wantedPieces;
@@ -239,10 +240,18 @@ Item {
     function body(slot) { return BlockRegistry.body(instruction, slot); }
     function slotCount() { return type === "BranchCallBlock" ? BlockRegistry.slotCount(instruction) : Math.max(1, BlockRegistry.slotCount(instruction)); }
     // Palette prefabs have no strand, so their slots edit the prefab itself.
-    function setLeaf(key, path, leaf) {
+    // A value piece names its slot by `key`, or by `key` plus `index` when
+    // the instruction keeps its slots in an array (a plugin block's args).
+    function slotValue(piece) {
+        const v = instruction ? instruction[piece.key] : undefined;
+        return piece.index === undefined ? v : (v ? v[piece.index] : undefined);
+    }
+    function setLeaf(key, path, leaf, index) {
         const n = cloneInstruction();
-        if (!path.length) n[key] = leaf;
-        else { let v = n[key]; for (let i = 0; i < path.length - 1; ++i) v = v.args[path[i]]; v.args[path[path.length - 1]] = leaf; }
+        const holder = index === undefined ? n : n[key];
+        const slot = index === undefined ? key : index;
+        if (!path.length) holder[slot] = leaf;
+        else { let v = holder[slot]; for (let i = 0; i < path.length - 1; ++i) v = v.args[path[i]]; v.args[path[path.length - 1]] = leaf; }
         instructionEdited(strandId, root.path, n);
     }
     function pieceOptions(piece) { return BlockRegistry.choices(piece.options, instruction); }
@@ -535,12 +544,12 @@ Item {
             Component {
                 id: valuePiece
                 ValueChip {
-                    valueData: root.instruction ? (root.instruction[piece.modelData.key] || (piece.modelData.bool ? { kind: "Bool" } : { kind: "Number", value: 0 })) : null
+                    valueData: root.instruction ? (root.slotValue(piece.modelData) || (piece.modelData.bool ? { kind: "Bool" } : { kind: "Number", value: 0 })) : null
                     location: root.paletteMode ? null : root.fieldLocation(piece.modelData.field)
                     boxed: !!piece.modelData.bool; forceBoolean: !!piece.modelData.bool && (!valueData || valueData.kind === "Bool")
                     blockDefinitions: root.blockDefinitions
                     onEditRequested: (l, t) => root.valueEdited(l, t)
-                    onLeafEdited: (p, leaf) => root.setLeaf(piece.modelData.key, p, leaf)
+                    onLeafEdited: (p, leaf) => root.setLeaf(piece.modelData.key, p, leaf, piece.modelData.index)
                     onDetailsRequested: kind => root.detailsRequested(kind)
                     onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)
                     onValueDragMoved: (sx, sy) => root.valueDragMoved(sx, sy)

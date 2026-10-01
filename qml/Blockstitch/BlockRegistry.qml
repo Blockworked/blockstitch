@@ -23,9 +23,14 @@ QtObject {
     property var canvasMenu: []
 
     // type -> { shape, icon, head: [piece], mouths: [key], separators: [text] }
-    // piece: {kind:"label",text} | {kind:"value",field,key,bool}
+    // `head` may be a function(instruction) -> [piece] for a type whose row
+    // depends on the instruction. Return the same piece objects each time:
+    // a changed array rebuilds the row's controls.
+    // piece: {kind:"label",text} | {kind:"value",field,key,index,bool}
     //      | {kind:"dropdown",key,options,placeholder,encode,decode}
     //      | {kind:"text",key,placeholder}
+    // A value piece's `index`, when set, picks one entry of the array
+    // held under `key`; without it `key` holds the value itself.
     // Any piece may carry `when: function(instruction) -> bool`.
     // `options` is an array of {value,label}, a function(instruction), or
     // "lists"/"dicts" for the document's names.
