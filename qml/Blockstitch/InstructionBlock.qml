@@ -255,8 +255,20 @@ Item {
         instructionEdited(strandId, root.path, n);
     }
     function pieceOptions(piece) { return BlockRegistry.choices(piece.options, instruction); }
-    function pieceValue(piece) { const v = instruction ? instruction[piece.key] : undefined; return piece.decode ? piece.decode(v) : (typeof v === "string" ? v : (v === undefined || v === null ? "" : String(v))); }
-    function setPiece(piece, chosen) { setField(piece.key, piece.encode ? piece.encode(chosen) : chosen); }
+    // A dropdown or text piece with an `index` edits one entry of the array
+    // held under `key`, the way a value piece does.
+    function pieceRaw(piece) { const v = instruction ? instruction[piece.key] : undefined; return piece.index === undefined ? v : (v ? v[piece.index] : undefined); }
+    function pieceValue(piece) { const v = pieceRaw(piece); return piece.decode ? piece.decode(v) : (typeof v === "string" ? v : (v === undefined || v === null ? "" : String(v))); }
+    function setPieceField(piece, value) {
+        if (piece.index === undefined) { setField(piece.key, value); return; }
+        const n = cloneInstruction();
+        const list = Array.isArray(n[piece.key]) ? n[piece.key] : [];
+        while (list.length <= piece.index) list.push("");
+        list[piece.index] = value;
+        n[piece.key] = list;
+        instructionEdited(strandId, path, n);
+    }
+    function setPiece(piece, chosen) { setPieceField(piece, piece.encode ? piece.encode(chosen) : chosen); }
     function defFor(id) { for(let i=0;i<(blockDefinitions||[]).length;i++) if(blockDefinitions[i].id===id) return blockDefinitions[i]; return null; }
     function callLabel() { const d=instruction?defFor(instruction.block_id):null; if(!d) return "custom block"; return (d.pieces||[]).filter(p=>p.kind!=="Branch").map(p=>p.kind==="Label"?p.text:("("+p.name+")")).join(" "); }
     function callHeadPieces(){
@@ -578,7 +590,7 @@ Item {
                     text: root.pieceValue(piece.modelData); placeholderText: piece.modelData.placeholder || ""
                     implicitWidth: Math.min(200, Math.max(64, contentWidth + 20)); implicitHeight: 28; font.pixelSize: 12
                     leftPadding: 7; rightPadding: 7; topPadding: 2; bottomPadding: 2
-                    onEditingFinished: if (text !== root.pieceValue(piece.modelData)) root.setField(piece.modelData.key, text)
+                    onEditingFinished: if (text !== root.pieceValue(piece.modelData)) root.setPieceField(piece.modelData, text)
                 }
             }
         }

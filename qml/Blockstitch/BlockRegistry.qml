@@ -27,15 +27,19 @@ QtObject {
     // depends on the instruction. Return the same piece objects each time:
     // a changed array rebuilds the row's controls.
     // piece: {kind:"label",text} | {kind:"value",field,key,index,bool}
-    //      | {kind:"dropdown",key,options,placeholder,encode,decode}
-    //      | {kind:"text",key,placeholder}
-    // A value piece's `index`, when set, picks one entry of the array
-    // held under `key`; without it `key` holds the value itself.
+    //      | {kind:"dropdown",key,index,options,placeholder,encode,decode}
+    //      | {kind:"text",key,index,placeholder}
+    // A piece's `index`, when set, picks one entry of the array held under
+    // `key`; without it `key` holds the value itself.
     // Any piece may carry `when: function(instruction) -> bool`.
     // `options` is an array of {value,label}, a function(instruction), or
     // "lists"/"dicts" for the document's names.
     property var rows: ({})
     // op -> { prefix, infix, suffix, result, enumArg: {index, options|source}, oneBased: [index] }
+    // An operator may instead give `layout`: [piece] or function(value) -> [piece],
+    // piece {label, arg: -1} | {arg, bool}, `arg` indexing the value's args. Args no
+    // piece names are not drawn (a host's generic operator keeps its
+    // identity there). Return the same objects each time.
     property var operators: defaultOperators()
     // type -> instruction fields a fresh palette block starts with
     property var prefabs: ({})
@@ -90,7 +94,13 @@ QtObject {
     }
 
     function operator(op) { return (op && operators[op]) || null; }
-    function isBoolOp(op) { const s = operator(op); return !!s && s.result === "bool"; }
+    // `result` may be a function(value) for an operator whose type depends on
+    // the value (a host's generic operator).
+    function isBoolOp(op, value) {
+        const s = operator(op);
+        if (!s) return false;
+        return (typeof s.result === "function" ? s.result(value) : s.result) === "bool";
+    }
 
     // The {value,label} choices an enum slot offers right now.
     function choices(options, instruction) {

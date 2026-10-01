@@ -30,7 +30,7 @@ Item {
     function defFor(id) { for (let i = 0; i < (blockDefinitions || []).length; ++i) if (blockDefinitions[i].id === id) return blockDefinitions[i]; return null; }
     readonly property var callDef: valueData && valueData.kind === "Call" ? defFor(valueData.block_id) : null
     readonly property bool booleanShape: forceBoolean || (!!valueData && (valueData.kind === "Bool"
-        || (valueData.kind === "Op" && BlockRegistry.isBoolOp(valueData.op))
+        || (valueData.kind === "Op" && BlockRegistry.isBoolOp(valueData.op, valueData))
         || (valueData.kind === "Call" && !!callDef && callDef.shape === "ReturnsBool")))
     // An operator / variable / param / call reference is always its own
     // distinct block, even when a field passes boxed:false (which is meant
@@ -53,8 +53,17 @@ Item {
     readonly property string opInfix: opSpec && opSpec.infix ? opSpec.infix : ""
     readonly property string opSuffix: opSpec && opSpec.suffix ? opSpec.suffix : ""
     readonly property int enumIndex: opSpec && opSpec.enumArg ? opSpec.enumArg.index : -1
+    // An operator's own layout, for one whose words depend on the value (a
+    // host's generic operator): [{label, arg: -1}|{arg, bool}], or null for the plain
+    // prefix / infix / suffix form. The array is cached by the host so the
+    // chip keeps its controls while the value changes.
+    readonly property var opLayout: {
+        if (!opSpec || !opSpec.layout) return null;
+        return typeof opSpec.layout === "function" ? opSpec.layout(valueData) : opSpec.layout;
+    }
     // What a Call renders: its definition's labels, and one slot per input.
     readonly property var callPieces: {
+        if (opLayout) return opLayout;
         if (!callDef) return [];
         const out = []; let arg = 0;
         for (const p of (callDef.pieces || [])) {
@@ -184,7 +193,7 @@ Item {
         id: content; anchors.centerIn: parent; spacing: 3
         Text { visible: root.opPrefix.length > 0; text: root.opPrefix; color: Theme.textDim; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
         Repeater {
-            model: root.valueData && root.valueData.kind === "Op" ? (root.valueData.args || []) : []
+            model: root.valueData && root.valueData.kind === "Op" && !root.opLayout ? (root.valueData.args || []) : []
             delegate: Row {
                 id: argRow
                 required property var modelData; required property int index; spacing: 3
@@ -259,7 +268,7 @@ Item {
             }
         }
         Item { visible: !!root.valueData && root.valueData.kind === "Bool"; width: 24; height: 17 }
-        Text { visible: !!root.valueData && root.valueData.kind === "Op" && root.opPrefix.length===0 && root.opSuffix.length===0 && (root.valueData.args||[]).length===0; text: root.valueData && root.valueData.op ? root.valueData.op.toLowerCase() : ""; color: Theme.text; font.pixelSize: 12 }
+        Text { visible: !!root.valueData && root.valueData.kind === "Op" && !root.opLayout && root.opPrefix.length===0 && root.opSuffix.length===0 && (root.valueData.args||[]).length===0; text: root.valueData && root.valueData.op ? root.valueData.op.toLowerCase() : ""; color: Theme.text; font.pixelSize: 12 }
         Text { visible: root.opSuffix.length>0; text:root.opSuffix; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
     }
 }
