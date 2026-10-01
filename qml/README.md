@@ -38,8 +38,15 @@ operator's `enumArg` may give its choices as an array, a function, or
 
 A row whose pieces depend on the instruction (one generic type that many
 app-defined blocks share) gives `head` as a function of the instruction, and
-a value piece may carry `index` to read and write one entry of an array held
-under its `key` instead of the key itself.
+a piece (value, dropdown or text) may carry `index` to read and write one entry
+of an array held under its `key` instead of the key itself.
+
+The same goes for an operator many app-defined reporters share: `layout` is an
+array (or a function of the value) of `{label, arg: -1}` and `{arg, bool}` pieces, and
+the args it does not name are not drawn, so a generic `PluginRead(plugin,
+block, ...slots)` can show only its label and slots. `result` may likewise be a
+function of the value, so such a reporter takes the boolean shape when its
+block answers true or false.
 
 ## Dicts
 
