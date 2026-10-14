@@ -17,10 +17,37 @@ QtObject {
     property int revision: 0
     // Whether block menus offer "Set Recording Target" (a Blockwork feature).
     property bool recordingTargets: true
+    // Kept in step with the canvas so block menus can label themselves.
+    property string recordingTargetId: ""
+    property var commentedIds: []
+    // Host markers on canvas blocks, instruction id -> message (an error
+    // from the last run, say). Clicking one emits markClicked.
+    property var blockMarks: ({})
+    signal markClicked(string instructionId)
+    // Instruction ids the host's running strands are on, outlined live.
+    property var runningIds: []
+    // Outlined for a moment after BlockCanvas.revealInstruction.
+    property string flashId: ""
+    function flash(id) { flashId = id; flashTimer.restart(); }
+    property var flashTimer: Timer { interval: 1600; onTriggered: registry.flashId = "" }
     // Extra right-click entries a host adds: [{id, text, icon, danger}]. A
     // choice comes back as BlockCanvas.blockMenuAction / canvasMenuAction.
     property var blockMenu: []
     property var canvasMenu: []
+
+    // Click-to-preview: a click on a reporter calls `previewHandler(key, value)`
+    // and the host answers with `deliverPreview(key, text, isError)`. The
+    // result shows beside the chip that asked, then clears itself.
+    property var previewHandler: null
+    property var preview: null   // {key, text, error}
+    property int previewSerial: 0
+    function requestPreview(key, value) { if (previewHandler) previewHandler(key, value); }
+    function deliverPreview(key, text, isError) {
+        preview = { key: key, text: text, error: !!isError };
+        previewTimer.restart();
+    }
+    function nextPreviewKey() { return "preview-" + (++previewSerial); }
+    property var previewTimer: Timer { interval: 2500; onTriggered: registry.preview = null }
 
     // type -> { shape, icon, head: [piece], mouths: [key], separators: [text] }
     // `head` may be a function(instruction) -> [piece] for a type whose row
@@ -123,7 +150,7 @@ QtObject {
     function iconFor(type) {
         const r = row(type);
         if (r && r.icon) return r.icon;
-        const p={WhenRan:"play",WhenBatteryDischargedTo:"battery-warning",WhenBatteryChargedTo:"battery-charging",WhenTime:"clock",WhenPowerPluggedIn:"plug-zap",WhenPowerUnplugged:"unplug",WhenClipboardChanged:"clipboard-check",Wait:"clock",Text:"text-cursor",Key:"keyboard",Button:"mouse-pointer-click",MoveMouse:"move",Scroll:"mouse",Command:"terminal",OpenApp:"app-window",CloseApp:"square-x",SetVariable:"equal",ChangeVariable:"trending-up",SetClipboard:"clipboard",AddToList:"plus",DeleteOfList:"trash",DeleteAllOfList:"trash",ShiftList:"arrow-left",InsertIntoList:"plus",ReplaceItemOfList:"repeat",ReverseList:"rotate",Return:"undo",If:"git-branch",IfElse:"git-fork",Repeat:"repeat",Forever:"infinity",While:"rotate",EscapeLoop:"log-out",ContinueLoop:"skip-forward",BlockHeader:"blocks",CallBlock:"blocks",BranchCallBlock:"blocks",RunBranch:"git-branch"};
+        const p={WhenRan:"play",WhenBatteryDischargedTo:"battery-warning",WhenBatteryChargedTo:"battery-charging",WhenTime:"clock",WhenPowerPluggedIn:"plug-zap",WhenPowerUnplugged:"unplug",WhenClipboardChanged:"clipboard-check",WhenKey:"keyboard",Wait:"clock",Text:"text-cursor",Key:"keyboard",Button:"mouse-pointer-click",MoveMouse:"move",Scroll:"mouse",Command:"terminal",OpenApp:"app-window",CloseApp:"square-x",SetVariable:"equal",ChangeVariable:"trending-up",SetClipboard:"clipboard",AddToList:"plus",DeleteOfList:"trash",DeleteAllOfList:"trash",ShiftList:"arrow-left",InsertIntoList:"plus",ReplaceItemOfList:"repeat",ReverseList:"rotate",Return:"undo",If:"git-branch",IfElse:"git-fork",Repeat:"repeat",Forever:"infinity",While:"rotate",EscapeLoop:"log-out",ContinueLoop:"skip-forward",BlockHeader:"blocks",CallBlock:"blocks",BranchCallBlock:"blocks",RunBranch:"git-branch"};
         return p[type] || "blocks";
     }
 
@@ -150,7 +177,7 @@ QtObject {
     function isCap(ins, defs) {
         if (!ins) return false;
         if (isCapType(ins.type)) return true;
-        if (ins.type === "CallBlock" && defs) {
+        if ((ins.type === "CallBlock" || ins.type === "BranchCallBlock") && defs) {
             for (let i = 0; i < defs.length; ++i)
                 if (defs[i].id === ins.block_id) return defs[i].shape === "Ending";
         }

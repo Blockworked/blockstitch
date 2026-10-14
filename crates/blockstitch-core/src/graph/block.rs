@@ -117,6 +117,20 @@ pub struct BlockDef {
     /// default preserves the established blue treatment for older documents.
     #[serde(default = "default_block_color")]
     pub color: String,
+    /// Lucide icon name for the block; empty falls back to the default.
+    #[serde(default)]
+    pub icon: String,
+}
+
+/// Lucide names are lowercase kebab-case; anything else is dropped.
+pub fn normalize_block_icon(icon: &str) -> String {
+    let icon = icon.trim();
+    let ok = !icon.is_empty()
+        && icon.len() <= 64
+        && icon
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
+    if ok { icon.to_string() } else { String::new() }
 }
 
 /// The legacy/default custom-block accent. Kept as a function so serde can
@@ -290,6 +304,7 @@ mod tests {
             pieces,
             shape: BlockShape::Normal,
             color: default_block_color(),
+            icon: String::new(),
         };
         assert_eq!(
             def.branch_names().collect::<Vec<_>>(),

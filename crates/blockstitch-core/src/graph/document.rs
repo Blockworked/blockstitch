@@ -429,6 +429,7 @@ impl<K: BlockKind> BlockGraph<K> {
             pieces,
             shape,
             color,
+            icon: String::new(),
         });
         let header = Instruction::new(header(&id));
         self.strands

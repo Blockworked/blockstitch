@@ -15,6 +15,7 @@ QtObject {
     readonly property color accentHover: "#32a5ff"
     readonly property color danger: "#ff4848"
     readonly property color warning: "#f5b942"
+    readonly property color running: "#3ccf6e"
     readonly property color block: "#3b3c40"
     readonly property color blockTop: "#44454a"
     readonly property color menu: "#303134"

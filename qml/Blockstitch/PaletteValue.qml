@@ -15,11 +15,14 @@ Item {
     signal dragCanceled()
     signal activated()
     signal detailsRequested(string kind)
+    property var extraMenu: []
+    signal extraMenuTriggered(string id)
     // The prefab was edited in place (a typed number, a chosen dropdown entry).
     signal valueEdited(var value)
     implicitWidth: chip.implicitWidth
     implicitHeight: chip.implicitHeight
     width: implicitWidth; height: implicitHeight
+    z: chip.previewShown ? 100 : 0
 
     BlockDragArea {
         anchors.fill: parent
@@ -28,6 +31,7 @@ Item {
         onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
         onDragCanceled: root.dragCanceled()
         onActivated: root.activated()
+        onTapped: chip.requestPreview()
     }
     ValueChip {
         id: chip
@@ -35,6 +39,8 @@ Item {
         forceBoolean: root.forceBoolean; callDisplayLabel: root.callLabel
         blockDefinitions: root.blockDefinitions; paletteMode: true
         onDetailsRequested: kind => root.detailsRequested(kind)
+        extraMenu: root.extraMenu
+        onExtraMenuTriggered: id => root.extraMenuTriggered(id)
         onLeafEdited: (path, leaf) => {
             if (!path.length) { root.valueData = leaf; root.valueEdited(leaf); return; }
             const next = JSON.parse(JSON.stringify(root.valueData));

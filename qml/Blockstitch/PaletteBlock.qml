@@ -19,6 +19,8 @@ Item {
     signal keyCaptureRequested()
     signal appPickerRequested(var instruction)
     signal detailsRequested(string type)
+    property var extraMenu: []
+    signal extraMenuTriggered(string id)
     // The prefab was edited in place; the palette keeps its own copy.
     signal instructionEdited(var instruction)
     implicitWidth: block.implicitWidth
@@ -32,6 +34,8 @@ Item {
         onKeyCaptureRequested: root.keyCaptureRequested()
         onAppPickerRequested: (sid, p, i) => root.appPickerRequested(i)
         onDetailsRequested: type => root.detailsRequested(type)
+        extraMenu: root.extraMenu
+        onExtraMenuTriggered: id => root.extraMenuTriggered(id)
         onDragBegan: (sid, p, tail, sx, sy, ox, oy) => root.dragStarted(root.spec, sx, sy, ox, oy)
         onDragMoved: (sx, sy) => root.dragMoved(sx, sy)
         onDragEnded: (sx, sy) => root.dragEnded(sx, sy)

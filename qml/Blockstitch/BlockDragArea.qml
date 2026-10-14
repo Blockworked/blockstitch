@@ -17,6 +17,8 @@ MouseArea {
     signal dragCanceled()
     signal contextRequested(real x, real y)
     signal activated()
+    // A left press and release that never became a drag.
+    signal tapped()
 
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     preventStealing: true
@@ -52,7 +54,7 @@ MouseArea {
     onReleased: mouse => {
         if (!internal.armed) return;
         internal.armed = false;
-        if (!internal.dragging) return;
+        if (!internal.dragging) { if (mouse.button === Qt.LeftButton) area.tapped(); return; }
         internal.dragging = false;
         const p = area.mapToItem(null, mouse.x, mouse.y);
         area.dragEnded(p.x, p.y);

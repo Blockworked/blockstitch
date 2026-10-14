@@ -4,6 +4,7 @@ import QtQuick.Controls
 Rectangle {
     id: root
     property var strands: []
+    property string recordingTargetId: ""
     property var comments: []
     property var floatingValues: []
     property var variables: []
@@ -14,6 +15,11 @@ Rectangle {
     property bool locked: false
     // Whether the canvas menu offers "Delete all blocks".
     property bool offerClear: true
+    property string clearText: "Delete all blocks"
+    property string clearIcon: "trash"
+    property bool canPaste: false
+    Binding { target: BlockRegistry; property: "recordingTargetId"; value: root.recordingTargetId }
+    Binding { target: BlockRegistry; property: "commentedIds"; value: (root.comments || []).filter(c => c.attached_to).map(c => c.attached_to) }
     property real zoom: 1.0
     signal strandMoved(string strandId, int x, int y)
     signal instructionSplit(string strandId, var path, int x, int y)
@@ -208,6 +214,28 @@ Rectangle {
         centerOnOrigin();
     }
     function resetView() { root.zoom = 1; centerOnOrigin(); }
+    function findBlockItem(item, id) {
+        const kids = item.children || [];
+        for (let i = 0; i < kids.length; ++i) {
+            const k = kids[i];
+            if (k.instruction && k.paletteMode === false && k.instruction.id === id) return k;
+            const deep = findBlockItem(k, id);
+            if (deep) return deep;
+        }
+        return null;
+    }
+    // Scrolls the block with this instruction id into view and outlines it.
+    function revealInstruction(id) {
+        const item = findBlockItem(workspace, id);
+        if (!item) return false;
+        const p = item.mapToItem(workspace, 0, 0);
+        const cx = (p.x + Math.min(item.width, flick.width / root.zoom) / 2) * root.zoom;
+        const cy = (p.y + Math.min(item.height, 60) / 2) * root.zoom;
+        flick.contentX = Math.max(0, Math.min(Math.max(0, flick.contentWidth - flick.width), cx - flick.width / 2));
+        flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), cy - flick.height / 2));
+        BlockRegistry.flash(id);
+        return true;
+    }
 
     // Drag session for blocks picked up on the canvas. Blocks read this to follow the pointer.
     // After a drop we keep a "settle" offset so the dragged blocks stay at
@@ -280,6 +308,19 @@ Rectangle {
     readonly property real dragSceneX: dragSession.active ? dragSession.sceneX : valueDrag.sceneX
     readonly property real dragSceneY: dragSession.active ? dragSession.sceneY : valueDrag.sceneY
     // Palette live preview reads these (same object as the canvas snap above).
+    // What an overlay needs to redraw the dragged item outside this clipped canvas (scene coords).
+    readonly property bool dragIsValue: valueDrag.active
+    readonly property real dragGhostX: dragSession.active ? dragSession.sceneX - (dragSession.startX - dragSession.originX) * zoom : valueDrag.sceneX - (valueDrag.startX - valueDrag.originX) * zoom
+    readonly property real dragGhostY: dragSession.active ? dragSession.sceneY - (dragSession.startY - dragSession.originY) * zoom : valueDrag.sceneY - (valueDrag.startY - valueDrag.originY) * zoom
+    readonly property var dragValue: valueDrag.sourceValue
+    readonly property var dragInstructions: {
+        if (!dragSession.active) return [];
+        const strand = strandById(dragSession.strandId), p = dragSession.path || [];
+        if (!strand || !p.length) return [];
+        const list = listFor(strand, copyPath(p.slice(0, p.length - 1)));
+        const idx = p[p.length - 1].index;
+        return (list || []).slice(idx, idx + dragSession.tailCount);
+    }
     readonly property bool paletteSnapValid: dragSession.snapValid
     readonly property string paletteSnapTargetId: dragSession.snapTargetId
     readonly property var paletteSnapPath: dragSession.snapPath
@@ -356,7 +397,7 @@ Rectangle {
     function bodyFor(ins, slot) { return BlockRegistry.body(ins, slot); }
     function blockHeight(ins) {
         if (!ins) return 58;
-        if (!isWrapType(ins.type)) return 58;
+        if (!isWrapType(ins.type)) return isCapBlock(ins) ? 50 : 58;
         const n = slotCountFor(ins);
         let total = 0;
         for (let k = 0; k < n; ++k) total += mouthHeightFor(bodyFor(ins, k));
@@ -755,7 +796,7 @@ Rectangle {
     // Tie-breaks reproduce the old exact-hover behavior: among equidistant
     // slots the one actually containing the pointer wins, then the smallest
     // (deepest nested), then the one whose center is nearest the ghost.
-    readonly property real valueDropRadius: 32
+    readonly property real valueDropRadius: 12
     function workspaceRectOf(item) {
         try {
             const tl = item.mapToItem(workspace, 0, 0);
@@ -952,9 +993,15 @@ Rectangle {
                     event.accepted = true;
                     return;
                 }
-                let dx = event.pixelDelta.x, dy = event.pixelDelta.y;
-                if (dx === 0 && dy === 0) { dx = event.angleDelta.x / 2; dy = event.angleDelta.y / 2; }
-                if (event.inverted) { dx = -dx; dy = -dy; }
+                // pixelDelta is truncated to ints on touchpads; angleDelta carries the real
+                // resolution (about 12 units per px). Wheel notches are multiples of 120.
+                const wheel = ad => ad !== 0 && ad % 120 === 0;
+                const pan = (ad, pd) => {
+                    if (wheel(ad)) return ad * 2;
+                    const d = ad !== 0 ? ad / 12 : pd;
+                    return d * Math.min(24, 6 + 1.5 * Math.abs(d));
+                };
+                let dx = pan(event.angleDelta.x, event.pixelDelta.x), dy = pan(event.angleDelta.y, event.pixelDelta.y);
                 flick.contentX = Math.max(0, Math.min(flick.contentWidth - flick.width, flick.contentX - dx));
                 flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, flick.contentY - dy));
                 event.accepted = true;
@@ -980,8 +1027,9 @@ Rectangle {
                 anchors.fill:parent; z:-100; acceptedButtons:Qt.LeftButton|Qt.RightButton
                 onClicked: mouse => { if (mouse.button === Qt.RightButton) { canvasMenu.canvasX = Math.round(mouse.x - root.originOffsetX); canvasMenu.canvasY = Math.round(mouse.y - root.originOffsetY); canvasMenu.popup(mouse.x, mouse.y); } else flick.forceActiveFocus(); }
                 BwMenu { id:canvasMenu;property int canvasX:0;property int canvasY:0
-                    BwMenuItem{iconName:"message-square";text:"Add Note";onTriggered:root.canvasNoteRequested(canvasMenu.canvasX,canvasMenu.canvasY)}
-                    BwMenuItem{visible:root.offerClear;iconName:"trash";danger:true;text:"Delete all blocks";onTriggered:root.clearRequested()}
+                    BwMenuItem{visible:root.offerClear;iconName:root.clearIcon;danger:true;text:root.clearText;onTriggered:root.clearRequested()}
+                    BwMenuItem{iconName:"clipboard-paste";enabled:root.canPaste;text:"Paste";onTriggered:root.canvasMenuAction("paste",canvasMenu.canvasX,canvasMenu.canvasY)}
+                    BwMenuItem{iconName:"message-square";text:"Add Comment";onTriggered:root.canvasNoteRequested(canvasMenu.canvasX,canvasMenu.canvasY)}
                 }
                 Instantiator {
                     model: BlockRegistry.canvasMenu
@@ -1018,7 +1066,7 @@ Rectangle {
                         model:strandBlocks
                         delegate:InstructionBlock {
                             id:block; required property string payload; required property int index
-                            instruction:JSON.parse(payload); strandId:strand.sid; path:[{index:index}]; tailCount:strandBlocks.count-index; dragState:dragSession
+                            instruction:JSON.parse(payload); strandId:strand.sid; path:[{index:index}]; tailCount:strandBlocks.count-index; recordingTarget:index===0&&root.recordingTargetId===strand.sid; dragState:dragSession
                             variables:root.variables; lists:root.lists; blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; locked:root.locked
                             onRemoveRequested:(sid,p)=>root.instructionRemoved(sid,p)
                             onDuplicateRequested:(sid,p,i)=>root.instructionDuplicated(sid,p,i)
@@ -1205,6 +1253,8 @@ Rectangle {
             }
         }
     }
+    // Keeps the grab cursor while a block or value is dragged away from its source.
+    MouseArea { anchors.fill: parent; visible: root.dragging; acceptedButtons: Qt.NoButton; cursorShape: Qt.ClosedHandCursor }
     Column {
         anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:18;spacing:8
         BwButton { iconName:"zoom-in";text:"";implicitWidth:40;implicitHeight:40;radius:20;onClicked:root.setZoom(root.zoom+.1) }

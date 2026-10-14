@@ -658,6 +658,13 @@ impl<K: BlockKind> BlockGraph<K> {
 
     // ── Custom blocks ──────────────────────────────────────────────────────
 
+    /// Sets a block's Lucide icon; an invalid or empty name resets it.
+    pub fn set_block_icon(&mut self, block_id: &str, icon: &str) -> Result<(), String> {
+        let def = self.block_def_mut(block_id).ok_or("Unknown block")?;
+        def.icon = crate::graph::normalize_block_icon(icon);
+        Ok(())
+    }
+
     /// Updates a block's prototype, reconciling call-site `args` to the new
     /// input list and renaming body params that only changed name.
     pub fn update_block(

@@ -9,7 +9,7 @@ mod instruction;
 mod lists;
 
 pub use block::{
-    BlockDef, BlockPiece, BlockShape, InputValueType, default_block_color, normalize_block_color,
+    BlockDef, BlockPiece, BlockShape, InputValueType, default_block_color, normalize_block_color, normalize_block_icon,
 };
 pub use canvas::{Comment, FloatingValue, Strand, VariableDef};
 pub use dicts::{

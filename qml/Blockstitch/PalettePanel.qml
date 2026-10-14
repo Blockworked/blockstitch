@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Shapes
 
 Rectangle {
     id: root
@@ -13,9 +14,16 @@ Rectangle {
     property var dicts: []
     property var dictInstructionTypes: []
     property var blockDefinitions: []
+    // Host reporters, same [op, result, arity] shape as `operators`, with an
+    // optional fourth entry giving the fresh block's args.
+    property var extraOperators: []
+    // Host type/op -> category id, checked before the built-in rules.
+    property var extraCategories: ({})
+    readonly property var allOperators: operators.concat(Array.from(extraOperators || []))
     property var keyCapture: null
     property string standaloneKey: ""
-    property bool trashArmed: false   // a canvas block is being dragged over the panel
+    property bool trashActive: false  // a canvas block or value is being dragged
+    property bool trashArmed: false   // ...and is currently over the panel
     signal blockActivated(string type)
     signal dragStarted(var spec, real sceneX, real sceneY, real offsetX, real offsetY)
     signal dragMoved(real sceneX, real sceneY)
@@ -34,6 +42,10 @@ Rectangle {
     signal renameDictRequested(string name)
     signal deleteDictRequested(string name)
     signal makeBlockRequested()
+    signal renameVariableRequested(string name)
+    signal deleteVariableRequested(string name)
+    signal editBlockRequested(var definition)
+    signal deleteBlockRequested(string blockId)
     signal standaloneKeyCaptureRequested()
     signal appPickerRequested(var instruction)
     signal detailsRequested(string name, string identifier, string explainer)
@@ -48,7 +60,7 @@ Rectangle {
         const i={id:"palette-"+type,type:type};
         if(type==="WhenBatteryDischargedTo") i.threshold=n(20); else if(type==="WhenBatteryChargedTo") i.threshold=n(100);
         else if(type==="WhenTime") i.schedule={kind:"Daily",hour:9,minute:0}; else if(type==="Wait") i.duration=n(1000);
-        else if(type==="Text") i.text=t("text"); else if(type==="Key"){i.key=standaloneKey||"a";i.direction="Click";} else if(type==="Button"){i.button="Left";i.direction="Click";}
+        else if(type==="Text") i.text=t("text"); else if(type==="Key"){i.key=t(standaloneKey||"a");i.direction="Click";} else if(type==="WhenKey"){i.key=t(standaloneKey||"a");i.direction="Press";} else if(type==="Button"){i.button="Left";i.direction="Click";}
         else if(type==="MoveMouse"){i.x=n(0);i.y=n(0);i.coordinate="Relative";} else if(type==="Scroll"){i.amount=n(4);i.axis="Vertical";}
         else if(type==="Command") i.command=""; else if(type==="OpenApp"||type==="CloseApp"){i.name="";i.command="";i.icon=null;}
         else if(type==="SetClipboard") i.value=t("text");
@@ -74,6 +86,7 @@ Rectangle {
     readonly property var listOperators: [["ListItem","text",2],["ListItemNumber","number",2],["ListAmount","number",2],["ListLength","number",1],["ListContains","bool",2],["ListItemExists","bool",2],["ListIsEmpty","bool",1],["ListAsJson","text",1]]
     readonly property var dictOperators: [["DictValue","text",2],["DictHasKey","bool",2],["DictSize","number",1],["DictKeys","text",1],["DictAsJson","text",1],["DictIsEmpty","bool",1]]
     function operatorValue(spec) {
+        if(spec[3])return {kind:"Op",op:spec[0],args:JSON.parse(JSON.stringify(spec[3])),saved:n(0)};
         const listName=firstListName();
         if(spec[0]==="ListItem")return {kind:"Op",op:spec[0],args:[n(1),t(listName)],saved:n(0)};
         if(spec[0]==="ListItemNumber"||spec[0]==="ListAmount")return {kind:"Op",op:spec[0],args:[t("thing"),t(listName)],saved:n(0)};
@@ -98,6 +111,7 @@ Rectangle {
         if(count)i.branches=Array.from({length:count},()=>[]);
         return i;
     }
+    readonly property var customMenu: [{id:"edit",text:"Edit block",icon:"blocks"},{id:"details",text:"Details",icon:"info"},{id:"delete",text:"Delete block",icon:"trash",danger:true}]
     function isReporter(definition){return definition.shape==="ReturnsValue"||definition.shape==="ReturnsBool";}
     function customValue(definition){
         const args=(definition.pieces||[]).filter(p=>p.kind==="Input").map(p=>p.value_type==="Bool"?{kind:"Bool"}:n(0));
@@ -105,28 +119,81 @@ Rectangle {
     }
     function customLabel(definition){return (definition.pieces||[]).filter(p=>p.kind!=="Branch").map(p=>p.kind==="Label"?p.text:"("+p.name+")").join(" ");}
 
-    ColumnLayout {
-        anchors.fill:parent; spacing:0
-        Rectangle {
-            Layout.fillWidth:true; Layout.preferredHeight:76
-            color: root.trashArmed ? "#33ff4848" : "transparent"
-            Column { anchors.centerIn:parent; spacing:5
-                LucideIcon { anchors.horizontalCenter:parent.horizontalCenter; name:"trash"; color:root.trashArmed?Theme.danger:Theme.textDim; width:20;height:20; opacity:root.trashArmed?1:.65 }
-                Text { text:root.trashArmed?"Release to delete":"Drag a block here to delete it"; color:root.trashArmed?Theme.danger:Theme.textDim; font.pixelSize:11 }
-            }
-        }
-        Rectangle { Layout.fillWidth:true; height:1; color:Theme.borderSoft }
-        ScrollView {
-            id:paletteScroll
-            Layout.fillWidth:true; Layout.fillHeight:true; clip:true
-            ScrollBar.horizontal.policy: ScrollBar.AsNeeded
-            WheelHandler { target:null; onWheel:event=>{const f=paletteScroll.contentItem;f.contentY=Math.max(0,Math.min(f.contentHeight-f.height,f.contentY-event.angleDelta.y*.9));event.accepted=true;} }
-            Column {
-                width:Math.max(root.width-12, childrenRect.width); spacing:8; padding:8
+    // ---- search and category filtering ----
+    // rail | chips | accordion | flyout | tiles
+    property string layout: "rail"
+    property string category: "all"
+    property bool flyoutOpen: false
+    property bool paletteDragging: false
+    property string searchText: ""
+    readonly property int railWidth: 54
+    readonly property bool railVisible: layout==="rail"||layout==="flyout"
+    readonly property bool flyoutShown: layout==="flyout"&&flyoutOpen&&!paletteDragging
+    readonly property real contentWidth: Math.max(160, width-12-(railVisible?railWidth+1:0)-16)
+    readonly property var railModel: layout==="flyout"?[{id:"search",name:"Search",icon:"search"}].concat(categories.slice(1)):categories
+    onLayoutChanged: { searchText=""; flyoutOpen=false; category=layout==="accordion"?"input":"all"; }
+    onDragStarted: paletteDragging=true
+    onDragEnded: paletteDragging=false
+    onDragCanceled: paletteDragging=false
+    function railActivated(id) {
+        if(layout==="flyout") {
+            const target=id==="search"?"all":id;
+            if(flyoutOpen&&category===target&&!searching) { flyoutOpen=false; return; }
+            searchText=""; category=target; flyoutOpen=true;
+            if(id==="search") Qt.callLater(()=>searchField.forceActiveFocus());
+        } else { searchText=""; category=id; }
+    }
+    function categoryCount(c) {
+        if(c==="custom") return (blockDefinitions||[]).length;
+        let n=0;
+        const types=[].concat(Array.from(instructionTypes||[]));
+        types.forEach(t=>{ if(instructionCategory(t)===c) n++; });
+        if(c==="data") n+=Array.from(listInstructionTypes||[]).length+listOperators.length+(dictsEnabled?dictInstructionTypes.length+dictOperators.length:0);
+        allOperators.forEach(o=>{ if(operatorCategory(o[0])===c) n++; });
+        return n;
+    }
+    readonly property var categories: [
+        {id:"all",name:"All",icon:"layout-grid"},{id:"events",name:"Events",icon:"zap"},{id:"input",name:"Input",icon:"keyboard"},
+        {id:"control",name:"Flow",icon:"git-branch"},{id:"data",name:"Data",icon:"variable"},{id:"operators",name:"Operators",icon:"equal"},
+        {id:"system",name:"System",icon:"monitor"},{id:"custom",name:"Custom",icon:"blocks"}
+    ]
+    readonly property var systemOperators: ["PluggedIn","BatteryPercentage","CurrentTime","ClipboardText","ClipboardHasImage","ClipboardHasFiles"]
+    function instructionCategory(type) {
+        if(extraCategories[type]) return extraCategories[type];
+        if(type.indexOf("When")===0) return "events";
+        if(["Wait","Text","Key","Button","MoveMouse","Scroll"].indexOf(type)>=0) return "input";
+        if(["If","IfElse","Repeat","Forever","While","EscapeLoop","ContinueLoop","Return"].indexOf(type)>=0) return "control";
+        if(["Command","OpenApp","CloseApp"].indexOf(type)>=0) return "system";
+        return "data";
+    }
+    function operatorCategory(op) { return extraCategories[op] || (systemOperators.indexOf(op)>=0 ? "system" : "operators"); }
+    function humanize(s) { return String(s).replace(/([a-z0-9])([A-Z])/g,"$1 $2").toLowerCase(); }
+    function matches(label) { return humanize(label).indexOf(searchText.trim().toLowerCase())>=0; }
+    readonly property bool searching: searchText.trim().length>0
+    readonly property bool noResults: {
+        if(!searching) return false;
+        const labels=[].concat(Array.from(instructionTypes||[]),Array.from(listInstructionTypes||[]),
+            dictsEnabled?Array.from(dictInstructionTypes||[]):[],
+            allOperators.map(o=>o[0]),listOperators.map(o=>o[0]),dictsEnabled?dictOperators.map(o=>o[0]):[],
+            Array.from(variables||[]),Array.from(blockDefinitions||[]).map(d=>customLabel(d)));
+        return !labels.some(l=>matches(l));
+    }
+
+    // The block list for one category ("" = every category). A Component so the
+    // accordion can host one per open section.
+    Component {
+        id:blockListComponent
+        Column {
+            id:blk
+            property string only: ""
+            spacing:8
+            function itemShown(c,label) { return root.searching ? root.matches(label) : (only===""||only===c); }
+            function sectionShown(c) { return !root.searching && (only===""||only===c); }
                 Repeater {
                     model:root.instructionTypes
                     delegate:PaletteBlock {
                         required property string modelData
+                        visible:blk.itemShown(root.instructionCategory(modelData),modelData)
                         instruction:root.prefab(modelData); spec:({kind:"instruction",type:modelData,instruction:instruction})
                         variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
@@ -135,11 +202,12 @@ Rectangle {
                         onDetailsRequested:type=>root.detailsRequested(type,type,"See what this block does and where it can be used.")
                     }
                 }
-                Text { text:"OPERATORS"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; topPadding:8 }
+                Text { visible:blk.sectionShown("operators"); text:"OPERATORS"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; topPadding:8 }
                 Repeater {
-                    model:root.operators
+                    model:root.allOperators
                     delegate:PaletteValue {
                         required property var modelData
+                        visible:blk.itemShown(root.operatorCategory(modelData[0]),modelData[0])
                         valueData:root.operatorValue(modelData); spec:({kind:"value",value:valueData})
                         blockDefinitions:root.blockDefinitions
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
@@ -148,7 +216,7 @@ Rectangle {
                     }
                 }
                 Row {
-                    spacing:8; topPadding:8
+                    visible:blk.sectionShown("data"); spacing:8; topPadding:8
                     Text { text:"VARIABLES"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
                     BwButton { text:"Make a Variable"; implicitHeight:28; font.pixelSize:11; onClicked:root.makeVariableRequested() }
                 }
@@ -156,20 +224,23 @@ Rectangle {
                     model:root.variables||[]
                     delegate:PaletteValue {
                         required property string modelData
+                        visible:blk.itemShown("data",modelData)
                         valueData:({kind:"Var",name:modelData}); editable:false; spec:({kind:"value",value:valueData})
                         blockDefinitions:root.blockDefinitions
+                        extraMenu:[{id:"rename",text:"Rename variable",icon:"equal"},{id:"delete",text:"Delete variable",icon:"trash",danger:true}]
+                        onExtraMenuTriggered:id=>id==="rename"?root.renameVariableRequested(modelData):root.deleteVariableRequested(modelData)
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                         onActivated:root.valueActivated(valueData)
                     }
                 }
                 Row {
-                    spacing:8; topPadding:8
+                    visible:blk.sectionShown("data"); spacing:8; topPadding:8
                     Text { text:"LISTS"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
                     BwButton { text:"Make a List"; implicitHeight:28; font.pixelSize:11; onClicked:root.makeListRequested() }
                 }
                 CollectionPanel {
-                    collections:root.lists; noun:"list"; rowWidth:Math.max(230,root.width-28)
-                    emptyText:"Make a list, then check it to open its editor on the canvas."
+                    visible:blk.sectionShown("data")
+                    collections:root.lists; noun:"list"; rowWidth:Math.max(230,root.width-28-root.railWidth-1)
                     onEditorStateRequested:(name,visible,x,y)=>root.listEditorStateRequested(name,visible,x,y)
                     onRenameRequested:name=>root.renameListRequested(name)
                     onDeleteRequested:name=>root.deleteListRequested(name)
@@ -179,6 +250,7 @@ Rectangle {
                     model:root.listOperators
                     delegate:PaletteValue {
                         required property var modelData
+                        visible:blk.itemShown("data",modelData[0])
                         valueData:root.operatorValue(modelData); spec:({kind:"value",value:valueData})
                         blockDefinitions:root.blockDefinitions
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
@@ -190,6 +262,7 @@ Rectangle {
                     model:root.listInstructionTypes
                     delegate:PaletteBlock {
                         required property string modelData
+                        visible:blk.itemShown("data",modelData)
                         instruction:root.prefab(modelData); spec:({kind:"instruction",type:modelData,instruction:instruction})
                         variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
@@ -198,13 +271,13 @@ Rectangle {
                     }
                 }
                 Row {
-                    visible:root.dictsEnabled; spacing:8; topPadding:8
+                    visible:root.dictsEnabled && blk.sectionShown("data"); spacing:8; topPadding:8
                     Text { text:"DICTS"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
                     BwButton { text:"Make a Dict"; implicitHeight:28; font.pixelSize:11; onClicked:root.makeDictRequested() }
                 }
                 CollectionPanel {
-                    visible:root.dictsEnabled
-                    collections:root.dicts; noun:"dict"; rowWidth:Math.max(230,root.width-28)
+                    visible:root.dictsEnabled && blk.sectionShown("data")
+                    collections:root.dicts; noun:"dict"; rowWidth:Math.max(230,root.width-28-root.railWidth-1)
                     emptyText:"Make a dict, then check it to open its editor on the canvas."
                     onEditorStateRequested:(name,visible,x,y)=>root.dictEditorStateRequested(name,visible,x,y)
                     onRenameRequested:name=>root.renameDictRequested(name)
@@ -215,6 +288,7 @@ Rectangle {
                     model:root.dictsEnabled?root.dictOperators:[]
                     delegate:PaletteValue {
                         required property var modelData
+                        visible:blk.itemShown("data",modelData[0])
                         valueData:root.operatorValue(modelData); spec:({kind:"value",value:valueData})
                         blockDefinitions:root.blockDefinitions
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
@@ -226,6 +300,7 @@ Rectangle {
                     model:root.dictsEnabled?root.dictInstructionTypes:[]
                     delegate:PaletteBlock {
                         required property string modelData
+                        visible:blk.itemShown("data",modelData)
                         instruction:root.prefab(modelData); spec:({kind:"instruction",type:modelData,instruction:instruction})
                         variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
@@ -234,7 +309,7 @@ Rectangle {
                     }
                 }
                 Row {
-                    spacing:8; topPadding:8
+                    visible:blk.sectionShown("custom"); spacing:8; topPadding:8
                     Text { text:"MY BLOCKS"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
                     BwButton { text:"Make a Block"; implicitHeight:28; font.pixelSize:11; onClicked:root.makeBlockRequested() }
                 }
@@ -242,6 +317,7 @@ Rectangle {
                     model:root.blockDefinitions||[]
                     delegate:Loader {
                         id:customItem; required property var modelData
+                        visible:blk.itemShown("custom",root.customLabel(modelData))
                         sourceComponent:root.isReporter(modelData)?customReporter:customCall
                         Component {
                             id:customCall
@@ -251,6 +327,8 @@ Rectangle {
                                 onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                                 onActivated:root.customBlockActivated(customItem.modelData)
                                 onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,"A custom block defined in this macro.")
+                                extraMenu:root.customMenu
+                                onExtraMenuTriggered:id=>id==="edit"?root.editBlockRequested(customItem.modelData):root.deleteBlockRequested(customItem.modelData.id)
                             }
                         }
                         Component {
@@ -262,19 +340,222 @@ Rectangle {
                                 onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                                 onActivated:root.valueActivated(valueData)
                                 onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,"A custom reporter block defined in this macro.")
+                                extraMenu:root.customMenu
+                                onExtraMenuTriggered:id=>id==="edit"?root.editBlockRequested(customItem.modelData):root.deleteBlockRequested(customItem.modelData.id)
                             }
                         }
                     }
                 }
-                Item { width:1;height:8 }
+            Text {
+                visible:root.noResults; text:"No blocks match \u201c"+root.searchText.trim()+"\u201d"
+                color:Theme.textDim; font.pixelSize:12; topPadding:8
             }
+        }
+    }
+
+    RowLayout {
+        anchors.fill:parent; spacing:0
+        Flickable {
+            id:rail
+            visible:root.railVisible
+            Layout.preferredWidth:root.railWidth; Layout.fillHeight:true; clip:true
+            contentHeight:railColumn.height; interactive:contentHeight>height; boundsBehavior:Flickable.StopAtBounds
+            // Only switch once the pointer rests on an icon, so sweeping across the rail doesn't flicker
+            Timer {
+                id:hoverIntent; interval:140
+                property string pending: ""
+                onTriggered: if (!root.searching && root.layout==="rail") root.category = pending
+            }
+            Column {
+                id:railColumn
+                width:parent.width; spacing:6; topPadding:6
+                Repeater {
+                    model:root.railModel
+                    delegate:Rectangle {
+                        required property var modelData
+                        readonly property bool current: root.layout==="flyout"
+                            ? root.flyoutOpen && !root.searching && (modelData.id==="search"?root.category==="all":root.category===modelData.id)
+                            : !root.searching && root.category===modelData.id
+                        width:railColumn.width-8; x:4; height:46; radius:6
+                        color:current?Theme.panelRaised:(railHover.hovered?Theme.field:"transparent")
+                        opacity:root.searching&&root.layout==="rail"?0.5:1
+                        Column {
+                            anchors.centerIn:parent; spacing:3
+                            LucideIcon { anchors.horizontalCenter:parent.horizontalCenter; width:18; height:18; name:modelData.icon; color:current?Theme.accent:Theme.textDim }
+                            Text { anchors.horizontalCenter:parent.horizontalCenter; text:modelData.name; font.pixelSize:10; color:current?Theme.text:Theme.textDim }
+                        }
+                        HoverHandler {
+                            id:railHover
+                            onHoveredChanged: {
+                                if (root.layout!=="rail") return;
+                                if (hovered && !root.searching) { hoverIntent.pending=modelData.id; hoverIntent.restart(); }
+                                else if (hoverIntent.pending===modelData.id) hoverIntent.stop();
+                            }
+                        }
+                        TapHandler { onTapped:root.railActivated(modelData.id) }
+                    }
+                }
+            }
+        }
+        Rectangle { visible:root.railVisible; Layout.preferredWidth:1; Layout.fillHeight:true; color:Theme.borderSoft }
+        ColumnLayout {
+            id:contentColumn
+            visible:root.layout!=="flyout"||root.flyoutOpen
+            Layout.fillWidth:true; Layout.fillHeight:true; spacing:0; clip:true
+            BwTextField {
+                id:searchField
+                Layout.fillWidth:true; Layout.margins:8; Layout.bottomMargin:4
+                placeholderText:"Search blocks"; text:root.searchText
+                onTextChanged:root.searchText=text
+                rightPadding:30
+                LucideIcon {
+                    anchors.right:parent.right; anchors.rightMargin:8; anchors.verticalCenter:parent.verticalCenter
+                    width:14; height:14; name:root.searching?"x":"search"; color:Theme.textDim
+                    MouseArea { anchors.fill:parent; anchors.margins:-4; enabled:root.searching; onClicked:root.searchText="" }
+                }
+            }
+            Flow {
+                visible:root.layout==="chips"
+                Layout.fillWidth:true; Layout.leftMargin:8; Layout.rightMargin:8; Layout.bottomMargin:6; spacing:6
+                Repeater {
+                    model:root.categories
+                    delegate:Rectangle {
+                        required property var modelData
+                        readonly property bool current:!root.searching&&root.category===modelData.id
+                        height:26; radius:13; width:chipLabel.implicitWidth+20
+                        color:current?Theme.panelRaised:"transparent"
+                        border.color:current?Theme.accent:Theme.borderSoft
+                        Text { id:chipLabel; anchors.centerIn:parent; text:modelData.name; font.pixelSize:12; color:current?Theme.text:Theme.textDim }
+                        HoverHandler { cursorShape:Qt.PointingHandCursor }
+                        TapHandler { onTapped:{root.searchText="";root.category=modelData.id;} }
+                    }
+                }
+            }
+            Rectangle {
+                visible:root.layout==="tiles"&&!root.searching&&root.category!=="all"
+                Layout.fillWidth:true; Layout.leftMargin:8; Layout.rightMargin:8; Layout.bottomMargin:6; implicitHeight:30; radius:6
+                color:backHover.hovered?Theme.field:"transparent"
+                Row {
+                    anchors.verticalCenter:parent.verticalCenter; anchors.left:parent.left; anchors.leftMargin:6; spacing:6
+                    LucideIcon { width:16; height:16; name:"chevron-left"; color:Theme.textDim; anchors.verticalCenter:parent.verticalCenter }
+                    Text {
+                        anchors.verticalCenter:parent.verticalCenter; color:Theme.text; font.pixelSize:13; font.weight:Font.Medium
+                        text:{ for(const c of root.categories) if(c.id===root.category) return c.name; return ""; }
+                    }
+                }
+                Text { anchors.right:parent.right; anchors.rightMargin:8; anchors.verticalCenter:parent.verticalCenter; text:"All categories"; color:Theme.textDim; font.pixelSize:11 }
+                HoverHandler { id:backHover; cursorShape:Qt.PointingHandCursor }
+                TapHandler { onTapped:root.category="all" }
+            }
+            ScrollView {
+                id:paletteScroll
+                Layout.fillWidth:true; Layout.fillHeight:true; clip:true
+                ScrollBar.horizontal.policy: ScrollBar.AsNeeded
+                // Flickable must not also handle the wheel, or it overrides the faster pan below
+                Binding { target:paletteScroll.contentItem; property:"interactive"; value:!paletteWheel.active }
+                WheelHandler { id:paletteWheel; target:null; function pan(ad,pd){if(ad!==0&&ad%120===0)return ad*2;const d=ad!==0?ad/12:pd;return d*Math.min(24,6+1.5*Math.abs(d));} acceptedDevices:PointerDevice.Mouse|PointerDevice.TouchPad; onWheel:event=>{const f=paletteScroll.contentItem;f.contentY=Math.max(0,Math.min(f.contentHeight-f.height,f.contentY-paletteWheel.pan(event.angleDelta.y,event.pixelDelta.y)));event.accepted=true;} }
+                Column {
+                    width:Math.max(root.contentWidth+16, childrenRect.width); spacing:8; padding:8
+                    // Tiles: top-level category grid
+                    Grid {
+                        visible:root.layout==="tiles"&&!root.searching&&root.category==="all"
+                        columns:2; spacing:8
+                        Repeater {
+                            model:root.layout==="tiles"?root.categories.slice(1):[]
+                            delegate:Rectangle {
+                                required property var modelData
+                                width:Math.floor((root.contentWidth-8)/2); height:74; radius:8
+                                color:tileHover.hovered?Theme.panelRaised:Theme.field; border.color:Theme.borderSoft
+                                Column {
+                                    anchors.centerIn:parent; spacing:3
+                                    LucideIcon { anchors.horizontalCenter:parent.horizontalCenter; width:22; height:22; name:modelData.icon; color:Theme.text }
+                                    Text { anchors.horizontalCenter:parent.horizontalCenter; text:modelData.name; color:Theme.text; font.pixelSize:12 }
+                                    Text { anchors.horizontalCenter:parent.horizontalCenter; text:root.categoryCount(modelData.id)+" blocks"; color:Theme.textDim; font.pixelSize:10 }
+                                }
+                                HoverHandler { id:tileHover; cursorShape:Qt.PointingHandCursor }
+                                TapHandler { onTapped:root.category=modelData.id }
+                            }
+                        }
+                    }
+                    // Accordion: one header per category, one section open at a time
+                    Column {
+                        visible:root.layout==="accordion"&&!root.searching
+                        spacing:4
+                        Repeater {
+                            model:root.layout==="accordion"?root.categories.slice(1):[]
+                            delegate:Column {
+                                id:section
+                                required property var modelData
+                                readonly property bool expanded:root.category===modelData.id
+                                spacing:6
+                                Rectangle {
+                                    width:root.contentWidth; height:34; radius:6
+                                    color:headerHover.hovered?Theme.field:"transparent"
+                                    Row {
+                                        anchors.verticalCenter:parent.verticalCenter; anchors.left:parent.left; anchors.leftMargin:6; spacing:8
+                                        LucideIcon { width:15; height:15; name:section.expanded?"chevron-down":"chevron-right"; color:Theme.textDim; anchors.verticalCenter:parent.verticalCenter }
+                                        Text { text:section.modelData.name; color:section.expanded?Theme.text:Theme.textDim; font.pixelSize:13; font.weight:section.expanded?Font.Medium:Font.Normal; anchors.verticalCenter:parent.verticalCenter }
+                                    }
+                                    Text { anchors.right:parent.right; anchors.rightMargin:8; anchors.verticalCenter:parent.verticalCenter; text:root.categoryCount(section.modelData.id); color:Theme.textDim; font.pixelSize:11 }
+                                    HoverHandler { id:headerHover; cursorShape:Qt.PointingHandCursor }
+                                    TapHandler { onTapped:root.category=section.expanded?"all":section.modelData.id }
+                                }
+                                Loader {
+                                    id:sectionList
+                                    active:section.expanded
+                                    sourceComponent:blockListComponent
+                                    Binding { target:sectionList.item; property:"only"; value:section.modelData.id; when:sectionList.status===Loader.Ready }
+                                }
+                            }
+                        }
+                    }
+                    // Everything else: one flat list (a category, all, or search results)
+                    Loader {
+                        id:flatList
+                        active:root.searching||(root.layout!=="accordion"&&!(root.layout==="tiles"&&root.category==="all"))
+                        sourceComponent:blockListComponent
+                        Binding { target:flatList.item; property:"only"; value:root.searching||root.category==="all"?"":root.category; when:flatList.status===Loader.Ready }
+                    }
+                    Item { width:1;height:8 }
+                }
+            }
+        }
+    }
+    // Delete target, shown only while something is dragged from the canvas.
+    Rectangle {
+        anchors.fill: parent; z: 4; radius: root.radius
+        color: root.trashArmed ? "#f5321e20" : "#f5242527"
+        opacity: root.trashActive ? 1 : 0; visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 120 } }
+        Shape {
+            id: trashOutline
+            anchors.fill: parent; anchors.margins: 10
+            ShapePath {
+                strokeColor: root.trashArmed ? Theme.danger : Theme.border; strokeWidth: 1.5
+                strokeStyle: ShapePath.DashLine; dashPattern: [4, 3]
+                fillColor: root.trashArmed ? "#1fff4848" : "transparent"
+                startX: 6; startY: 0
+                PathLine { x: trashOutline.width - 6; y: 0 }
+                PathQuad { x: trashOutline.width; y: 6; controlX: trashOutline.width; controlY: 0 }
+                PathLine { x: trashOutline.width; y: trashOutline.height - 6 }
+                PathQuad { x: trashOutline.width - 6; y: trashOutline.height; controlX: trashOutline.width; controlY: trashOutline.height }
+                PathLine { x: 6; y: trashOutline.height }
+                PathQuad { x: 0; y: trashOutline.height - 6; controlX: 0; controlY: trashOutline.height }
+                PathLine { x: 0; y: 6 }
+                PathQuad { x: 6; y: 0; controlX: 0; controlY: 0 }
+            }
+        }
+        Column {
+            anchors.centerIn: parent; spacing: 8
+            LucideIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "trash"; width: 30; height: 30; color: root.trashArmed ? Theme.danger : Theme.text }
+            Text { anchors.horizontalCenter: parent.horizontalCenter; text: root.trashArmed ? "Release to delete" : "Drop here to delete"; color: root.trashArmed ? Theme.danger : Theme.text; font.pixelSize: 14 }
         }
     }
 
     // Drag the right edge to resize the panel.
     Rectangle {
         anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.right: parent.right
-        width: 6; z: 5
+        width: 6; z: 5; visible: root.layout !== "flyout" || root.flyoutShown
         color: Theme.accent; opacity: resizeArea.pressed || resizeArea.containsMouse ? 0.5 : 0
         MouseArea {
             id: resizeArea

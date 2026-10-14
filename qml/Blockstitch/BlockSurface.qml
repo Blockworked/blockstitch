@@ -14,6 +14,7 @@ Shape {
     property color outline: Theme.border
     property color hoverColor: Theme.accent
     property bool hovered: false
+    property real outlineWidth: 1.3
 
     // wrap geometry: bar *body* heights (the bottom connector tab protrudes
     // `tab` px below the foot bar) and one entry per mouth
@@ -22,6 +23,8 @@ Shape {
     property real footHeight: 26
     property real spine: 20
     property var mouthHeights: []
+    property bool headNotch: true   // wrap: top connector notch
+    property bool footTab: true     // wrap: bottom connector tab (false for an ending block / reporter)
     property var flatEnds: []   // per mouth: last nested block has no bottom tab, so the bar below it has no notch
     readonly property real tab: 8
 
@@ -51,7 +54,7 @@ Shape {
         }
         const S = spine, mouths = mouthHeights || [];
         ctx.moveTo(L + r, T);
-        ctx.lineTo(13, T); notch(ctx, 13, T);
+        if (headNotch) { ctx.lineTo(13, T); notch(ctx, 13, T); }
         ctx.lineTo(R - r, T); ctx.quadraticCurveTo(R, T, R, T + r);
         let y = headHeight;
         ctx.lineTo(R, y - r); ctx.quadraticCurveTo(R, y, R - r, y);
@@ -65,7 +68,7 @@ Shape {
             y += foot ? footHeight - ins : midHeight;
             ctx.lineTo(R, y - r); ctx.quadraticCurveTo(R, y, R - r, y);
             if (foot) {
-                ctx.lineTo(39, y); tabTo(ctx, 13, y);
+                if (footTab) { ctx.lineTo(39, y); tabTo(ctx, 13, y); }
                 ctx.lineTo(L + r, y); ctx.quadraticCurveTo(L, y, L, y - r);
             } else {
                 ctx.lineTo(S + 39, y); tabTo(ctx, S + 13, y); ctx.lineTo(S, y);
@@ -96,7 +99,7 @@ Shape {
 
     ShapePath {
         strokeColor: root.hovered ? root.hoverColor : root.outline
-        strokeWidth: 1.3
+        strokeWidth: root.outlineWidth
         joinStyle: ShapePath.RoundJoin
         fillGradient: LinearGradient {
             x1: 0; y1: 0; x2: root.width; y2: root.height
