@@ -26,6 +26,11 @@ QtObject {
     signal markClicked(string instructionId)
     // Instruction ids the host's running strands are on, outlined live.
     property var runningIds: []
+    // Debugger: blocks with a breakpoint get a dot (clicking it emits
+    // breakpointClicked), and blocks a strand is paused at get an outline.
+    property var breakpointIds: []
+    property var pausedIds: []
+    signal breakpointClicked(string instructionId)
     // Outlined for a moment after BlockCanvas.revealInstruction.
     property string flashId: ""
     function flash(id) { flashId = id; flashTimer.restart(); }
@@ -62,7 +67,7 @@ QtObject {
     // `options` is an array of {value,label}, a function(instruction), or
     // "lists"/"dicts" for the document's names.
     property var rows: ({})
-    // op -> { prefix, infix, suffix, result, enumArg: {index, options|source}, oneBased: [index] }
+    // op -> { prefix, infix (one label, or a list: one per gap), suffix, result, enumArg: {index, options|source}, oneBased: [index] }
     // An operator may instead give `layout`: [piece] or function(value) -> [piece],
     // piece {label, arg: -1} | {arg, bool}, `arg` indexing the value's args. Args no
     // piece names are not drawn (a host's generic operator keeps its
@@ -73,50 +78,53 @@ QtObject {
 
     function registerRows(map) { rows = Object.assign({}, rows, map); }
     function registerOperators(map) { operators = Object.assign({}, operators, map); }
+    // Back to the built-in operators, labelled in the current language; a
+    // host re-registers its own after this.
+    function resetOperators() { operators = defaultOperators(); }
     function registerPrefabs(map) { prefabs = Object.assign({}, prefabs, map); }
 
     function defaultOperators() {
         const mathOptions = [
-            {value:"Abs",label:"abs"},{value:"Floor",label:"floor"},{value:"Ceiling",label:"ceiling"},{value:"Sign",label:"sign"},
-            {value:"Sqrt",label:"sqrt"},{value:"Sin",label:"sin"},{value:"Cos",label:"cos"},{value:"Tan",label:"tan"},
-            {value:"Asin",label:"asin"},{value:"Acos",label:"acos"},{value:"Atan",label:"atan"},{value:"Ln",label:"ln"},
-            {value:"Log",label:"log"},{value:"Log2",label:"log2"},{value:"EPower",label:"e ^"},{value:"TenPower",label:"10 ^"}
+            {value:"Abs",label:qsTr("abs")},{value:"Floor",label:qsTr("floor")},{value:"Ceiling",label:qsTr("ceiling")},{value:"Sign",label:qsTr("sign")},
+            {value:"Sqrt",label:qsTr("sqrt")},{value:"Sin",label:qsTr("sin")},{value:"Cos",label:qsTr("cos")},{value:"Tan",label:qsTr("tan")},
+            {value:"Asin",label:qsTr("asin")},{value:"Acos",label:qsTr("acos")},{value:"Atan",label:qsTr("atan")},{value:"Ln",label:qsTr("ln")},
+            {value:"Log",label:qsTr("log")},{value:"Log2",label:qsTr("log2")},{value:"EPower",label:qsTr("e ^")},{value:"TenPower",label:"10 ^"}
         ];
-        const caseOptions = [{value:"Upper",label:"uppercase"},{value:"Lower",label:"lowercase"}];
+        const caseOptions = [{value:"Upper",label:qsTr("uppercase")},{value:"Lower",label:qsTr("lowercase")}];
         const timeOptions = [
-            {value:"Year",label:"year"},{value:"Month",label:"month"},{value:"Date",label:"date"},{value:"DayOfWeek",label:"day of week"},
-            {value:"Hour",label:"hour"},{value:"Minute",label:"minute"},{value:"Second",label:"second"}
+            {value:"Year",label:qsTr("year")},{value:"Month",label:qsTr("month")},{value:"Date",label:qsTr("date")},{value:"DayOfWeek",label:qsTr("day of week")},
+            {value:"Hour",label:qsTr("hour")},{value:"Minute",label:qsTr("minute")},{value:"Second",label:qsTr("second")}
         ];
         const n = "number", t = "text", b = "bool";
         return {
-            Add:{infix:"+",result:n}, Sub:{infix:"−",result:n}, Mul:{infix:"×",result:n}, Div:{infix:"/",result:n}, Mod:{infix:"mod",result:n},
-            Round:{prefix:"round",result:n}, Math:{infix:"of",result:n,enumArg:{index:0,options:mathOptions}},
-            Random:{prefix:"pick random",infix:"to",result:n},
-            Join:{prefix:"join",result:t}, NewLine:{prefix:"new line",result:t}, Tab:{prefix:"tab character",result:t},
-            IndexOf:{prefix:"index of",infix:"in",result:n}, LastIndexOf:{prefix:"last index of",infix:"in",result:n},
-            LetterOf:{prefix:"letter",infix:"of",result:t}, Length:{prefix:"length of",result:n},
-            Case:{infix:"to",result:t,enumArg:{index:1,options:caseOptions}},
+            Add:{infix:"+",result:n}, Sub:{infix:"−",result:n}, Mul:{infix:"×",result:n}, Div:{infix:"/",result:n}, Mod:{infix:qsTr("mod"),result:n},
+            Round:{prefix:qsTr("round"),result:n}, Math:{infix:qsTr("of"),result:n,enumArg:{index:0,options:mathOptions}},
+            Random:{prefix:qsTr("pick random"),infix:qsTr("to"),result:n},
+            Join:{prefix:qsTr("join"),result:t}, NewLine:{prefix:qsTr("new line"),result:t}, Tab:{prefix:qsTr("tab character"),result:t},
+            IndexOf:{prefix:qsTr("index of"),infix:qsTr("in"),result:n}, LastIndexOf:{prefix:qsTr("last index of"),infix:qsTr("in"),result:n},
+            LetterOf:{prefix:qsTr("letter"),infix:qsTr("of"),result:t}, Length:{prefix:qsTr("length of"),result:n},
+            Case:{infix:qsTr("to"),result:t,enumArg:{index:1,options:caseOptions}},
             Eq:{infix:"=",result:b}, Neq:{infix:"≠",result:b}, Gt:{infix:">",result:b}, Lt:{infix:"<",result:b},
-            Gte:{infix:"≥",result:b}, Lte:{infix:"≤",result:b}, And:{infix:"and",result:b}, Or:{infix:"or",result:b},
-            Not:{prefix:"not",result:b}, True:{prefix:"true",result:b}, False:{prefix:"false",result:b},
-            CurrentTime:{prefix:"current",result:n,enumArg:{index:0,options:timeOptions}},
-            BatteryPercentage:{prefix:"battery percentage",result:n}, PluggedIn:{prefix:"plugged in?",result:b},
-            ClipboardText:{prefix:"clipboard text",result:t}, ClipboardHasImage:{prefix:"clipboard has image",result:b},
-            ClipboardHasFiles:{prefix:"clipboard has files",result:b},
-            ListItem:{prefix:"item",infix:"of",result:t,enumArg:{index:1,source:"lists"},oneBased:[0]},
-            ListItemNumber:{prefix:"item # of",infix:"in",result:n,enumArg:{index:1,source:"lists"}},
-            ListAmount:{prefix:"amount of",infix:"in",result:n,enumArg:{index:1,source:"lists"}},
-            ListLength:{prefix:"length of",result:n,enumArg:{index:0,source:"lists"}},
-            ListContains:{infix:"contains",result:b,enumArg:{index:0,source:"lists"}},
-            ListItemExists:{prefix:"item",infix:"exists in",result:b,enumArg:{index:1,source:"lists"},oneBased:[0]},
-            ListIsEmpty:{prefix:"is",suffix:"empty?",result:b,enumArg:{index:0,source:"lists"}},
-            ListAsJson:{suffix:"as JSON",result:t,enumArg:{index:0,source:"lists"}},
-            DictValue:{prefix:"value",infix:"in",result:t,enumArg:{index:1,source:"dicts"}},
-            DictHasKey:{infix:"has key",result:b,enumArg:{index:0,source:"dicts"}},
-            DictSize:{prefix:"size of",result:n,enumArg:{index:0,source:"dicts"}},
-            DictKeys:{prefix:"keys of",result:t,enumArg:{index:0,source:"dicts"}},
-            DictAsJson:{suffix:"as JSON",result:t,enumArg:{index:0,source:"dicts"}},
-            DictIsEmpty:{prefix:"is",suffix:"empty?",result:b,enumArg:{index:0,source:"dicts"}}
+            Gte:{infix:"≥",result:b}, Lte:{infix:"≤",result:b}, And:{infix:qsTr("and"),result:b}, Or:{infix:qsTr("or"),result:b},
+            Not:{prefix:qsTr("not"),result:b}, True:{prefix:qsTr("true"),result:b}, False:{prefix:qsTr("false"),result:b},
+            CurrentTime:{prefix:qsTr("current"),result:n,enumArg:{index:0,options:timeOptions}},
+            BatteryPercentage:{prefix:qsTr("battery percentage"),result:n}, PluggedIn:{prefix:qsTr("plugged in?"),result:b},
+            ClipboardText:{prefix:qsTr("clipboard text"),result:t}, ClipboardHasImage:{prefix:qsTr("clipboard has image"),result:b},
+            ClipboardHasFiles:{prefix:qsTr("clipboard has files"),result:b},
+            ListItem:{prefix:qsTr("item"),infix:qsTr("of"),result:t,enumArg:{index:1,source:"lists"},oneBased:[0]},
+            ListItemNumber:{prefix:qsTr("item # of"),infix:qsTr("in"),result:n,enumArg:{index:1,source:"lists"}},
+            ListAmount:{prefix:qsTr("amount of"),infix:qsTr("in"),result:n,enumArg:{index:1,source:"lists"}},
+            ListLength:{prefix:qsTr("length of"),result:n,enumArg:{index:0,source:"lists"}},
+            ListContains:{infix:qsTr("contains"),result:b,enumArg:{index:0,source:"lists"}},
+            ListItemExists:{prefix:qsTr("item"),infix:qsTr("exists in"),result:b,enumArg:{index:1,source:"lists"},oneBased:[0]},
+            ListIsEmpty:{prefix:qsTr("is"),suffix:qsTr("empty?"),result:b,enumArg:{index:0,source:"lists"}},
+            ListAsJson:{suffix:qsTr("as JSON"),result:t,enumArg:{index:0,source:"lists"}},
+            DictValue:{prefix:qsTr("value"),infix:qsTr("in"),result:t,enumArg:{index:1,source:"dicts"}},
+            DictHasKey:{infix:qsTr("has key"),result:b,enumArg:{index:0,source:"dicts"}},
+            DictSize:{prefix:qsTr("size of"),result:n,enumArg:{index:0,source:"dicts"}},
+            DictKeys:{prefix:qsTr("keys of"),result:t,enumArg:{index:0,source:"dicts"}},
+            DictAsJson:{suffix:qsTr("as JSON"),result:t,enumArg:{index:0,source:"dicts"}},
+            DictIsEmpty:{prefix:qsTr("is"),suffix:qsTr("empty?"),result:b,enumArg:{index:0,source:"dicts"}}
         };
     }
 

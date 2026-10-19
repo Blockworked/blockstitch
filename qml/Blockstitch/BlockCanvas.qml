@@ -15,7 +15,7 @@ Rectangle {
     property bool locked: false
     // Whether the canvas menu offers "Delete all blocks".
     property bool offerClear: true
-    property string clearText: "Delete all blocks"
+    property string clearText: qsTr("Delete all blocks")
     property string clearIcon: "trash"
     property bool canPaste: false
     Binding { target: BlockRegistry; property: "recordingTargetId"; value: root.recordingTargetId }
@@ -54,6 +54,7 @@ Rectangle {
     signal paletteDragCanceled()
     signal keyCaptureRequested(string strandId, var path)
     signal appPickerRequested(string strandId, var path, var instruction)
+    signal pieceActionRequested(string action, string strandId, var path, var instruction)
     signal detailsRequested(string type)
     signal valueTakeRequested(var location)
     signal valuePutRequested(var location, var value)
@@ -1028,8 +1029,8 @@ Rectangle {
                 onClicked: mouse => { if (mouse.button === Qt.RightButton) { canvasMenu.canvasX = Math.round(mouse.x - root.originOffsetX); canvasMenu.canvasY = Math.round(mouse.y - root.originOffsetY); canvasMenu.popup(mouse.x, mouse.y); } else flick.forceActiveFocus(); }
                 BwMenu { id:canvasMenu;property int canvasX:0;property int canvasY:0
                     BwMenuItem{visible:root.offerClear;iconName:root.clearIcon;danger:true;text:root.clearText;onTriggered:root.clearRequested()}
-                    BwMenuItem{iconName:"clipboard-paste";enabled:root.canPaste;text:"Paste";onTriggered:root.canvasMenuAction("paste",canvasMenu.canvasX,canvasMenu.canvasY)}
-                    BwMenuItem{iconName:"message-square";text:"Add Comment";onTriggered:root.canvasNoteRequested(canvasMenu.canvasX,canvasMenu.canvasY)}
+                    BwMenuItem{iconName:"clipboard-paste";enabled:root.canPaste;text:qsTr("Paste");onTriggered:root.canvasMenuAction("paste",canvasMenu.canvasX,canvasMenu.canvasY)}
+                    BwMenuItem{iconName:"message-square";text:qsTr("Add Comment");onTriggered:root.canvasNoteRequested(canvasMenu.canvasX,canvasMenu.canvasY)}
                 }
                 Instantiator {
                     model: BlockRegistry.canvasMenu
@@ -1074,6 +1075,7 @@ Rectangle {
                             onRecordingTargetRequested:sid=>root.recordingTargetRequested(sid)
                             onKeyCaptureRequested:(sid,p)=>root.keyCaptureRequested(sid,p)
                             onAppPickerRequested:(sid,p,i)=>root.appPickerRequested(sid,p,i)
+                            onPieceActionRequested:(a,sid,p,i)=>root.pieceActionRequested(a,sid,p,i)
                             onDetailsRequested:type=>root.detailsRequested(type)
                             onMenuActionRequested:(a,sid,p,i)=>root.blockMenuAction(a,sid,p,i)
                             onPaletteDragStarted:(sp,sx,sy,ox,oy)=>root.paletteDragStarted(sp,sx,sy,ox,oy)
@@ -1108,7 +1110,7 @@ Rectangle {
                     Row {
                         id:headerRow;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;anchors.leftMargin:8;anchors.rightMargin:4;height:commentCard.headerH;spacing:7
                         LucideIcon { name:"message-square";color:Theme.textDim;width:14;height:14;anchors.verticalCenter:parent.verticalCenter }
-                        Text { id:noteLabel;text:"NOTE";color:Theme.textDim;font.pixelSize:10;font.weight:Font.Bold;anchors.verticalCenter:parent.verticalCenter }
+                        Text { id:noteLabel;text:qsTr("NOTE");color:Theme.textDim;font.pixelSize:10;font.weight:Font.Bold;anchors.verticalCenter:parent.verticalCenter }
                         Item { width:Math.max(0,parent.width-14-noteLabel.width-collapseBtn.width-parent.spacing*3);height:1 }
                         BwButton { id:collapseBtn;iconName:commentCard.modelData.collapsed?"chevron-down":"chevron-up";text:"";flat:true;implicitWidth:24;implicitHeight:24;anchors.verticalCenter:parent.verticalCenter;onClicked:root.commentCollapseChanged(commentCard.modelData.id,!commentCard.modelData.collapsed) }
                     }
@@ -1122,7 +1124,7 @@ Rectangle {
                     }
                     DragHandler { enabled:!root.locked;target:commentCard;onActiveChanged:if(!active)root.commentMoved(commentCard.modelData.id,Math.round(commentCard.x - root.originOffsetX),Math.round(commentCard.y - root.originOffsetY)) }
                     TapHandler { acceptedButtons:Qt.RightButton;gesturePolicy:TapHandler.ReleaseWithinBounds;onTapped:commentMenu.popup() }
-                    BwMenu { id:commentMenu;BwMenuItem{iconName:"trash";danger:true;text:"Delete note";onTriggered:root.commentRemoved(commentCard.modelData.id)} }
+                    BwMenu { id:commentMenu;BwMenuItem{iconName:"trash";danger:true;text:qsTr("Delete note");onTriggered:root.commentRemoved(commentCard.modelData.id)} }
                 }
             }
             Repeater {
@@ -1131,7 +1133,7 @@ Rectangle {
                     id:floatingItem;required property var modelData;x:modelData.x + root.originOffsetX;y:modelData.y + root.originOffsetY;z:5;width:floatingChip.implicitWidth;height:floatingChip.implicitHeight
                     ValueChip { id:floatingChip;valueData:floatingItem.modelData.value;location:({kind:"Floating",floating_id:floatingItem.modelData.id,path:[]});boxed:true;blockDefinitions:root.blockDefinitions;onEditRequested:(l,t)=>root.valueEdited(l,t);onDetailsRequested:kind=>root.detailsRequested(kind);onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.beginValueDrag(loc,val,sx,sy,ox,oy,w,h);onValueDragMoved:(sx,sy)=>root.moveValueDrag(sx,sy);onValueDragEnded:(sx,sy)=>root.endValueDrag(sx,sy);onValueDragCanceled:root.cancelValueDrag() }
                     TapHandler { acceptedButtons:Qt.RightButton;gesturePolicy:TapHandler.ReleaseWithinBounds;onTapped:floatingMenu.popup() }
-                    BwMenu { id:floatingMenu;BwMenuItem{iconName:"info";text:"Details";onTriggered:root.detailsRequested(floatingItem.modelData.value.op||floatingItem.modelData.value.kind)}BwMenuItem{iconName:"trash";danger:true;text:"Delete value";onTriggered:root.floatingValueRemoved(floatingItem.modelData.id)} }
+                    BwMenu { id:floatingMenu;BwMenuItem{iconName:"info";text:qsTr("Details");onTriggered:root.detailsRequested(floatingItem.modelData.value.op||floatingItem.modelData.value.kind)}BwMenuItem{iconName:"trash";danger:true;text:qsTr("Delete value");onTriggered:root.floatingValueRemoved(floatingItem.modelData.id)} }
                 }
             }
             Repeater {
@@ -1154,7 +1156,7 @@ Rectangle {
                     }
                     Flickable { anchors.left:parent.left;anchors.right:parent.right;anchors.top:listHead.bottom;anchors.bottom:listFoot.top;contentHeight:listRows.implicitHeight;clip:true
                         Column { id:listRows;width:parent.width;spacing:2;padding:5
-                            Text{visible:!(listCard.modelData.items||[]).length;text:"This list is empty.";color:Theme.textDim;font.pixelSize:12;padding:7}
+                            Text{visible:!(listCard.modelData.items||[]).length;text:qsTr("This list is empty.");color:Theme.textDim;font.pixelSize:12;padding:7}
                             Repeater{model:listCard.modelData.items||[];delegate:Row{
                                 required property var modelData;required property int index;spacing:4;width:listRows.width-10;height:32
                                 Text{text:String(index+1);color:Theme.textDim;font.pixelSize:11;font.weight:Font.Bold;width:22;horizontalAlignment:Text.AlignRight;anchors.verticalCenter:parent.verticalCenter}
@@ -1165,9 +1167,9 @@ Rectangle {
                     }
                     Rectangle { id:listFoot;anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;height:40;color:Theme.panel;border.color:Theme.borderSoft
                         Row { anchors.fill:parent;anchors.margins:5
-                            BwButton{iconName:"plus";text:"Add item";implicitHeight:29;onClicked:listCard.addItem()}
+                            BwButton{iconName:"plus";text:qsTr("Add item");implicitHeight:29;onClicked:listCard.addItem()}
                             Item{width:Math.max(0,listFoot.width-170);height:1}
-                            Text{text:String((listCard.modelData.items||[]).length)+((listCard.modelData.items||[]).length===1?" item":" items");color:Theme.textDim;font.pixelSize:11;anchors.verticalCenter:parent.verticalCenter}
+                            Text{text:qsTr("%n item(s)","",(listCard.modelData.items||[]).length);color:Theme.textDim;font.pixelSize:11;anchors.verticalCenter:parent.verticalCenter}
                         }
                     }
                 }
@@ -1197,21 +1199,21 @@ Rectangle {
                     }
                     Flickable { anchors.left:parent.left;anchors.right:parent.right;anchors.top:dictHead.bottom;anchors.bottom:dictFoot.top;contentHeight:dictRows.implicitHeight;clip:true
                         Column { id:dictRows;width:parent.width;spacing:2;padding:5
-                            Text{visible:!dictCard.entries.length;text:"This dict is empty.";color:Theme.textDim;font.pixelSize:12;padding:7}
+                            Text{visible:!dictCard.entries.length;text:qsTr("This dict is empty.");color:Theme.textDim;font.pixelSize:12;padding:7}
                             Repeater{model:dictCard.entries;delegate:Row{
                                 required property var modelData;required property int index;spacing:4;width:dictRows.width-10;height:32
-                                BwTextField{text:modelData.key;placeholderText:"key";width:128;implicitHeight:29;font.pixelSize:12;onEditingFinished:if(text!==modelData.key)dictCard.editKey(index,text)}
+                                BwTextField{text:modelData.key;placeholderText:qsTr("key");width:128;implicitHeight:29;font.pixelSize:12;onEditingFinished:if(text!==modelData.key)dictCard.editKey(index,text)}
                                 LucideIcon{name:"arrow-right";color:Theme.textDim;width:13;height:13;anchors.verticalCenter:parent.verticalCenter}
-                                BwTextField{text:String(modelData.value.value);placeholderText:"value";color:modelData.value.kind==="Number"?Theme.accent:Theme.text;width:162;implicitHeight:29;font.pixelSize:12;onEditingFinished:if(text!==String(modelData.value.value))dictCard.editValue(index,text)}
+                                BwTextField{text:String(modelData.value.value);placeholderText:qsTr("value");color:modelData.value.kind==="Number"?Theme.accent:Theme.text;width:162;implicitHeight:29;font.pixelSize:12;onEditingFinished:if(text!==String(modelData.value.value))dictCard.editValue(index,text)}
                                 BwButton{iconName:"x";text:"";danger:true;implicitWidth:27;implicitHeight:27;onClicked:dictCard.removeEntry(index)}
                             }}
                         }
                     }
                     Rectangle { id:dictFoot;anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;height:40;color:Theme.panel;border.color:Theme.borderSoft
                         Row { anchors.fill:parent;anchors.margins:5
-                            BwButton{iconName:"plus";text:"Add entry";implicitHeight:29;onClicked:dictCard.addEntry()}
+                            BwButton{iconName:"plus";text:qsTr("Add entry");implicitHeight:29;onClicked:dictCard.addEntry()}
                             Item{width:Math.max(0,dictFoot.width-180);height:1}
-                            Text{text:String(dictCard.entries.length)+(dictCard.entries.length===1?" entry":" entries");color:Theme.textDim;font.pixelSize:11;anchors.verticalCenter:parent.verticalCenter}
+                            Text{text:qsTr("%n entry(s)","",dictCard.entries.length);color:Theme.textDim;font.pixelSize:11;anchors.verticalCenter:parent.verticalCenter}
                         }
                     }
                 }

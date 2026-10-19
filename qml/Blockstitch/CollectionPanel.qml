@@ -31,7 +31,7 @@ Column {
                 anchors.fill: parent; anchors.leftMargin: 6; anchors.rightMargin: 6; spacing: 7
                 BwCheckBox {
                     anchors.verticalCenter: parent.verticalCenter; checked: row.modelData.editor_visible
-                    Accessible.name: "Show " + row.modelData.name + " on canvas"
+                    Accessible.name: qsTr("Show %1 on canvas").arg(row.modelData.name)
                     onToggled: root.editorStateRequested(row.modelData.name, checked, row.modelData.editor_x || 36, row.modelData.editor_y || 36)
                 }
                 Text { anchors.verticalCenter: parent.verticalCenter; text: row.modelData.name; color: Theme.text; font.pixelSize: 12; width: Math.max(80, row.width - 100); elide: Text.ElideRight }
@@ -41,9 +41,9 @@ Column {
             TapHandler { acceptedButtons: Qt.RightButton; gesturePolicy: TapHandler.ReleaseWithinBounds; onTapped: menu.popup() }
             BwMenu {
                 id: menu
-                BwMenuItem { iconName: "equal"; text: "Rename " + root.noun; onTriggered: root.renameRequested(row.modelData.name) }
-                BwMenuItem { iconName: "info"; text: "Details"; onTriggered: root.detailsRequested(row.modelData.name) }
-                BwMenuItem { iconName: "trash"; danger: true; text: "Delete " + root.noun; onTriggered: root.deleteRequested(row.modelData.name) }
+                BwMenuItem { iconName: "equal"; text: root.noun === "dict" ? qsTr("Rename dict") : root.noun === "variable" ? qsTr("Rename variable") : qsTr("Rename list"); onTriggered: root.renameRequested(row.modelData.name) }
+                BwMenuItem { iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(row.modelData.name) }
+                BwMenuItem { iconName: "trash"; danger: true; text: root.noun === "dict" ? qsTr("Delete dict") : root.noun === "variable" ? qsTr("Delete variable") : qsTr("Delete list"); onTriggered: root.deleteRequested(row.modelData.name) }
             }
         }
     }

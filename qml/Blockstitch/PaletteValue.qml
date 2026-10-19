@@ -7,7 +7,7 @@ Item {
     property var spec: ({})
     property bool editable: true
     property bool forceBoolean: false
-    property string callLabel: "custom block"
+    property string callLabel: qsTr("custom block")
     property var blockDefinitions: []
     signal dragStarted(var spec, real sceneX, real sceneY, real offsetX, real offsetY)
     signal dragMoved(real sceneX, real sceneY)

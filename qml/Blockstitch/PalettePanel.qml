@@ -42,6 +42,10 @@ Rectangle {
     signal renameDictRequested(string name)
     signal deleteDictRequested(string name)
     signal makeBlockRequested()
+    // Optional: a library of shared blocks, and sharing a block as a pack.
+    property bool blockLibraryEnabled: false
+    signal browseBlocksRequested()
+    signal shareBlockRequested(var definition)
     signal renameVariableRequested(string name)
     signal deleteVariableRequested(string name)
     signal editBlockRequested(var definition)
@@ -111,7 +115,14 @@ Rectangle {
         if(count)i.branches=Array.from({length:count},()=>[]);
         return i;
     }
-    readonly property var customMenu: [{id:"edit",text:"Edit block",icon:"blocks"},{id:"details",text:"Details",icon:"info"},{id:"delete",text:"Delete block",icon:"trash",danger:true}]
+    readonly property var customMenu: [{id:"edit",text:qsTr("Edit block"),icon:"blocks"},{id:"details",text:qsTr("Details"),icon:"info"}]
+        .concat(root.blockLibraryEnabled?[{id:"share",text:qsTr("Share as a pack\u2026"),icon:"package"}]:[])
+        .concat([{id:"delete",text:qsTr("Delete block"),icon:"trash",danger:true}])
+    function customMenuAction(id,definition){
+        if(id==="edit") root.editBlockRequested(definition);
+        else if(id==="share") root.shareBlockRequested(definition);
+        else if(id==="delete") root.deleteBlockRequested(definition.id);
+    }
     function isReporter(definition){return definition.shape==="ReturnsValue"||definition.shape==="ReturnsBool";}
     function customValue(definition){
         const args=(definition.pieces||[]).filter(p=>p.kind==="Input").map(p=>p.value_type==="Bool"?{kind:"Bool"}:n(0));
@@ -152,17 +163,19 @@ Rectangle {
         allOperators.forEach(o=>{ if(operatorCategory(o[0])===c) n++; });
         return n;
     }
+    // App-specific categories ({id, name, icon}), listed before Custom.
+    property var appCategories: []
     readonly property var categories: [
-        {id:"all",name:"All",icon:"layout-grid"},{id:"events",name:"Events",icon:"zap"},{id:"input",name:"Input",icon:"keyboard"},
-        {id:"control",name:"Flow",icon:"git-branch"},{id:"data",name:"Data",icon:"variable"},{id:"operators",name:"Operators",icon:"equal"},
-        {id:"system",name:"System",icon:"monitor"},{id:"custom",name:"Custom",icon:"blocks"}
-    ]
+        {id:"all",name:qsTr("All"),icon:"layout-grid"},{id:"events",name:qsTr("Events"),icon:"zap"},{id:"input",name:qsTr("Input"),icon:"keyboard"},
+        {id:"control",name:qsTr("Flow"),icon:"git-branch"},{id:"data",name:qsTr("Data"),icon:"variable"},{id:"operators",name:qsTr("Operators"),icon:"equal"},
+        {id:"system",name:qsTr("System"),icon:"monitor"}
+    ].concat(Array.from(appCategories || [])).concat([{id:"custom",name:qsTr("Custom"),icon:"blocks"}])
     readonly property var systemOperators: ["PluggedIn","BatteryPercentage","CurrentTime","ClipboardText","ClipboardHasImage","ClipboardHasFiles"]
     function instructionCategory(type) {
         if(extraCategories[type]) return extraCategories[type];
         if(type.indexOf("When")===0) return "events";
-        if(["Wait","Text","Key","Button","MoveMouse","Scroll"].indexOf(type)>=0) return "input";
-        if(["If","IfElse","Repeat","Forever","While","EscapeLoop","ContinueLoop","Return"].indexOf(type)>=0) return "control";
+        if(["Text","Key","Button","MoveMouse","Scroll"].indexOf(type)>=0) return "input";
+        if(["Wait","If","IfElse","Repeat","Forever","While","EscapeLoop","ContinueLoop","Return"].indexOf(type)>=0) return "control";
         if(["Command","OpenApp","CloseApp"].indexOf(type)>=0) return "system";
         return "data";
     }
@@ -199,10 +212,10 @@ Rectangle {
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                         onActivated:root.blockActivated(modelData); onKeyCaptureRequested:root.standaloneKeyCaptureRequested()
                         onAppPickerRequested: instruction => root.appPickerRequested(instruction)
-                        onDetailsRequested:type=>root.detailsRequested(type,type,"See what this block does and where it can be used.")
+                        onDetailsRequested:type=>root.detailsRequested(type,type,qsTr("See what this block does and where it can be used."))
                     }
                 }
-                Text { visible:blk.sectionShown("operators"); text:"OPERATORS"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; topPadding:8 }
+                Text { visible:blk.sectionShown("operators"); text:qsTr("OPERATORS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; topPadding:8 }
                 Repeater {
                     model:root.allOperators
                     delegate:PaletteValue {
@@ -212,13 +225,13 @@ Rectangle {
                         blockDefinitions:root.blockDefinitions
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                         onActivated:root.valueActivated(valueData)
-                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,"A value or operator block that can be placed in an input.")
+                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,qsTr("A value or operator block that can be placed in an input."))
                     }
                 }
                 Row {
                     visible:blk.sectionShown("data"); spacing:8; topPadding:8
-                    Text { text:"VARIABLES"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:"Make a Variable"; implicitHeight:28; font.pixelSize:11; onClicked:root.makeVariableRequested() }
+                    Text { text:qsTr("VARIABLES"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
+                    BwButton { text:qsTr("Make a Variable"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeVariableRequested() }
                 }
                 Repeater {
                     model:root.variables||[]
@@ -227,7 +240,7 @@ Rectangle {
                         visible:blk.itemShown("data",modelData)
                         valueData:({kind:"Var",name:modelData}); editable:false; spec:({kind:"value",value:valueData})
                         blockDefinitions:root.blockDefinitions
-                        extraMenu:[{id:"rename",text:"Rename variable",icon:"equal"},{id:"delete",text:"Delete variable",icon:"trash",danger:true}]
+                        extraMenu:[{id:"rename",text:qsTr("Rename variable"),icon:"equal"},{id:"delete",text:qsTr("Delete variable"),icon:"trash",danger:true}]
                         onExtraMenuTriggered:id=>id==="rename"?root.renameVariableRequested(modelData):root.deleteVariableRequested(modelData)
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                         onActivated:root.valueActivated(valueData)
@@ -235,8 +248,8 @@ Rectangle {
                 }
                 Row {
                     visible:blk.sectionShown("data"); spacing:8; topPadding:8
-                    Text { text:"LISTS"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:"Make a List"; implicitHeight:28; font.pixelSize:11; onClicked:root.makeListRequested() }
+                    Text { text:qsTr("LISTS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
+                    BwButton { text:qsTr("Make a List"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeListRequested() }
                 }
                 CollectionPanel {
                     visible:blk.sectionShown("data")
@@ -244,7 +257,7 @@ Rectangle {
                     onEditorStateRequested:(name,visible,x,y)=>root.listEditorStateRequested(name,visible,x,y)
                     onRenameRequested:name=>root.renameListRequested(name)
                     onDeleteRequested:name=>root.deleteListRequested(name)
-                    onDetailsRequested:name=>root.detailsRequested(name,"List","A document-wide ordered collection of text and number items.")
+                    onDetailsRequested:name=>root.detailsRequested(name,"List",qsTr("A document-wide ordered collection of text and number items."))
                 }
                 Repeater {
                     model:root.listOperators
@@ -255,7 +268,7 @@ Rectangle {
                         blockDefinitions:root.blockDefinitions
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                         onActivated:root.valueActivated(valueData)
-                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,"A list reporter block that reads data without changing the list.")
+                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,qsTr("A list reporter block that reads data without changing the list."))
                     }
                 }
                 Repeater {
@@ -267,22 +280,22 @@ Rectangle {
                         variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                         onActivated:root.blockActivated(modelData)
-                        onDetailsRequested:type=>root.detailsRequested(type,type,"See what this block does and where it can be used.")
+                        onDetailsRequested:type=>root.detailsRequested(type,type,qsTr("See what this block does and where it can be used."))
                     }
                 }
                 Row {
                     visible:root.dictsEnabled && blk.sectionShown("data"); spacing:8; topPadding:8
-                    Text { text:"DICTS"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:"Make a Dict"; implicitHeight:28; font.pixelSize:11; onClicked:root.makeDictRequested() }
+                    Text { text:qsTr("DICTS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
+                    BwButton { text:qsTr("Make a Dict"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeDictRequested() }
                 }
                 CollectionPanel {
                     visible:root.dictsEnabled && blk.sectionShown("data")
                     collections:root.dicts; noun:"dict"; rowWidth:Math.max(230,root.width-28-root.railWidth-1)
-                    emptyText:"Make a dict, then check it to open its editor on the canvas."
+                    emptyText:qsTr("Make a dict, then check it to open its editor on the canvas.")
                     onEditorStateRequested:(name,visible,x,y)=>root.dictEditorStateRequested(name,visible,x,y)
                     onRenameRequested:name=>root.renameDictRequested(name)
                     onDeleteRequested:name=>root.deleteDictRequested(name)
-                    onDetailsRequested:name=>root.detailsRequested(name,"Dict","A document-wide collection of text and number values, looked up by key.")
+                    onDetailsRequested:name=>root.detailsRequested(name,"Dict",qsTr("A document-wide collection of text and number values, looked up by key."))
                 }
                 Repeater {
                     model:root.dictsEnabled?root.dictOperators:[]
@@ -293,7 +306,7 @@ Rectangle {
                         blockDefinitions:root.blockDefinitions
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                         onActivated:root.valueActivated(valueData)
-                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,"A dict reporter block that reads data without changing the dict.")
+                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,qsTr("A dict reporter block that reads data without changing the dict."))
                     }
                 }
                 Repeater {
@@ -305,13 +318,14 @@ Rectangle {
                         variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                         onActivated:root.blockActivated(modelData)
-                        onDetailsRequested:type=>root.detailsRequested(type,type,"See what this block does and where it can be used.")
+                        onDetailsRequested:type=>root.detailsRequested(type,type,qsTr("See what this block does and where it can be used."))
                     }
                 }
                 Row {
                     visible:blk.sectionShown("custom"); spacing:8; topPadding:8
-                    Text { text:"MY BLOCKS"; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:"Make a Block"; implicitHeight:28; font.pixelSize:11; onClicked:root.makeBlockRequested() }
+                    Text { text:qsTr("MY BLOCKS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
+                    BwButton { text:qsTr("Make a Block"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeBlockRequested() }
+                    BwButton { visible:root.blockLibraryEnabled; text:qsTr("Browse"); iconName:"book-open"; implicitHeight:28; font.pixelSize:11; onClicked:root.browseBlocksRequested() }
                 }
                 Repeater {
                     model:root.blockDefinitions||[]
@@ -326,9 +340,9 @@ Rectangle {
                                 variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; blockColor:customItem.modelData.color||Theme.block
                                 onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                                 onActivated:root.customBlockActivated(customItem.modelData)
-                                onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,"A custom block defined in this macro.")
+                                onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,qsTr("A custom block defined in this macro."))
                                 extraMenu:root.customMenu
-                                onExtraMenuTriggered:id=>id==="edit"?root.editBlockRequested(customItem.modelData):root.deleteBlockRequested(customItem.modelData.id)
+                                onExtraMenuTriggered:id=>root.customMenuAction(id,customItem.modelData)
                             }
                         }
                         Component {
@@ -339,15 +353,15 @@ Rectangle {
                                 spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,label:callLabel})
                                 onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                                 onActivated:root.valueActivated(valueData)
-                                onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,"A custom reporter block defined in this macro.")
+                                onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,qsTr("A custom reporter block defined in this macro."))
                                 extraMenu:root.customMenu
-                                onExtraMenuTriggered:id=>id==="edit"?root.editBlockRequested(customItem.modelData):root.deleteBlockRequested(customItem.modelData.id)
+                                onExtraMenuTriggered:id=>root.customMenuAction(id,customItem.modelData)
                             }
                         }
                     }
                 }
             Text {
-                visible:root.noResults; text:"No blocks match \u201c"+root.searchText.trim()+"\u201d"
+                visible:root.noResults; text:qsTr("No blocks match \u201c%1\u201d").arg(root.searchText.trim())
                 color:Theme.textDim; font.pixelSize:12; topPadding:8
             }
         }
@@ -405,7 +419,7 @@ Rectangle {
             BwTextField {
                 id:searchField
                 Layout.fillWidth:true; Layout.margins:8; Layout.bottomMargin:4
-                placeholderText:"Search blocks"; text:root.searchText
+                placeholderText:qsTr("Search blocks"); text:root.searchText
                 onTextChanged:root.searchText=text
                 rightPadding:30
                 LucideIcon {
@@ -443,12 +457,14 @@ Rectangle {
                         text:{ for(const c of root.categories) if(c.id===root.category) return c.name; return ""; }
                     }
                 }
-                Text { anchors.right:parent.right; anchors.rightMargin:8; anchors.verticalCenter:parent.verticalCenter; text:"All categories"; color:Theme.textDim; font.pixelSize:11 }
+                Text { anchors.right:parent.right; anchors.rightMargin:8; anchors.verticalCenter:parent.verticalCenter; text:qsTr("All categories"); color:Theme.textDim; font.pixelSize:11 }
                 HoverHandler { id:backHover; cursorShape:Qt.PointingHandCursor }
                 TapHandler { onTapped:root.category="all" }
             }
             ScrollView {
                 id:paletteScroll
+                // Back at the top whenever the category changes (e.g. returning to the tile grid)
+                Connections { target:root; function onCategoryChanged(){ paletteScroll.contentItem.contentY=0; } }
                 Layout.fillWidth:true; Layout.fillHeight:true; clip:true
                 ScrollBar.horizontal.policy: ScrollBar.AsNeeded
                 // Flickable must not also handle the wheel, or it overrides the faster pan below
@@ -470,7 +486,7 @@ Rectangle {
                                     anchors.centerIn:parent; spacing:3
                                     LucideIcon { anchors.horizontalCenter:parent.horizontalCenter; width:22; height:22; name:modelData.icon; color:Theme.text }
                                     Text { anchors.horizontalCenter:parent.horizontalCenter; text:modelData.name; color:Theme.text; font.pixelSize:12 }
-                                    Text { anchors.horizontalCenter:parent.horizontalCenter; text:root.categoryCount(modelData.id)+" blocks"; color:Theme.textDim; font.pixelSize:10 }
+                                    Text { anchors.horizontalCenter:parent.horizontalCenter; text:qsTr("%n block(s)","",root.categoryCount(modelData.id)); color:Theme.textDim; font.pixelSize:10 }
                                 }
                                 HoverHandler { id:tileHover; cursorShape:Qt.PointingHandCursor }
                                 TapHandler { onTapped:root.category=modelData.id }
@@ -548,7 +564,7 @@ Rectangle {
         Column {
             anchors.centerIn: parent; spacing: 8
             LucideIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "trash"; width: 30; height: 30; color: root.trashArmed ? Theme.danger : Theme.text }
-            Text { anchors.horizontalCenter: parent.horizontalCenter; text: root.trashArmed ? "Release to delete" : "Drop here to delete"; color: root.trashArmed ? Theme.danger : Theme.text; font.pixelSize: 14 }
+            Text { anchors.horizontalCenter: parent.horizontalCenter; text: root.trashArmed ? qsTr("Release to delete") : qsTr("Drop here to delete"); color: root.trashArmed ? Theme.danger : Theme.text; font.pixelSize: 14 }
         }
     }
 

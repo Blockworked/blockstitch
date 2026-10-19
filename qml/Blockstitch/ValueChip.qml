@@ -8,7 +8,7 @@ Item {
     property var location: null
     property bool editable: true
     property bool forceBoolean: false
-    property string callDisplayLabel: "custom block"
+    property string callDisplayLabel: qsTr("custom block")
     property bool boxed: !!valueData && ["Op", "Var", "Param", "Call"].indexOf(valueData.kind) >= 0
     property var blockDefinitions: []
     property bool dropHighlighted: false
@@ -26,7 +26,7 @@ Item {
             CapsLock: "Caps", PrintScr: "PrtSc", Option: "Alt", AltGr: "AltGr"
         };
         if (named[k] !== undefined) return named[k];
-        if (k.indexOf("Other:") === 0) return "Key " + k.substring(6);
+        if (k.indexOf("Other:") === 0) return qsTr("Key %1").arg(k.substring(6));
         return k.length === 1 ? k.toUpperCase() : k;
     }
     // "Control+Alt+o" -> ["Control", "Alt", "o"]; a bare "+" is the plus key.
@@ -106,7 +106,10 @@ Item {
     // palette's own drag surface behind it still receives them.
     HoverHandler { id: paletteHover; enabled: root.paletteMode; cursorShape: Qt.OpenHandCursor }
     readonly property string opPrefix: opSpec && opSpec.prefix ? opSpec.prefix : ""
-    readonly property string opInfix: opSpec && opSpec.infix ? opSpec.infix : ""
+    // `infix` goes between every pair of args; a list gives one per gap.
+    readonly property var opInfixes: opSpec && Array.isArray(opSpec.infix) ? opSpec.infix : null
+    readonly property string opInfix: opSpec && opSpec.infix && !opInfixes ? opSpec.infix : ""
+    function infixAt(index) { return opInfixes ? (opInfixes[index - 1] || "") : opInfix; }
     readonly property string opSuffix: opSpec && opSpec.suffix ? opSpec.suffix : ""
     readonly property int enumIndex: opSpec && opSpec.enumArg ? opSpec.enumArg.index : -1
     // An operator's own layout, for one whose words depend on the value (a
@@ -255,7 +258,7 @@ Item {
             id: valueMenu
             BwMenu {
                 id: valueMenuPopup
-                BwMenuItem { visible: !root.extraMenu || root.extraMenu.length === 0; iconName: "info"; text: "Details"; onTriggered: root.detailsRequested(root.valueData && root.valueData.kind === "Op" ? root.valueData.op : (root.valueData ? root.valueData.kind : "Value")) }
+                BwMenuItem { visible: !root.extraMenu || root.extraMenu.length === 0; iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(root.valueData && root.valueData.kind === "Op" ? root.valueData.op : (root.valueData ? root.valueData.kind : "Value")) }
                 Instantiator {
                     model: root.extraMenu
                     delegate: BwMenuItem {
@@ -283,7 +286,7 @@ Item {
                 // The name/choice slot of a reporter is a dropdown over a plain Text leaf.
                 readonly property bool isEnum: index === root.enumIndex && !!modelData && modelData.kind === "Text"
                 anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                Text { visible: argRow.index > 0 && root.opInfix.length > 0; text: root.opInfix; color: Theme.textDim; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                Text { visible: argRow.index > 0 && root.infixAt(argRow.index).length > 0; text: root.infixAt(argRow.index); color: Theme.textDim; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
                 Loader {
                     active: argRow.isEnum
                     width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
@@ -334,7 +337,7 @@ Item {
                 }
                 Text {
                     id: hint; anchors.centerIn: parent; font.pixelSize: 12; visible: keycaps.showHint
-                    text: root.keyCapturing ? "Press keys\u2026" : "Click to set key"
+                    text: root.keyCapturing ? qsTr("Press keys\u2026") : qsTr("Click to set key")
                     color: root.keyCapturing ? "white" : Theme.textDim
                 }
                 Row {
@@ -353,7 +356,7 @@ Item {
                 }
                 HoverHandler { id: capHover; enabled: root.editable; cursorShape: Qt.PointingHandCursor }
                 TapHandler { enabled: root.editable; onTapped: root.keyCaptureRequested() }
-                ToolTip.visible: capHover.hovered && !root.keyCapturing; ToolTip.delay: 500; ToolTip.text: "Click to set key, or drop a variable here"
+                ToolTip.visible: capHover.hovered && !root.keyCapturing; ToolTip.delay: 500; ToolTip.text: qsTr("Click to set key, or drop a variable here")
             }
         }
         Component {

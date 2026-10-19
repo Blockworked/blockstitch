@@ -14,7 +14,14 @@ BwDialog {
     default property alias extra: extraColumn.data
     signal submitted(string name, string renameTarget)
 
-    title: renameTarget.length ? "Rename " + noun.charAt(0).toUpperCase() + noun.slice(1) : "Make a " + noun.charAt(0).toUpperCase() + noun.slice(1)
+    // Whole phrases per noun, so translations don't have to glue words.
+    readonly property var phrases: ({
+        variable: { make: qsTr("Make a Variable"), rename: qsTr("Rename Variable"), label: qsTr("Variable name"), empty: qsTr("Variable name can't be empty") },
+        list: { make: qsTr("Make a List"), rename: qsTr("Rename List"), label: qsTr("List name"), empty: qsTr("List name can't be empty") },
+        dict: { make: qsTr("Make a Dict"), rename: qsTr("Rename Dict"), label: qsTr("Dict name"), empty: qsTr("Dict name can't be empty") }
+    })
+    readonly property var phrase: phrases[noun] || { make: qsTr("Make a %1").arg(noun), rename: qsTr("Rename %1").arg(noun), label: qsTr("Name"), empty: qsTr("The name can't be empty") }
+    title: renameTarget.length ? phrase.rename : phrase.make
     standardButtons: Dialog.Ok | Dialog.Cancel
     closePolicy: Popup.CloseOnEscape
 
@@ -24,13 +31,13 @@ BwDialog {
 
     onAccepted: {
         const name = nameField.text.trim();
-        if (!name.length) { fail(noun.charAt(0).toUpperCase() + noun.slice(1) + " name can't be empty"); return; }
+        if (!name.length) { fail(phrase.empty); return; }
         submitted(name, renameTarget);
     }
 
     Column {
         width: 340; spacing: 8
-        Text { text: root.noun.charAt(0).toUpperCase() + root.noun.slice(1) + " name"; color: Theme.text }
+        Text { text: root.phrase.label; color: Theme.text }
         BwTextField {
             id: nameField; width: parent.width; placeholderText: root.placeholder
             onAccepted: root.accept()
