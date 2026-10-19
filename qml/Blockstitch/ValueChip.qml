@@ -206,11 +206,7 @@ Item {
                 strokeColor: chipShape.edge
                 strokeWidth: root.dropHighlighted ? 2.4 : (root.hovered ? 1.6 : 1)
                 joinStyle: ShapePath.RoundJoin
-                fillGradient: LinearGradient {
-                    x1: 0; y1: 0; x2: chipShape.width; y2: chipShape.height
-                    GradientStop { position: 0; color: "#37383c" }
-                    GradientStop { position: 1; color: "#292a2d" }
-                }
+                fillColor: "#2e2f32"
                 PathSvg { path: chipShape.outline }
             }
         }

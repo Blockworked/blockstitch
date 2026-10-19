@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Shapes
 
-// Paints a block silhouette: a fill with a beveled gradient and an outline.
+// Paints a block silhouette: a flat fill and an outline.
 // "stack" / "header" / "cap" are single rows; "wrap" is a C-shaped block
 // (head bar, one mouth per body, mid bars between bodies, foot bar) whose inner
 // connector notches/tabs line up with the blocks nested in its mouths.
@@ -101,11 +101,7 @@ Shape {
         strokeColor: root.hovered ? root.hoverColor : root.outline
         strokeWidth: root.outlineWidth
         joinStyle: ShapePath.RoundJoin
-        fillGradient: LinearGradient {
-            x1: 0; y1: 0; x2: root.width; y2: root.height
-            GradientStop { position: 0; color: Qt.lighter(root.fill, 1.11) }
-            GradientStop { position: 1; color: root.fill }
-        }
+        fillColor: root.fill
         PathSvg { path: root.outlinePath }
     }
 }
