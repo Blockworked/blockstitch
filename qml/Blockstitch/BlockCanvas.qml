@@ -296,7 +296,9 @@ Rectangle {
         property var sourceBasePath: []
         property real sourceShrink: 0
         // Set on drop, cleared once the new strands confirm the move (or on timeout).
+        // An attach keeps the snap gap open while settling; a trash hides the tail.
         property bool settling: false
+        property bool settleHidden: false
         property string settleStrandId: ""
         property var settlePath: []
         property real settleDx: 0
@@ -650,7 +652,7 @@ Rectangle {
     function beginDrag(strandId, path, tailCount, sx, sy, ox, oy, bw, bh) {
         cancelValueDrag(); clearPaletteHighlight();
         const p = workspace.mapFromItem(null, sx, sy);
-        dragSession.settling = false;
+        dragSession.settling = false; dragSession.settleHidden = false;
         dragSession.strandId = strandId; dragSession.path = path; dragSession.tailCount = tailCount;
         dragSession.startX = p.x; dragSession.startY = p.y; dragSession.originX = p.x - ox; dragSession.originY = p.y - oy;
         dragSession.dx = 0; dragSession.dy = 0; dragSession.active = true;
@@ -704,6 +706,7 @@ Rectangle {
     // never snap into an existing strand, anything else uses the same
     // boundaries/rules as a canvas tail (excludeId none).
     function updatePaletteSnap(ghostLeft, ghostTop, instruction, w, h) {
+        endSettle();
         if (!instruction || isHeaderType(instruction.type)) { clearSnap(); return; }
         const si = shapeInfoFor(instruction);
         dragSession.draggedShape = si.shape; dragSession.draggedMouths = si.mouths; dragSession.draggedFlat = si.flat;
@@ -720,11 +723,23 @@ Rectangle {
         const snapValid = dragSession.snapValid, snapTargetId = dragSession.snapTargetId, snapPath = copyPath(dragSession.snapPath || []);
         const isWhole = path.length === 1 && path[0].index === 0;
         dragSession.active = false;
-        if (!root.contains(root.mapFromItem(null, sx, sy))) { clearSnap(); dragSession.settling = false; root.blockDragOutside(strandId, path, tail, sx, sy); return; }
+        dragSession.settleStrandId = strandId;
+        dragSession.settlePath = path;
+        dragSession.settleHidden = false;
+        if (!root.contains(root.mapFromItem(null, sx, sy))) {
+            // The host calls settleTrashed() if it actually deletes the tail.
+            clearSnap(); dragSession.settling = false;
+            root.blockDragOutside(strandId, path, tail, sx, sy);
+            return;
+        }
         if (snapValid && snapTargetId) {
             // Attach, just like the webapp: merge the whole strand, or move
-            // the tail atomically (no split-then-merge round trip).
-            clearSnap(); dragSession.settling = false;
+            // the tail atomically (no split-then-merge round trip). Settle on
+            // the preview spot, keeping the gap open, until the merge lands.
+            dragSession.settleDx = dragSession.snapX - ox;
+            dragSession.settleDy = dragSession.snapY - oy;
+            dragSession.settling = true;
+            settleTimer.restart();
             if (isWhole) root.strandsMerged(strandId, snapTargetId, snapPath);
             else root.tailMerged(strandId, path, snapTargetId, snapPath);
             return;
@@ -733,8 +748,6 @@ Rectangle {
         // point until the backend state confirms the move/split. Cleared in
         // onStrandsChanged or by settleTimer below.
         clearSnap();
-        dragSession.settleStrandId = strandId;
-        dragSession.settlePath = path;
         dragSession.settleDx = dx;
         dragSession.settleDy = dy;
         dragSession.settling = true;
@@ -743,8 +756,20 @@ Rectangle {
         if (isWhole && strand) root.strandMoved(strandId, Math.round(strand.x + dx), Math.round(strand.y + dy));
         else root.instructionSplit(strandId, path, Math.round(ox + dx - root.originOffsetX), Math.round(oy + dy - root.originOffsetY));
     }
+    // Hides the tail just dropped outside the canvas until its removal lands.
+    function settleTrashed() {
+        if (dragSession.active) return;
+        dragSession.settleHidden = true;
+        dragSession.settling = true;
+        settleTimer.restart();
+    }
+    function endSettle() {
+        if (!dragSession.settling) return;
+        dragSession.settling = false; dragSession.settleHidden = false;
+        clearSnap();
+    }
     function cancelDrag() {
-        dragSession.active = false; dragSession.settling = false; clearSnap();
+        dragSession.active = false; dragSession.settling = false; dragSession.settleHidden = false; clearSnap();
         dragSession.sourceStrandId = ""; dragSession.sourceBasePath = []; dragSession.sourceShrink = 0;
     }
     // ---- value (operator) drag: hit-testing + session ----
@@ -948,10 +973,10 @@ Rectangle {
         root.valueCreateRequested(fx, fy, value);
     }
     function cancelValueDrag() { valueDrag.active = false; clearValueTarget(); }
-    Timer { id: settleTimer; interval: 1500; onTriggered: dragSession.settling = false }
+    Timer { id: settleTimer; interval: 1500; onTriggered: root.endSettle() }
     onStrandsChanged: {
         syncStrands();
-        if (dragSession.settling) dragSession.settling = false;
+        endSettle();
         if (!dragSession.active && !dragSession.settling) {
             dragSession.sourceStrandId = ""; dragSession.sourceBasePath = []; dragSession.sourceShrink = 0;
         }
@@ -1226,7 +1251,7 @@ Rectangle {
             // real layout room, not an overlay on top.
             Item {
                 id: snapPreview
-                visible: dragSession.snapValid
+                visible: dragSession.snapValid && !dragSession.settling
                 x: dragSession.snapX; y: dragSession.snapY
                 width: Math.max(120, dragSession.snapWidth); height: Math.max(20, dragSession.snapHeight)
                 z: 90; enabled: false; opacity: 0.55

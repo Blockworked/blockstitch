@@ -126,6 +126,8 @@ Item {
     implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 36), hasBranchHeader ? pvOuterWidth + 28 : 0)
     implicitHeight: isWrap ? headHeight + mouthTotal + Math.max(0, slotCount() - 1) * midHeight + footHeight + (isCap ? 0 : tabDepth) : hasBranchHeader ? pvTop + pvOuterHeight + 8 + tabDepth : isCap ? rowHeight - tabDepth : rowHeight
     z: dragRole > 0 ? 50 : hovered ? 2 : 1
+    // Trashed tail waiting on its removal.
+    opacity: dragRole === 1 && dragState && !dragState.active && dragState.settling && dragState.settleHidden ? 0 : 1
     readonly property real dragOffsetX: {
         if (!dragState || dragRole !== 1) return 0;
         if (dragState.active) return dragState.dx;
