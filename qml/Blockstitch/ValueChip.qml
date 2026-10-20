@@ -333,7 +333,7 @@ Item {
                 }
                 Text {
                     id: hint; anchors.centerIn: parent; font.pixelSize: 12; visible: keycaps.showHint
-                    text: root.keyCapturing ? qsTr("Press keys\u2026") : qsTr("Click to set key")
+                    text: root.keyCapturing ? qsTr("Press keys...") : qsTr("Click to set key")
                     color: root.keyCapturing ? "white" : Theme.textDim
                 }
                 Row {

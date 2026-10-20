@@ -116,7 +116,7 @@ Rectangle {
         return i;
     }
     readonly property var customMenu: [{id:"edit",text:qsTr("Edit block"),icon:"blocks"},{id:"details",text:qsTr("Details"),icon:"info"}]
-        .concat(root.blockLibraryEnabled?[{id:"share",text:qsTr("Share as a pack\u2026"),icon:"package"}]:[])
+        .concat(root.blockLibraryEnabled?[{id:"share",text:qsTr("Share as a pack..."),icon:"package"}]:[])
         .concat([{id:"delete",text:qsTr("Delete block"),icon:"trash",danger:true}])
     function customMenuAction(id,definition){
         if(id==="edit") root.editBlockRequested(definition);
@@ -361,7 +361,7 @@ Rectangle {
                     }
                 }
             Text {
-                visible:root.noResults; text:qsTr("No blocks match \u201c%1\u201d").arg(root.searchText.trim())
+                visible:root.noResults; text:qsTr("No blocks match \"%1\"").arg(root.searchText.trim())
                 color:Theme.textDim; font.pixelSize:12; topPadding:8
             }
         }

@@ -567,14 +567,14 @@ Item {
         Row {
             spacing: 7
                     Text { text:qsTr("Open app:"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.name?instruction.name:qsTr("Choose app…"); iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
+                    BwButton { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.name?instruction.name:qsTr("Choose app..."); iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
         }
     }
     Component { id: fieldsFor15
         Row {
             spacing: 7
                     Text { text:qsTr("Close app:"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.name?instruction.name:qsTr("Choose app…"); iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
+                    BwButton { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.name?instruction.name:qsTr("Choose app..."); iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
         }
     }
     Component { id: fieldsFor16
