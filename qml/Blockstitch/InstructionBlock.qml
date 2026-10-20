@@ -371,7 +371,7 @@ Item {
             BwMenuItem { visible: !root.paletteMode; iconName: "corner-down-right"; text: qsTr("Duplicate block"); onTriggered: root.duplicateRequested(root.strandId, root.path, root.instruction) }
             BwMenuItem { visible: !root.paletteMode; iconName: "scissors"; text: qsTr("Cut block"); onTriggered: root.menuActionRequested("cut", root.strandId, root.path, root.instruction) }
             BwMenuItem { visible: !root.paletteMode; iconName: "message-square"; text: root.hasComment ? qsTr("Comment") : qsTr("Add Comment"); onTriggered: root.commentRequested(root.instruction) }
-            BwMenuItem { visible: !root.paletteMode; iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(root.type) }
+            BwMenuItem { visible: !root.paletteMode || !root.extraMenu || root.extraMenu.length === 0; iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(root.type) }
             BwMenuItem { visible: !root.paletteMode; iconName: "trash"; danger: true; text: qsTr("Delete block"); onTriggered: root.removeRequested(root.strandId, root.path) }
             Instantiator {
                 model: root.paletteMode ? root.extraMenu : BlockRegistry.blockMenu
@@ -411,10 +411,6 @@ Item {
         case "DeleteOfList": return fieldsFor20;
         case "DeleteAllOfList": return fieldsFor21;
         case "ShiftList": return fieldsFor22;
-        case "AddToList": return fieldsFor23;
-        case "DeleteOfList": return fieldsFor23;
-        case "DeleteAllOfList": return fieldsFor23;
-        case "ShiftList": return fieldsFor23;
         case "InsertIntoList": return fieldsFor24;
         case "ReplaceItemOfList": return fieldsFor25;
         case "ReverseList": return fieldsFor26;
@@ -608,6 +604,7 @@ Item {
                     Text { text:qsTr("add"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("AddToListValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     Text { text:qsTr("to"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: fieldsFor23 }
         }
     }
     Component { id: fieldsFor20
@@ -616,18 +613,21 @@ Item {
                     Text { text:qsTr("delete"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.index:null; location:root.fieldLocation("DeleteOfListIndex"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     Text { text:qsTr("of"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: fieldsFor23 }
         }
     }
     Component { id: fieldsFor21
         Row {
             spacing: 7
                     Text { text:qsTr("delete all of"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: fieldsFor23 }
         }
     }
     Component { id: fieldsFor22
         Row {
             spacing: 7
                     Text { text:qsTr("shift"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: fieldsFor23 }
                     Text { text:qsTr("by"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.amount:null; location:root.fieldLocation("ShiftListAmount"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }
