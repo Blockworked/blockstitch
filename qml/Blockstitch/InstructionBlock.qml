@@ -793,8 +793,8 @@ Item {
                 Repeater { model:root.type==="BlockHeader"?root.headerPieces():[];delegate:Item {
                     required property var modelData;width:modelData.kind==="Label"?headerText.implicitWidth:headerParam.implicitWidth;height:30
                     Text{id:headerText;visible:modelData.kind==="Label";text:modelData.text||"";color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;anchors.centerIn:parent}
-                    PaletteValue{id:headerParam;visible:modelData.kind==="Input";anchors.centerIn:parent;editable:false;valueData:({kind:"Param",name:modelData.name||""});forceBoolean:modelData.value_type==="Bool";blockDefinitions:root.blockDefinitions
-                        spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,originBlockId:root.instruction?root.instruction.block_id:null})
+                    PaletteValue{id:headerParam;visible:modelData.kind==="Input";anchors.centerIn:parent;editable:false;valueData:({kind:"Param",name:modelData.name||""});forceBoolean:modelData.value_type==="Bool";referenceColor:root.customColor;blockDefinitions:root.blockDefinitions
+                        spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,color:root.customColor,originBlockId:root.instruction?root.instruction.block_id:null})
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.paletteDragStarted(sp,sx,sy,ox,oy);onDragMoved:(sx,sy)=>root.paletteDragMoved(sx,sy);onDragEnded:(sx,sy)=>root.paletteDragEnded(sx,sy);onDragCanceled:root.paletteDragCanceled()}
                 }}
                 Text { visible:root.type==="RunBranch"; text:qsTr("run branch %1").arg(instruction?instruction.name:""); color:Theme.text; font.pixelSize:12; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
@@ -922,6 +922,8 @@ Item {
                 ValueChip {
                     valueData: root.instruction ? (root.slotValue(piece.modelData) || (piece.modelData.bool ? { kind: "Bool" } : { kind: "Number", value: 0 })) : null
                     location: root.paletteMode ? null : root.fieldLocation(piece.modelData.field)
+                    pickAction: piece.modelData.pickAction || ""
+                    pickOnClick: !piece.modelData.expression || !root.instruction || !root.instruction[piece.modelData.expression]
                     boxed: !!piece.modelData.bool; forceBoolean: !!piece.modelData.bool && (!valueData || valueData.kind === "Bool")
                     pick: piece.modelData.pick || null
                     blockDefinitions: root.blockDefinitions

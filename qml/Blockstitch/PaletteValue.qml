@@ -6,6 +6,7 @@ Item {
     property var valueData
     property var spec: ({})
     property bool editable: true
+    property color referenceColor: Theme.accent
     property bool forceBoolean: false
     property string callLabel: qsTr("custom block")
     property var blockDefinitions: []
@@ -36,6 +37,7 @@ Item {
     ValueChip {
         id: chip
         valueData: root.valueData; editable: root.editable; boxed: true
+        referenceColor: root.referenceColor
         forceBoolean: root.forceBoolean; callDisplayLabel: root.callLabel
         blockDefinitions: root.blockDefinitions; paletteMode: true
         onDetailsRequested: kind => root.detailsRequested(kind)

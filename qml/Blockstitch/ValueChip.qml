@@ -24,10 +24,23 @@ Item {
     // BlockRegistry.requestPick(action, location, value, chip). Reporters
     // still drop onto the slot as usual.
     property var pick: null
+    // A name slot the host fills from its own list: while `pickOnClick`, a
+    // click on the Text/Number leaf calls BlockRegistry.requestPick(pickAction,
+    // location, value, chip) instead of editing it; otherwise it stays typeable.
+    property string pickAction: ""
+    property bool pickOnClick: true
+    readonly property var activePick: pick ? pick : (pickAction !== "" && pickOnClick ? { action: pickAction, icon: "chevron-down" } : null)
     readonly property string pickLabel: {
-        if (!pick || !valueData || valueData.value === undefined) return "";
+        if (!activePick || !valueData || valueData.value === undefined) return "";
         const text = String(valueData.value);
-        return pick.display ? pick.display(text) : text;
+        return activePick.display ? activePick.display(text) : text;
+    }
+    // The custom block a floating value was dragged out of, for its colour.
+    property string originBlockId: ""
+    // Colour of Param/Var names and the hover outline; nested chips inherit it.
+    property color referenceColor: {
+        const def = originBlockId !== "" ? defFor(originBlockId) : null;
+        return def && def.color ? def.color : Theme.accent;
     }
     function keyPartLabel(k) {
         const named = {
@@ -100,7 +113,7 @@ Item {
         return out;
     }
     readonly property bool hasBranches: callBranches.length > 0
-    readonly property color refColor: callDef && callDef.color ? callDef.color : Theme.accent
+    readonly property color refColor: callDef && callDef.color ? callDef.color : referenceColor
     readonly property color quietRefColor: Qt.rgba(
         refColor.r * .3 + Theme.border.r * .7,
         refColor.g * .3 + Theme.border.g * .7,
@@ -160,6 +173,7 @@ Item {
         item.editable = Qt.binding(() => root.editable);
         item.boxed = !!data && ["Op", "Var", "Param", "Call"].indexOf(data.kind) >= 0;
         item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
+        item.referenceColor = Qt.binding(() => root.referenceColor);
         item.dropHighlighted = root.dropHighlighted;
         item.editRequested.connect((where, text) => root.editRequested(where, text));
         item.leafEdited.connect((path, leaf) => root.leafEdited([index].concat(path), leaf));
@@ -192,7 +206,7 @@ Item {
         Shape {
             id: chipShape
             preferredRendererType: Shape.CurveRenderer
-            readonly property color edge: (root.hovered || root.dropHighlighted) ? (root.customCall ? root.refColor : Theme.accent) : (root.customCall ? root.quietRefColor : Theme.border)
+            readonly property color edge: (root.hovered || root.dropHighlighted) ? root.refColor : (root.customCall ? root.quietRefColor : Theme.border)
             readonly property string outline: {
                 const w = width, h = height;
                 if (w <= 0 || h <= 0) return "";
@@ -343,7 +357,7 @@ Item {
             // Explicit, or the Loader keeps the width of a leaf it no longer shows.
             width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
             anchors.verticalCenter: parent.verticalCenter
-            sourceComponent: root.keyMode ? keycapLeaf : root.pick ? pickLeaf : textLeaf
+            sourceComponent: root.keyMode ? keycapLeaf : root.activePick ? pickLeaf : textLeaf
         }
         Component {
             id: keycapLeaf
@@ -398,15 +412,15 @@ Item {
                     id: pickRow
                     anchors.centerIn: parent; spacing: 6
                     LucideIcon {
-                        visible: !!root.pick.icon
-                        name: root.pick.icon || ""; width: 13; height: 13; color: Theme.textDim
+                        visible: !!root.activePick.icon
+                        name: root.activePick.icon || ""; width: 13; height: 13; color: Theme.textDim
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text { text: root.pickLabel; color: Theme.text; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
                 }
                 HoverHandler { id: pickHover; enabled: pickChip.live; cursorShape: Qt.PointingHandCursor }
-                TapHandler { enabled: pickChip.live; onTapped: BlockRegistry.requestPick(root.pick.action || "", root.location, root.valueData, pickChip) }
-                ToolTip.visible: pickHover.hovered && !!root.pick.tip; ToolTip.delay: 500; ToolTip.text: root.pick.tip || ""
+                TapHandler { enabled: pickChip.live; onTapped: BlockRegistry.requestPick(root.activePick.action || "", root.location, root.valueData, pickChip) }
+                ToolTip.visible: pickHover.hovered && !!root.activePick.tip; ToolTip.delay: 500; ToolTip.text: root.activePick.tip || ""
                 Accessible.role: Accessible.Button
                 Accessible.name: root.pickLabel
             }
@@ -429,7 +443,7 @@ Item {
                 }
             }
         }
-        Text { visible: !!root.valueData && ["Var","Param"].indexOf(root.valueData.kind)>=0; text: root.valueData && root.valueData.name ? root.valueData.name : ""; color: Theme.accent; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+        Text { visible: !!root.valueData && ["Var","Param"].indexOf(root.valueData.kind)>=0; text: root.valueData && root.valueData.name ? root.valueData.name : ""; color: root.referenceColor; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
         Text { visible: !!root.valueData && root.valueData.kind === "Call" && !root.callDef; text: root.callDisplayLabel; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
         Repeater {
             model: root.callPieces
