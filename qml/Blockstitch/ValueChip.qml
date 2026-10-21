@@ -19,6 +19,16 @@ Item {
     property bool keyMode: false
     property bool keyCapturing: false
     signal keyCaptureRequested()
+    // Renders a Text/Number leaf as a button that opens the host's picker:
+    // {action, icon, display: function(text) -> label, tip}. A click calls
+    // BlockRegistry.requestPick(action, location, value, chip). Reporters
+    // still drop onto the slot as usual.
+    property var pick: null
+    readonly property string pickLabel: {
+        if (!pick || !valueData || valueData.value === undefined) return "";
+        const text = String(valueData.value);
+        return pick.display ? pick.display(text) : text;
+    }
     function keyPartLabel(k) {
         const named = {
             Control: "Ctrl", LeftControl: "Ctrl", RightControl: "Ctrl", Shift: "Shift", LeftShift: "Shift", RightShift: "Shift", Meta: "Super", Escape: "Esc", Return: "Enter", Space: "Space", Delete: "Del", Insert: "Ins",
@@ -333,7 +343,7 @@ Item {
             // Explicit, or the Loader keeps the width of a leaf it no longer shows.
             width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
             anchors.verticalCenter: parent.verticalCenter
-            sourceComponent: root.keyMode ? keycapLeaf : textLeaf
+            sourceComponent: root.keyMode ? keycapLeaf : root.pick ? pickLeaf : textLeaf
         }
         Component {
             id: keycapLeaf
@@ -370,6 +380,35 @@ Item {
                 HoverHandler { id: capHover; enabled: root.editable; cursorShape: Qt.PointingHandCursor }
                 TapHandler { enabled: root.editable; onTapped: root.keyCaptureRequested() }
                 ToolTip.visible: capHover.hovered && !root.keyCapturing; ToolTip.delay: 500; ToolTip.text: qsTr("Click to set key, or drop a variable here")
+            }
+        }
+        Component {
+            id: pickLeaf
+            Rectangle {
+                id: pickChip
+                readonly property bool live: root.editable && !!root.location && !root.paletteMode
+                implicitHeight: 27
+                implicitWidth: Math.max(36, pickRow.implicitWidth + 18)
+                radius: 5
+                color: pickHover.hovered && live ? "#3b3c40" : (root.flatLeaf ? "transparent" : Theme.field)
+                border.color: root.flatLeaf ? "transparent" : (pickHover.hovered && live ? Theme.accent : Theme.border)
+                Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
+                Behavior on border.color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
+                Row {
+                    id: pickRow
+                    anchors.centerIn: parent; spacing: 6
+                    LucideIcon {
+                        visible: !!root.pick.icon
+                        name: root.pick.icon || ""; width: 13; height: 13; color: Theme.textDim
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text { text: root.pickLabel; color: Theme.text; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                }
+                HoverHandler { id: pickHover; enabled: pickChip.live; cursorShape: Qt.PointingHandCursor }
+                TapHandler { enabled: pickChip.live; onTapped: BlockRegistry.requestPick(root.pick.action || "", root.location, root.valueData, pickChip) }
+                ToolTip.visible: pickHover.hovered && !!root.pick.tip; ToolTip.delay: 500; ToolTip.text: root.pick.tip || ""
+                Accessible.role: Accessible.Button
+                Accessible.name: root.pickLabel
             }
         }
         Component {

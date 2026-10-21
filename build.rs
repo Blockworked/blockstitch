@@ -21,6 +21,7 @@ fn main() {
                 "qml/Blockstitch/BwDialog.qml",
                 "qml/Blockstitch/BwSwitch.qml",
                 "qml/Blockstitch/BwSlider.qml",
+                "qml/Blockstitch/BwTimePicker.qml",
                 "qml/Blockstitch/SmoothScroll.qml",
                 "qml/Blockstitch/ValueChip.qml",
                 "qml/Blockstitch/InstructionBlock.qml",

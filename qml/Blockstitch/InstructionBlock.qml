@@ -291,7 +291,7 @@ Item {
         n[piece.key] = list;
         instructionEdited(strandId, path, n);
     }
-    function setPiece(piece, chosen) { setPieceField(piece, piece.encode ? piece.encode(chosen) : chosen); }
+    function setPiece(piece, chosen) { setPieceField(piece, piece.encode ? piece.encode(chosen, instruction) : chosen); }
     function defFor(id) { for(let i=0;i<(blockDefinitions||[]).length;i++) if(blockDefinitions[i].id===id) return blockDefinitions[i]; return null; }
     function callLabel() { const d=instruction?defFor(instruction.block_id):null; if(!d) return qsTr("custom block"); return (d.pieces||[]).filter(p=>p.kind!=="Branch").map(p=>p.kind==="Label"?p.text:("("+p.name+")")).join(" "); }
     function callHeadPieces(){
@@ -923,6 +923,7 @@ Item {
                     valueData: root.instruction ? (root.slotValue(piece.modelData) || (piece.modelData.bool ? { kind: "Bool" } : { kind: "Number", value: 0 })) : null
                     location: root.paletteMode ? null : root.fieldLocation(piece.modelData.field)
                     boxed: !!piece.modelData.bool; forceBoolean: !!piece.modelData.bool && (!valueData || valueData.kind === "Bool")
+                    pick: piece.modelData.pick || null
                     blockDefinitions: root.blockDefinitions
                     onEditRequested: (l, t) => root.valueEdited(l, t)
                     onLeafEdited: (p, leaf) => root.setLeaf(piece.modelData.key, p, leaf, piece.modelData.index)

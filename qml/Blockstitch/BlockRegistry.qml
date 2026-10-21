@@ -47,11 +47,13 @@ QtObject {
     property var preview: null   // {key, text, error}
     property int previewSerial: 0
     function requestPreview(key, value) { if (previewHandler) previewHandler(key, value); }
-    // A button beside an operator's `pickArg` slot calls
-    // `pickHandler(action, location, value)`, `location` being that slot's,
-    // so the host can open its own picker and edit the slot with the result.
+    // A button beside an operator's `pickArg` slot, or a value piece's
+    // `pick` leaf, calls `pickHandler(action, location, value, anchor)`,
+    // `location` being that slot's and `anchor` the item clicked (when there
+    // is one), so the host can open its own picker beside it and edit the
+    // slot with the result.
     property var pickHandler: null
-    function requestPick(action, location, value) { if (pickHandler) pickHandler(action, location, value); }
+    function requestPick(action, location, value, anchor) { if (pickHandler) pickHandler(action, location, value, anchor || null); }
     function deliverPreview(key, text, isError) {
         preview = { key: key, text: text, error: !!isError };
         previewTimer.restart();
@@ -63,11 +65,13 @@ QtObject {
     // `head` may be a function(instruction) -> [piece] for a type whose row
     // depends on the instruction. Return the same piece objects each time:
     // a changed array rebuilds the row's controls.
-    // piece: {kind:"label",text} | {kind:"value",field,key,index,bool}
+    // piece: {kind:"label",text} | {kind:"value",field,key,index,bool,pick}
     //      | {kind:"dropdown",key,index,options,placeholder,encode,decode}
     //      | {kind:"text",key,index,placeholder}
     // A piece's `index`, when set, picks one entry of the array held under
-    // `key`; without it `key` holds the value itself.
+    // `key`; without it `key` holds the value itself. A value piece's `pick`
+    // shows typed text as a picker button (see ValueChip.pick). A dropdown's
+    // `encode(chosen, instruction)` turns the choice into what's stored.
     // Any piece may carry `when: function(instruction) -> bool`.
     // `options` is an array of {value,label}, a function(instruction), or
     // "lists"/"dicts" for the document's names.
