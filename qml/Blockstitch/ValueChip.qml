@@ -112,6 +112,7 @@ Item {
     function infixAt(index) { return opInfixes ? (opInfixes[index - 1] || "") : opInfix; }
     readonly property string opSuffix: opSpec && opSpec.suffix ? opSpec.suffix : ""
     readonly property int enumIndex: opSpec && opSpec.enumArg ? opSpec.enumArg.index : -1
+    readonly property int pickIndex: opSpec && opSpec.pickArg ? opSpec.pickArg.index : -1
     // An operator's own layout, for one whose words depend on the value (a
     // host's generic operator): [{label, arg: -1}|{arg, bool}], or null for the plain
     // prefix / infix / suffix form. The array is cached by the host so the
@@ -308,6 +309,22 @@ Item {
                     source: "ValueChip.qml"; width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
                     anchors.verticalCenter: parent.verticalCenter
                     onLoaded: root.wireNested(item, argRow.index, argRow.modelData)
+                }
+                // The host's picker for this slot, while it holds typed text.
+                Rectangle {
+                    id: pickButton
+                    visible: argRow.index === root.pickIndex && !!argRow.modelData && argRow.modelData.kind === "Text"
+                    width: visible ? 27 : 0; height: 27; radius: 5
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: pickMouse.containsMouse && pickMouse.enabled ? Theme.panelRaised : Theme.field
+                    border.color: pickMouse.containsMouse && pickMouse.enabled ? Theme.accent : Theme.border
+                    LucideIcon { anchors.centerIn: parent; name: root.opSpec && root.opSpec.pickArg && root.opSpec.pickArg.icon ? root.opSpec.pickArg.icon : "list"; width: 14; height: 14; color: Theme.textDim }
+                    MouseArea {
+                        id: pickMouse
+                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        enabled: root.editable && !!root.location && !root.paletteMode
+                        onClicked: BlockRegistry.requestPick(root.opSpec.pickArg.action || "", root.childLocation(argRow.index), argRow.modelData)
+                    }
                 }
             }
         }

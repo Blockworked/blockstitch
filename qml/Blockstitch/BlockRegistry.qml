@@ -47,6 +47,11 @@ QtObject {
     property var preview: null   // {key, text, error}
     property int previewSerial: 0
     function requestPreview(key, value) { if (previewHandler) previewHandler(key, value); }
+    // A button beside an operator's `pickArg` slot calls
+    // `pickHandler(action, location, value)`, `location` being that slot's,
+    // so the host can open its own picker and edit the slot with the result.
+    property var pickHandler: null
+    function requestPick(action, location, value) { if (pickHandler) pickHandler(action, location, value); }
     function deliverPreview(key, text, isError) {
         preview = { key: key, text: text, error: !!isError };
         previewTimer.restart();
@@ -67,7 +72,8 @@ QtObject {
     // `options` is an array of {value,label}, a function(instruction), or
     // "lists"/"dicts" for the document's names.
     property var rows: ({})
-    // op -> { prefix, infix (one label, or a list: one per gap), suffix, result, enumArg: {index, options|source}, oneBased: [index] }
+    // op -> { prefix, infix (one label, or a list: one per gap), suffix, result, enumArg: {index, options|source}, oneBased: [index],
+    //        pickArg: {index, action, icon} (a button after that arg's text field, see pickHandler) }
     // An operator may instead give `layout`: [piece] or function(value) -> [piece],
     // piece {label, arg: -1} | {arg, bool}, `arg` indexing the value's args. Args no
     // piece names are not drawn (a host's generic operator keeps its

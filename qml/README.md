@@ -34,7 +34,11 @@ bodies) decide a block's outline; the comments in `BlockRegistry.qml` list
 every piece kind. `blockMenu`/`canvasMenu` add app-specific context menu
 items, which come back through `blockMenuAction`/`canvasMenuAction`. An
 operator's `enumArg` may give its choices as an array, a function, or
-`"lists"`/`"dicts"` for the collection names the canvas was given.
+`"lists"`/`"dicts"` for the collection names the canvas was given. Its
+`pickArg: {index, action, icon}` puts a button after that arg while it holds
+text; a click calls `BlockRegistry.pickHandler(action, location, value)` with
+the slot's location, so the host can open a picker and write the choice back
+like a typed edit.
 
 A row whose pieces depend on the instruction (one generic type that many
 app-defined blocks share) gives `head` as a function of the instruction, and
