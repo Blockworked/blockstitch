@@ -35,11 +35,17 @@ Item {
         const text = String(valueData.value);
         return activePick.display ? activePick.display(text) : text;
     }
-    // The custom block a floating value was dragged out of, for its colour.
-    property string originBlockId: ""
-    // Colour of Param/Var names and the hover outline; nested chips inherit it.
+    // Resolve parameter scope from the canvas unless a drag preview supplies it.
+    property string originBlockId: {
+        if (!location) return "";
+        for (let owner = parent; owner; owner = owner.parent)
+            if (typeof owner.parameterOrigin === "function") return owner.parameterOrigin(location);
+        return "";
+    }
+    property bool dragPreview: false
+    // Parameters use their definition colour; ordinary variables keep the accent.
     property color referenceColor: {
-        const def = originBlockId !== "" ? defFor(originBlockId) : null;
+        const def = valueData && valueData.kind === "Param" && originBlockId !== "" ? defFor(originBlockId) : null;
         return def && def.color ? def.color : Theme.accent;
     }
     function keyPartLabel(k) {
@@ -173,7 +179,7 @@ Item {
         item.editable = Qt.binding(() => root.editable);
         item.boxed = !!data && ["Op", "Var", "Param", "Call"].indexOf(data.kind) >= 0;
         item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
-        item.referenceColor = Qt.binding(() => root.referenceColor);
+        item.originBlockId = Qt.binding(() => root.originBlockId);
         item.dropHighlighted = root.dropHighlighted;
         item.editRequested.connect((where, text) => root.editRequested(where, text));
         item.leafEdited.connect((path, leaf) => root.leafEdited([index].concat(path), leaf));
@@ -206,7 +212,7 @@ Item {
         Shape {
             id: chipShape
             preferredRendererType: Shape.CurveRenderer
-            readonly property color edge: (root.hovered || root.dropHighlighted) ? root.refColor : (root.customCall ? root.quietRefColor : Theme.border)
+            readonly property color edge: (root.hovered || root.dragPreview || root.dropHighlighted) ? root.refColor : (root.customCall ? root.quietRefColor : Theme.border)
             readonly property string outline: {
                 const w = width, h = height;
                 if (w <= 0 || h <= 0) return "";
@@ -229,7 +235,7 @@ Item {
             }
             ShapePath {
                 strokeColor: chipShape.edge
-                strokeWidth: root.dropHighlighted ? 2.4 : (root.hovered ? 1.6 : 1)
+                strokeWidth: root.dropHighlighted ? 2.4 : ((root.hovered || root.dragPreview) ? 1.6 : 1)
                 joinStyle: ShapePath.RoundJoin
                 fillColor: "#2e2f32"
                 PathSvg { path: chipShape.outline }

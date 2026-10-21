@@ -58,7 +58,7 @@ Rectangle {
     signal detailsRequested(string type)
     signal valueTakeRequested(var location)
     signal valuePutRequested(var location, var value)
-    signal valueCreateRequested(int x, int y, var value)
+    signal valueCreateRequested(int x, int y, var value, string originBlockId)
     signal valueDragOutside(var location, var value, real sceneX, real sceneY)
     color:Theme.canvas; clip:true
     // Reporter name dropdowns offer whatever this document declares.
@@ -374,6 +374,7 @@ Rectangle {
     readonly property bool dragIsValue: valueDrag.active
     readonly property real dragGhostX: dragSession.active ? dragSession.sceneX - (dragSession.startX - dragSession.originX) * zoom : valueDrag.sceneX - (valueDrag.startX - valueDrag.originX) * zoom
     readonly property real dragGhostY: dragSession.active ? dragSession.sceneY - (dragSession.startY - dragSession.originY) * zoom : valueDrag.sceneY - (valueDrag.startY - valueDrag.originY) * zoom
+    readonly property string dragValueOrigin: valueDrag.sourceOrigin
     readonly property var dragValue: valueDrag.sourceValue
     readonly property var dragInstructions: {
         if (!dragSession.active) return [];
@@ -394,6 +395,7 @@ Rectangle {
         property bool active: false
         property var sourceLocation: null
         property var sourceValue: null
+        property string sourceOrigin: ""
         property real startX: 0
         property real startY: 0
         property real originX: 0
@@ -959,12 +961,24 @@ Rectangle {
         if (item && item.dropHighlighted !== undefined) item.dropHighlighted = true;
     }
     function setPaletteValueTarget(loc) { paletteValueTarget = loc ? JSON.parse(JSON.stringify(loc)) : null; }
+    // Fields use the definition heading their strand, including nested expressions.
+    function parameterOrigin(location) {
+        if (!location) return "";
+        if (location.kind === "Floating") {
+            const floating = (root.floatingValues || []).find(v => v.id === location.floating_id);
+            return floating ? floating.origin_block_id || "" : "";
+        }
+        const strand = strandById(location.strand_id);
+        const header = strand && (strand.instructions || [])[0];
+        return header && header.type === "BlockHeader" ? header.block_id : "";
+    }
     function beginValueDrag(location, value, sx, sy, ox, oy, w, h) {
         if (root.locked) return;
         cancelDrag();
         const p = workspace.mapFromItem(null, sx, sy);
         valueDrag.sourceLocation = JSON.parse(JSON.stringify(location));
         valueDrag.sourceValue = JSON.parse(JSON.stringify(value));
+        valueDrag.sourceOrigin = parameterOrigin(location);
         valueDrag.startX = p.x; valueDrag.startY = p.y;
         valueDrag.originX = p.x - ox; valueDrag.originY = p.y - oy;
         valueDrag.dx = 0; valueDrag.dy = 0;
@@ -1029,7 +1043,7 @@ Rectangle {
         const fx = Math.round(at.x - valueDrag.draggedWidth / 2);
         const fy = Math.round(at.y - valueDrag.draggedHeight / 2);
         root.valueTakeRequested(source);
-        root.valueCreateRequested(fx, fy, value);
+        root.valueCreateRequested(fx, fy, value, valueDrag.sourceOrigin);
     }
     function cancelValueDrag() { valueDrag.active = false; clearValueTarget(); }
     Timer { id: settleTimer; interval: 1500; onTriggered: root.endSettle() }
@@ -1378,6 +1392,7 @@ Rectangle {
                 ValueChip {
                     anchors.fill: parent
                     valueData: valueDrag.sourceValue; boxed: true; editable: false
+                    originBlockId: valueDrag.sourceOrigin; dragPreview: true
                     blockDefinitions: root.blockDefinitions
                 }
             }
