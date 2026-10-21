@@ -1,6 +1,7 @@
 //! Custom blocks ("My Blocks"): the prototype a user defines, and the
 //! pieces it's built from.
 
+use crate::value::{Evaluated, Value};
 use serde::{Deserialize, Serialize};
 
 /// What kind of value an input slot expects. Drives the blank a fresh call
@@ -29,6 +30,9 @@ pub enum BlockPiece {
         name: String,
         #[serde(default)]
         value_type: InputValueType,
+        /// Literal used for new calls. Expressions are deliberately not accepted.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        default_value: Option<Evaluated>,
     },
     Branch {
         id: String,
@@ -37,6 +41,26 @@ pub enum BlockPiece {
 }
 
 impl BlockPiece {
+    /// Fresh argument for an input; older definitions keep their typed blank.
+    pub fn input_default(&self) -> Option<Value> {
+        match self {
+            Self::Input {
+                value_type,
+                default_value,
+                ..
+            } => Some(
+                default_value
+                    .clone()
+                    .map(Evaluated::into_value)
+                    .unwrap_or_else(|| match value_type {
+                        InputValueType::Any => Value::number(0.0),
+                        InputValueType::Bool => Value::Bool,
+                    }),
+            ),
+            _ => None,
+        }
+    }
+
     pub fn id(&self) -> &str {
         match self {
             BlockPiece::Label { id, .. }
@@ -164,6 +188,11 @@ impl BlockDef {
         })
     }
 
+    /// Fresh arguments in prototype order, excluding labels and branches.
+    pub fn input_defaults(&self) -> impl Iterator<Item = Value> + '_ {
+        self.pieces.iter().filter_map(BlockPiece::input_default)
+    }
+
     /// Declared branch names, in prototype order - the positional key a call
     /// site's branch bodies line up against, and what the host's
     /// branch-execution block looks up at runtime.
@@ -183,11 +212,35 @@ impl BlockDef {
         })
     }
 
+    /// Checks only new default metadata, preserving legacy pack compatibility.
+    pub fn validate_input_defaults(pieces: &[BlockPiece]) -> Result<(), String> {
+        for piece in pieces {
+            if let BlockPiece::Input {
+                name,
+                value_type,
+                default_value: Some(default),
+                ..
+            } = piece
+            {
+                if matches!(value_type, InputValueType::Bool)
+                    != matches!(default, Evaluated::Bool(_))
+                {
+                    return Err(format!("Input \"{name}\" has a default of the wrong type"));
+                }
+                if matches!(default, Evaluated::Number(n) if !n.is_finite()) {
+                    return Err(format!("Input \"{name}\" needs a finite default"));
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Validates a candidate `pieces` list: the trimmed labels must spell
     /// out a name, every input needs a non-empty, unique one, and branch
     /// callbacks share that same name pool (a branch runs in the body's
     /// scope, so its name must not collide with an input's).
     pub fn validate_pieces(pieces: &[BlockPiece]) -> Result<(), String> {
+        Self::validate_input_defaults(pieces)?;
         let flat_label: String = pieces
             .iter()
             .filter_map(|p| match p {
@@ -240,6 +293,44 @@ mod tests {
     use super::*;
 
     #[test]
+    fn input_defaults_are_literals_with_legacy_fallbacks() {
+        let mut pieces: Vec<BlockPiece> = serde_json::from_value(serde_json::json!([
+            {"kind":"Label","id":"l","text":"example"},
+            {"kind":"Input","id":"text","name":"text","default_value":{"kind":"Text","value":""}},
+            {"kind":"Input","id":"number","name":"count","default_value":{"kind":"Number","value":1}},
+            {"kind":"Input","id":"bool","name":"enabled","value_type":"Bool","default_value":{"kind":"Bool","value":true}},
+            {"kind":"Input","id":"legacy","name":"legacy"},
+            {"kind":"Input","id":"legacy-bool","name":"legacy bool","value_type":"Bool"}
+        ])).unwrap();
+        BlockDef::validate_pieces(&pieces).unwrap();
+        let defaults: Vec<Value> = pieces
+            .iter()
+            .filter_map(BlockPiece::input_default)
+            .collect();
+        assert_eq!(defaults[0], Value::text(""));
+        assert_eq!(defaults[1], Value::number(1.0));
+        assert_eq!(defaults[2].eval(), Ok(Evaluated::Bool(true)));
+        assert_eq!(defaults[3], Value::number(0.0));
+        assert_eq!(defaults[4], Value::Bool);
+        let json = serde_json::to_string(&pieces).unwrap();
+        assert_eq!(
+            serde_json::from_str::<Vec<BlockPiece>>(&json).unwrap(),
+            pieces
+        );
+        assert!(
+            serde_json::from_value::<BlockPiece>(serde_json::json!({
+                "kind":"Input","id":"bad","name":"bad",
+                "default_value":{"kind":"Op","op":"ShellOutput","args":[]}
+            }))
+            .is_err()
+        );
+        if let BlockPiece::Input { default_value, .. } = &mut pieces[3] {
+            *default_value = Some(Evaluated::Number(1.0));
+        }
+        assert!(BlockDef::validate_pieces(&pieces).is_err());
+    }
+
+    #[test]
     fn legacy_returns_value_bool_migrates_to_a_shape() {
         assert_eq!(
             serde_json::from_str::<BlockShape>("true").unwrap(),
@@ -272,6 +363,7 @@ mod tests {
             id: id.to_string(),
             name: name.to_string(),
             value_type: InputValueType::Any,
+            default_value: None,
         };
         assert!(BlockDef::validate_pieces(&[label("jump")]).is_ok());
         assert!(BlockDef::validate_pieces(&[label("  ")]).is_err());
@@ -328,6 +420,7 @@ mod tests {
                     id: "i".to_string(),
                     name: "x".to_string(),
                     value_type: InputValueType::Any,
+                    default_value: None,
                 },
             ])
             .is_err()

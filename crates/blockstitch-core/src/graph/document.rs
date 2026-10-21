@@ -453,7 +453,7 @@ impl<K: BlockKind> BlockGraph<K> {
 
     /// Rebuilds every call site's `args` for `new_pieces`, carrying values
     /// over by [`BlockPiece::id`] so a rename keeps them; new inputs get the
-    /// blank their type asks for. Call before overwriting the pieces.
+    /// declared default or typed blank. Call before overwriting the pieces.
     pub fn reconcile_block_call_args(
         &mut self,
         block_id: &str,
@@ -465,26 +465,25 @@ impl<K: BlockKind> BlockGraph<K> {
             .filter(|p| matches!(p, BlockPiece::Input { .. }))
             .map(BlockPiece::id)
             .collect();
-        let new_inputs: Vec<(&str, InputValueType)> = new_pieces
+        let mapping: Vec<(Option<usize>, Value)> = new_pieces
             .iter()
-            .filter_map(|p| match p {
-                BlockPiece::Input { id, value_type, .. } => Some((id.as_str(), *value_type)),
-                BlockPiece::Label { .. } | BlockPiece::Branch { .. } => None,
+            .filter_map(|piece| {
+                piece.input_default().map(|value| {
+                    (
+                        old_input_ids.iter().position(|old| *old == piece.id()),
+                        value,
+                    )
+                })
             })
-            .collect();
-        // For each new input slot, which old slot (if any) it carries over from.
-        let mapping: Vec<(Option<usize>, InputValueType)> = new_inputs
-            .iter()
-            .map(|(id, value_type)| (old_input_ids.iter().position(|old| old == id), *value_type))
             .collect();
 
         let mut rebuild = |args: &mut Vec<Value>| {
             *args = mapping
                 .iter()
-                .map(|(old_idx, value_type)| {
+                .map(|(old_idx, default_value)| {
                     old_idx
                         .and_then(|i| args.get(i).cloned())
-                        .unwrap_or_else(|| blank_for(*value_type))
+                        .unwrap_or_else(|| default_value.clone())
                 })
                 .collect();
         };
@@ -579,13 +578,5 @@ impl<K: BlockKind> BlockGraph<K> {
             def.color = crate::graph::normalize_block_color(&def.color)
                 .unwrap_or_else(crate::graph::default_block_color);
         }
-    }
-}
-
-/// The blank a slot of this declared type restores to.
-pub(crate) fn blank_for(value_type: InputValueType) -> Value {
-    match value_type {
-        InputValueType::Any => Value::number(0.0),
-        InputValueType::Bool => Value::Bool,
     }
 }

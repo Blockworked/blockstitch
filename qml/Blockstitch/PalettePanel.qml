@@ -126,8 +126,20 @@ Rectangle {
         return packs.sort((a,b) => a.name.localeCompare(b.name));
     }
 
+    function customArguments(definition){
+        return (definition.pieces||[]).filter(p=>p.kind==="Input").map(p=>{
+            const value=p.default_value;
+            if(value && p.value_type==="Bool" && value.kind==="Bool" && typeof value.value==="boolean")
+                return {kind:"Op",op:value.value?"True":"False",args:[],saved:n(0)};
+            if(value && p.value_type!=="Bool" &&
+                    ((value.kind==="Number" && typeof value.value==="number" && isFinite(value.value)) ||
+                     (value.kind==="Text" && typeof value.value==="string")))
+                return JSON.parse(JSON.stringify(value));
+            return p.value_type==="Bool"?{kind:"Bool"}:n(0);
+        });
+    }
     function customInstruction(definition){
-        const args=(definition.pieces||[]).filter(p=>p.kind==="Input").map(p=>p.value_type==="Bool"?{kind:"Bool"}:n(0));
+        const args=customArguments(definition);
         const count=(definition.pieces||[]).filter(p=>p.kind==="Branch").length;
         const i={id:"palette-call",type:count?"BranchCallBlock":"CallBlock",block_id:definition.id,args:args};
         if(count)i.branches=Array.from({length:count},()=>[]);
@@ -144,7 +156,7 @@ Rectangle {
     }
     function isReporter(definition){return definition.shape==="ReturnsValue"||definition.shape==="ReturnsBool";}
     function customValue(definition){
-        const args=(definition.pieces||[]).filter(p=>p.kind==="Input").map(p=>p.value_type==="Bool"?{kind:"Bool"}:n(0));
+        const args=customArguments(definition);
         return {kind:"Call",block_id:definition.id,args:args,branches:[],saved:n(0)};
     }
     function customLabel(definition){return (definition.pieces||[]).filter(p=>p.kind!=="Branch").map(p=>p.kind==="Label"?p.text:"("+p.name+")").join(" ");}
