@@ -197,43 +197,61 @@ Rectangle {
     property bool _centered: false
     // Zooming keeps one workspace point (the anchor) under one viewport point,
     // also on every frame of a glide, so the view never drifts while it scales.
+    // A glide can also carry the anchor to another viewport point (resetView).
     property real _zoomAnchorX: 0
     property real _zoomAnchorY: 0
+    property real _zoomFromViewX: 0
+    property real _zoomFromViewY: 0
     property real _zoomViewX: 0
     property real _zoomViewY: 0
+    property real _zoomFrom: 1
     property real _zoomTarget: 1
-    property real _zoomGlideValue: 1
+    property real _zoomProgress: 1
     NumberAnimation {
-        id: zoomGlide; target: root; property: "_zoomGlideValue"; duration: Motion.scroll; easing.type: Easing.OutCubic
+        id: zoomGlide; target: root; property: "_zoomProgress"; from: 0; to: 1; duration: Motion.scroll; easing.type: Easing.OutCubic
     }
-    on_ZoomGlideValueChanged: if (zoomGlide.running) _applyZoom(_zoomGlideValue)
-    function _applyZoom(z) {
+    on_ZoomProgressChanged: if (zoomGlide.running) _applyZoom(_zoomProgress)
+    function _applyZoom(t) {
+        const z = root._zoomFrom + (root._zoomTarget - root._zoomFrom) * t;
+        const vx = root._zoomFromViewX + (root._zoomViewX - root._zoomFromViewX) * t;
+        const vy = root._zoomFromViewY + (root._zoomViewY - root._zoomFromViewY) * t;
         root.zoom = z;
-        flick.contentX = Math.max(0, Math.min(Math.max(0, flick.contentWidth - flick.width), root._zoomAnchorX * z - root._zoomViewX));
-        flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), root._zoomAnchorY * z - root._zoomViewY));
+        flick.contentX = Math.max(0, Math.min(Math.max(0, flick.contentWidth - flick.width), root._zoomAnchorX * z - vx));
+        flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), root._zoomAnchorY * z - vy));
+    }
+    // Zooms to newZoom while moving workspace point (ax, ay) to viewport
+    // point (vx, vy). With smooth, it glides there.
+    function _zoomTo(ax, ay, vx, vy, newZoom, smooth) {
+        zoomGlide.stop();
+        canvasScroll.stop();
+        root._zoomAnchorX = ax;
+        root._zoomAnchorY = ay;
+        root._zoomFromViewX = ax * root.zoom - flick.contentX;
+        root._zoomFromViewY = ay * root.zoom - flick.contentY;
+        root._zoomViewX = vx;
+        root._zoomViewY = vy;
+        root._zoomFrom = root.zoom;
+        root._zoomTarget = newZoom;
+        if (!smooth || !Motion.enabled) { _applyZoom(1); return; }
+        root._zoomProgress = 0;
+        zoomGlide.start();
     }
     // Zoom around a viewport point (vx, vy in Flickable viewport pixels) so
     // that point stays visually still. With smooth, the zoom glides there.
     function zoomAt(vx, vy, newZoom, smooth) {
         newZoom = Math.max(0.5, Math.min(1.8, newZoom));
         if (!isFinite(vx) || !isFinite(vy)) return;
-        zoomGlide.stop();
-        if (newZoom === root.zoom) return;
-        canvasScroll.stop();
-        root._zoomAnchorX = (flick.contentX + vx) / root.zoom;
-        root._zoomAnchorY = (flick.contentY + vy) / root.zoom;
-        root._zoomViewX = vx;
-        root._zoomViewY = vy;
-        root._zoomTarget = newZoom;
-        if (!smooth || !Motion.enabled) { _applyZoom(newZoom); return; }
-        zoomGlide.from = root.zoom;
-        zoomGlide.to = newZoom;
-        zoomGlide.start();
+        if (newZoom === (zoomGlide.running ? root._zoomTarget : root.zoom)) return;
+        _zoomTo((flick.contentX + vx) / root.zoom, (flick.contentY + vy) / root.zoom, vx, vy, newZoom, smooth);
     }
     // Scales the zoom by factor around a viewport point. Steps that land
     // mid-glide build on the glide's target, like wheel scrolling does.
     function zoomBy(vx, vy, factor, smooth) {
         zoomAt(vx, vy, (zoomGlide.running ? root._zoomTarget : root.zoom) * factor, smooth);
+    }
+    // Zoom around the middle of the view, by step (the zoom buttons).
+    function stepZoom(step) {
+        zoomAt(flick.width / 2, flick.height / 2, (zoomGlide.running ? root._zoomTarget : root.zoom) + step, true);
     }
     function setZoom(newZoom) { zoomAt(flick.width / 2, flick.height / 2, newZoom); }
     function centerOnOrigin() {
@@ -247,7 +265,10 @@ Rectangle {
         _centered = true;
         centerOnOrigin();
     }
-    function resetView() { root.zoom = 1; centerOnOrigin(); }
+    // Glides back to 100% with the workspace origin in the middle of the view.
+    function resetView() {
+        _zoomTo(root.worldW / 2, root.worldH / 2, flick.width / 2, flick.height / 2, 1, true);
+    }
     function findBlockItem(item, id) {
         const kids = item.children || [];
         for (let i = 0; i < kids.length; ++i) {
@@ -1330,8 +1351,8 @@ Rectangle {
     MouseArea { anchors.fill: parent; visible: root.dragging; acceptedButtons: Qt.NoButton; cursorShape: Qt.ClosedHandCursor }
     Column {
         anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:18;spacing:8
-        BwButton { iconName:"zoom-in";text:"";implicitWidth:40;implicitHeight:40;radius:20;onClicked:root.setZoom(root.zoom+.1) }
-        BwButton { iconName:"zoom-out";text:"";implicitWidth:40;implicitHeight:40;radius:20;onClicked:root.setZoom(root.zoom-.1) }
+        BwButton { iconName:"zoom-in";text:"";implicitWidth:40;implicitHeight:40;radius:20;onClicked:root.stepZoom(.1) }
+        BwButton { iconName:"zoom-out";text:"";implicitWidth:40;implicitHeight:40;radius:20;onClicked:root.stepZoom(-.1) }
         BwButton { iconName:"rotate-ccw";text:"";implicitWidth:40;implicitHeight:40;radius:20;onClicked:root.resetView() }
     }
 }
