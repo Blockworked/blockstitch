@@ -10,9 +10,14 @@ Popup {
     property int hour: 9
     property int minute: 0
     property string title: qsTr("Time")
+    // Shows hours 1-12 with AM/PM buttons. `picked` still gives 0-23.
+    property bool use12h: false
+    property string amText: Qt.locale().amText || "AM"
+    property string pmText: Qt.locale().pmText || "PM"
     signal picked(int hour, int minute)
 
     function pad(n) { return String(n).padStart(2, "0"); }
+    function hourLabel(h) { return use12h ? String(h % 12 || 12) : pad(h); }
     // Opens below `item` (above it when there's no room), with the time set.
     function openAt(item, h, m) {
         hour = Math.max(0, Math.min(23, h | 0)); minute = Math.max(0, Math.min(59, m | 0));
@@ -53,66 +58,83 @@ Popup {
         Keys.onReturnPressed: control.accept()
         Keys.onEnterPressed: control.accept()
 
-        // The time as it stands, each half with its own arrows.
+        // The time as it stands: each half with an arrow above and below it,
+        // and AM/PM beside them on a 12-hour clock.
         Row {
+            id: header
             anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 6
+            spacing: 10
             Repeater {
                 model: ["hour", "minute"]
                 delegate: Row {
                     id: part
                     required property string modelData
                     required property int index
-                    spacing: 6
-                    Text {
-                        visible: part.index > 0; text: ":"; color: Theme.textDim
-                        font.pixelSize: 30; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Rectangle {
-                        width: 64; height: 52; radius: 8
-                        color: Theme.field; border.color: partWheel.hovered ? Theme.accent : Theme.border
-                        Behavior on border.color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
-                        Text {
-                            anchors.centerIn: parent
-                            text: control.pad(part.modelData === "hour" ? control.hour : control.minute)
-                            color: Theme.text; font.pixelSize: 30; font.weight: Font.DemiBold
-                        }
-                        HoverHandler { id: partWheel }
-                        WheelHandler {
-                            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                            property real rest: 0
-                            onWheel: event => {
-                                rest += event.angleDelta.y / 120;
-                                const notches = rest > 0 ? Math.floor(rest) : Math.ceil(rest);
-                                if (notches !== 0) { control.step(part.modelData, notches); rest -= notches; }
+                    spacing: 10
+                    // Two dots drawn level with the middle of the boxes.
+                    Item {
+                        visible: part.index > 0
+                        width: 6; height: partColumn.height
+                        Repeater {
+                            model: [-9, 9]
+                            delegate: Rectangle {
+                                required property int modelData
+                                width: 6; height: 6; radius: 3; color: Theme.textDim
+                                x: 0; y: partColumn.height / 2 + modelData - 3
                             }
                         }
                     }
                     Column {
-                        anchors.verticalCenter: parent.verticalCenter
+                        id: partColumn
                         spacing: 4
-                        Repeater {
-                            model: [{ icon: "chevron-up", by: 1 }, { icon: "chevron-down", by: -1 }]
-                            delegate: Rectangle {
-                                required property var modelData
-                                width: 24; height: 24; radius: 5
-                                color: nudge.pressed ? Theme.field : nudge.containsMouse ? "#3b3c40" : "transparent"
-                                Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
-                                LucideIcon { anchors.centerIn: parent; name: modelData.icon; width: 15; height: 15; color: Theme.textDim }
-                                MouseArea {
-                                    id: nudge
-                                    anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                    onClicked: control.step(part.modelData, modelData.by)
-                                    // Held down, it keeps counting.
-                                    onPressAndHold: repeatTimer.start()
-                                    onReleased: repeatTimer.stop()
-                                    onCanceled: repeatTimer.stop()
-                                    Timer { id: repeatTimer; interval: 70; repeat: true; onTriggered: control.step(part.modelData, modelData.by) }
+                        Nudge { part: part.modelData; by: 1; icon: "chevron-up" }
+                        Rectangle {
+                            width: 64; height: 52; radius: 8
+                            color: Theme.field; border.color: partWheel.hovered ? Theme.accent : Theme.border
+                            Behavior on border.color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
+                            Text {
+                                anchors.centerIn: parent
+                                text: part.modelData === "hour" ? control.hourLabel(control.hour) : control.pad(control.minute)
+                                color: Theme.text; font.pixelSize: 30; font.weight: Font.DemiBold
+                            }
+                            HoverHandler { id: partWheel }
+                            WheelHandler {
+                                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                                property real rest: 0
+                                onWheel: event => {
+                                    rest += event.angleDelta.y / 120;
+                                    const notches = rest > 0 ? Math.floor(rest) : Math.ceil(rest);
+                                    if (notches !== 0) { control.step(part.modelData, notches); rest -= notches; }
                                 }
-                                Accessible.role: Accessible.Button
-                                Accessible.name: (modelData.by > 0 ? qsTr("Later") : qsTr("Earlier")) + " " + (part.modelData === "hour" ? qsTr("hour") : qsTr("minute"))
                             }
                         }
+                        Nudge { part: part.modelData; by: -1; icon: "chevron-down" }
+                    }
+                }
+            }
+            Column {
+                visible: control.use12h
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                Repeater {
+                    model: [false, true]
+                    delegate: Rectangle {
+                        required property bool modelData
+                        readonly property bool on: (control.hour >= 12) === modelData
+                        width: 50; height: 30; radius: 6
+                        color: on ? Theme.accent : meridiemMouse.containsMouse ? "#3b3c40" : Theme.field
+                        border.color: on ? Theme.accentHover : Theme.border
+                        Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
+                        Text {
+                            anchors.centerIn: parent; text: modelData ? control.pmText : control.amText
+                            color: on ? "white" : Theme.text; font.pixelSize: 13; font.weight: on ? Font.DemiBold : Font.Normal
+                        }
+                        MouseArea {
+                            id: meridiemMouse
+                            anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: if (!on) control.hour = (control.hour + 12) % 24
+                        }
+                        Accessible.role: Accessible.RadioButton; Accessible.checked: on; Accessible.name: modelData ? control.pmText : control.amText
                     }
                 }
             }
@@ -120,13 +142,16 @@ Popup {
 
         Text { text: qsTr("Hour"); color: Theme.textDim; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.5 }
         ChoiceGrid {
-            values: Array.from({ length: 24 }, (_, i) => i)
+            // On a 12-hour clock the grid is 12, 1 ... 11 of the half of the day shown.
+            values: control.use12h ? Array.from({ length: 12 }, (_, i) => i + (control.hour >= 12 ? 12 : 0)) : Array.from({ length: 24 }, (_, i) => i)
+            labels: control.use12h ? values.map(h => String(h % 12 || 12)) : values.map(control.pad)
             current: control.hour
             onChosen: v => control.hour = v
         }
         Text { text: qsTr("Minute"); color: Theme.textDim; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.5 }
         ChoiceGrid {
             values: Array.from({ length: 12 }, (_, i) => i * 5)
+            labels: values.map(control.pad)
             current: control.minute
             onChosen: v => control.minute = v
         }
@@ -141,10 +166,34 @@ Popup {
         }
     }
 
+    // An arrow that moves the hour or minute by one, and keeps going while held.
+    component Nudge: Rectangle {
+        id: nudgeButton
+        property string part: "hour"
+        property int by: 1
+        property string icon: "chevron-up"
+        width: 64; height: 22; radius: 5
+        color: nudge.pressed ? Theme.field : nudge.containsMouse ? "#3b3c40" : "transparent"
+        Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
+        LucideIcon { anchors.centerIn: parent; name: nudgeButton.icon; width: 16; height: 16; color: Theme.textDim }
+        MouseArea {
+            id: nudge
+            anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+            onClicked: control.step(nudgeButton.part, nudgeButton.by)
+            onPressAndHold: repeatTimer.start()
+            onReleased: repeatTimer.stop()
+            onCanceled: repeatTimer.stop()
+            Timer { id: repeatTimer; interval: 70; repeat: true; onTriggered: control.step(nudgeButton.part, nudgeButton.by) }
+        }
+        Accessible.role: Accessible.Button
+        Accessible.name: (by > 0 ? qsTr("Later") : qsTr("Earlier")) + " " + (part === "hour" ? qsTr("hour") : qsTr("minute"))
+    }
+
     // Six to a row; the chosen cell's highlight glides to the next choice.
     component ChoiceGrid: Item {
         id: grid
         property var values: []
+        property var labels: values.map(String)
         property int current: -1
         signal chosen(int value)
         readonly property int columns: 6
@@ -173,7 +222,7 @@ Popup {
                 color: isChosen ? "transparent" : cellMouse.containsMouse ? "#3b3c40" : Theme.field
                 Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
                 Text {
-                    anchors.centerIn: parent; text: control.pad(modelData)
+                    anchors.centerIn: parent; text: grid.labels[index] || ""
                     color: isChosen ? "white" : Theme.text; font.pixelSize: 13
                     font.weight: isChosen ? Font.DemiBold : Font.Normal
                 }
