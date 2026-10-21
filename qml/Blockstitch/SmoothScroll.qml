@@ -22,6 +22,15 @@ QtObject {
         function onMovementStarted() { root.stop(); }
     }
 
+    // Whether a wheel event comes from a touchpad rather than a mouse wheel.
+    // pixelDelta can't tell them apart: on Wayland every wheel notch carries
+    // one (the compositor's axis value), and so does X11 with libinput's
+    // high-resolution wheel scrolling. Touchpads are known by their scroll
+    // phases (Wayland, macOS) or their device type (X11).
+    function isTouchpad(event) {
+        return event.phase !== Qt.NoScrollPhase || (!!event.device && event.device.type === PointerDevice.TouchPad);
+    }
+
     function stop() { animX.stop(); animY.stop(); }
 
     // Scrolls by (dx, dy) px; positive moves the view up/left, like a wheel turned away.

@@ -1023,13 +1023,11 @@ Rectangle {
                     event.accepted = true;
                     return;
                 }
-                // Touchpads send pixelDelta, a scroll phase or come from a touchpad
-                // device; a mouse wheel only sends angleDelta (120 per notch, less on
-                // hi-res wheels) and gets Qt's own Flickable step with no acceleration.
-                // pixelDelta is truncated to ints on touchpads; angleDelta carries the real
-                // resolution (about 12 units per px).
-                const touchpad = event.pixelDelta.x !== 0 || event.pixelDelta.y !== 0 || event.phase !== Qt.NoScrollPhase
-                    || (event.device && event.device.type === PointerDevice.TouchPad);
+                // A mouse wheel gets Qt's own Flickable step per notch (angleDelta 120,
+                // less on hi-res wheels) with no acceleration; a touchpad gets the
+                // accelerated pan. pixelDelta is truncated to ints on touchpads;
+                // angleDelta carries the real resolution (about 12 units per px).
+                const touchpad = canvasScroll.isTouchpad(event);
                 const pan = (ad, pd) => {
                     if (!touchpad) return ad / 120 * Qt.styleHints.wheelScrollLines * 24;
                     const d = ad !== 0 ? ad / 12 : pd;

@@ -469,7 +469,7 @@ Rectangle {
                 ScrollBar.horizontal.policy: ScrollBar.AsNeeded
                 // Flickable must not also handle the wheel, or it overrides the faster pan below
                 Binding { target:paletteScroll.contentItem; property:"interactive"; value:!paletteWheel.active }
-                WheelHandler { id:paletteWheel; target:null; function touchpad(e){return e.pixelDelta.x!==0||e.pixelDelta.y!==0||e.phase!==Qt.NoScrollPhase||(e.device&&e.device.type===PointerDevice.TouchPad);} function pan(ad,pd,tp){if(!tp)return ad/120*Qt.styleHints.wheelScrollLines*24;const d=ad!==0?ad/12:pd;return d*Math.min(24,6+1.5*Math.abs(d));} acceptedDevices:PointerDevice.Mouse|PointerDevice.TouchPad; onWheel:event=>{const tp=paletteWheel.touchpad(event);paletteSmooth.scrollBy(0,paletteWheel.pan(event.angleDelta.y,event.pixelDelta.y,tp),!tp);event.accepted=true;} }
+                WheelHandler { id:paletteWheel; target:null; function touchpad(e){return paletteSmooth.isTouchpad(e);} function pan(ad,pd,tp){if(!tp)return ad/120*Qt.styleHints.wheelScrollLines*24;const d=ad!==0?ad/12:pd;return d*Math.min(24,6+1.5*Math.abs(d));} acceptedDevices:PointerDevice.Mouse|PointerDevice.TouchPad; onWheel:event=>{const tp=paletteWheel.touchpad(event);paletteSmooth.scrollBy(0,paletteWheel.pan(event.angleDelta.y,event.pixelDelta.y,tp),!tp);event.accepted=true;} }
                 SmoothScroll { id:paletteSmooth; flickable:paletteScroll.contentItem }
                 Column {
                     width:Math.max(root.contentWidth+16, childrenRect.width); spacing:8; padding:8
