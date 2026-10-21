@@ -1261,7 +1261,7 @@ Rectangle {
                     id:floatingItem;required property var modelData;x:modelData.x + root.originOffsetX;y:modelData.y + root.originOffsetY;z:5;width:floatingChip.implicitWidth;height:floatingChip.implicitHeight
                     ValueChip { id:floatingChip;valueData:floatingItem.modelData.value;location:({kind:"Floating",floating_id:floatingItem.modelData.id,path:[]});boxed:true;blockDefinitions:root.blockDefinitions;onEditRequested:(l,t)=>root.valueEdited(l,t);onDetailsRequested:kind=>root.detailsRequested(kind);onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.beginValueDrag(loc,val,sx,sy,ox,oy,w,h);onValueDragMoved:(sx,sy)=>root.moveValueDrag(sx,sy);onValueDragEnded:(sx,sy)=>root.endValueDrag(sx,sy);onValueDragCanceled:root.cancelValueDrag() }
                     TapHandler { acceptedButtons:Qt.RightButton;gesturePolicy:TapHandler.ReleaseWithinBounds;onTapped:floatingMenu.popup() }
-                    BwMenu { id:floatingMenu;BwMenuItem{iconName:"info";text:qsTr("Details");onTriggered:root.detailsRequested(floatingItem.modelData.value.op||floatingItem.modelData.value.kind)}BwMenuItem{iconName:"trash";danger:true;text:qsTr("Delete value");onTriggered:root.floatingValueRemoved(floatingItem.modelData.id)} }
+                    BwMenu { id:floatingMenu;BwMenuItem{iconName:"info";text:qsTr("Details");onTriggered:root.detailsRequested(floatingItem.modelData.value.block_id||floatingItem.modelData.value.op||floatingItem.modelData.value.kind)}BwMenuItem{iconName:"trash";danger:true;text:qsTr("Delete value");onTriggered:root.floatingValueRemoved(floatingItem.modelData.id)} }
                 }
             }
             Repeater {

@@ -430,6 +430,8 @@ impl<K: BlockKind> BlockGraph<K> {
             shape,
             color,
             icon: String::new(),
+            identifier: String::new(),
+            description: String::new(),
         });
         let header = Instruction::new(header(&id));
         self.strands
@@ -509,6 +511,13 @@ impl<K: BlockKind> BlockGraph<K> {
                 .instructions
                 .retain(|ins| !ins.kind.calls_block(block_id));
             for ins in &mut strand.instructions {
+                ins.walk_mut(&mut |ins| {
+                    for slot in 0..K::BODY_SLOTS {
+                        if let Some(body) = ins.kind.body_mut(slot) {
+                            body.retain(|child| !child.kind.calls_block(block_id));
+                        }
+                    }
+                });
                 ins.scrub_block_calls(block_id);
             }
         }

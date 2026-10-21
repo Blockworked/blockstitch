@@ -373,14 +373,14 @@ Item {
             BwMenuItem { visible: !root.paletteMode; iconName: "corner-down-right"; text: qsTr("Duplicate block"); onTriggered: root.duplicateRequested(root.strandId, root.path, root.instruction) }
             BwMenuItem { visible: !root.paletteMode; iconName: "scissors"; text: qsTr("Cut block"); onTriggered: root.menuActionRequested("cut", root.strandId, root.path, root.instruction) }
             BwMenuItem { visible: !root.paletteMode; iconName: "message-square"; text: root.hasComment ? qsTr("Comment") : qsTr("Add Comment"); onTriggered: root.commentRequested(root.instruction) }
-            BwMenuItem { visible: !root.paletteMode || !root.extraMenu || root.extraMenu.length === 0; iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(root.type) }
+            BwMenuItem { visible: !root.paletteMode || !root.extraMenu || root.extraMenu.length === 0; iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(root.isCustomBlock && root.instruction ? root.instruction.block_id : root.type) }
             BwMenuItem { visible: !root.paletteMode; iconName: "trash"; danger: true; text: qsTr("Delete block"); onTriggered: root.removeRequested(root.strandId, root.path) }
             Instantiator {
                 model: root.paletteMode ? root.extraMenu : BlockRegistry.blockMenu
                 delegate: BwMenuItem {
                     required property var modelData
                     iconName: modelData.icon || ""; text: modelData.text; danger: !!modelData.danger
-                    onTriggered: !root.paletteMode ? root.menuActionRequested(modelData.id, root.strandId, root.path, root.instruction) : modelData.id === "details" ? root.detailsRequested(root.type) : root.extraMenuTriggered(modelData.id)
+                    onTriggered: !root.paletteMode ? root.menuActionRequested(modelData.id, root.strandId, root.path, root.instruction) : modelData.id === "details" ? root.detailsRequested(root.isCustomBlock && root.instruction ? root.instruction.block_id : root.type) : root.extraMenuTriggered(modelData.id)
                 }
                 onObjectAdded: (index, object) => root.paletteMode ? menu.addItem(object) : menu.insertItem(index, object)
                 onObjectRemoved: (index, object) => menu.removeItem(object)

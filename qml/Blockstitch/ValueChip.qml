@@ -255,13 +255,13 @@ Item {
             id: valueMenu
             BwMenu {
                 id: valueMenuPopup
-                BwMenuItem { visible: !root.extraMenu || root.extraMenu.length === 0; iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(root.valueData && root.valueData.kind === "Op" ? root.valueData.op : (root.valueData ? root.valueData.kind : "Value")) }
+                BwMenuItem { visible: !root.extraMenu || root.extraMenu.length === 0; iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(root.valueData && root.valueData.kind === "Call" ? root.valueData.block_id : root.valueData && root.valueData.kind === "Op" ? root.valueData.op : (root.valueData ? root.valueData.kind : "Value")) }
                 Instantiator {
                     model: root.extraMenu
                     delegate: BwMenuItem {
                         required property var modelData
                         iconName: modelData.icon || ""; text: modelData.text; danger: !!modelData.danger
-                        onTriggered: modelData.id === "details" ? root.detailsRequested(root.valueData && root.valueData.kind === "Op" ? root.valueData.op : (root.valueData ? root.valueData.kind : "Value")) : root.extraMenuTriggered(modelData.id)
+                        onTriggered: modelData.id === "details" ? root.detailsRequested(root.valueData && root.valueData.kind === "Call" ? root.valueData.block_id : root.valueData && root.valueData.kind === "Op" ? root.valueData.op : (root.valueData ? root.valueData.kind : "Value")) : root.extraMenuTriggered(modelData.id)
                     }
                     onObjectAdded: (index, object) => valueMenuPopup.addItem(object)
                     onObjectRemoved: (index, object) => valueMenuPopup.removeItem(object)

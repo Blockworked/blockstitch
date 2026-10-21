@@ -110,6 +110,11 @@ impl<'de> Deserialize<'de> for BlockShape {
 #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub struct BlockDef {
     pub id: String,
+    /// Public identifier shown in Details; empty uses the internal id.
+    #[serde(default)]
+    pub identifier: String,
+    #[serde(default)]
+    pub description: String,
     pub pieces: Vec<BlockPiece>,
     #[serde(alias = "returns_value")]
     pub shape: BlockShape,
@@ -305,6 +310,8 @@ mod tests {
             shape: BlockShape::Normal,
             color: default_block_color(),
             icon: String::new(),
+            identifier: String::new(),
+            description: String::new(),
         };
         assert_eq!(
             def.branch_names().collect::<Vec<_>>(),
