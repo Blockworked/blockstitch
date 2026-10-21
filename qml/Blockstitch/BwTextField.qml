@@ -10,5 +10,6 @@ TextField {
         radius:5;color:control.enabled?Theme.field:"#27282a"
         border.color:control.activeFocus?Theme.accent:Theme.border
         border.width:control.activeFocus?1.5:1
+        Behavior on border.color { enabled:Motion.enabled; ColorAnimation { duration:Motion.quick } }
     }
 }

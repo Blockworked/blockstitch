@@ -14,7 +14,25 @@ Dialog {
     topPadding: 4
     bottomPadding: footer && footer.visible ? 6 : 22
 
-    Overlay.modal: Rectangle { color: "#a3101113" }
+    // The popup fades this dimmer in and out with its enter/exit transitions.
+    Overlay.modal: Rectangle {
+        color: "#a3101113"
+        Behavior on opacity { enabled: Motion.enabled; NumberAnimation { duration: Motion.slow } }
+    }
+    enter: Transition {
+        enabled: Motion.enabled
+        ParallelAnimation {
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Motion.slow; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "scale"; from: 0.94; to: 1; duration: Motion.slow; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+        }
+    }
+    exit: Transition {
+        enabled: Motion.enabled
+        ParallelAnimation {
+            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Motion.normal; easing.type: Easing.InCubic }
+            NumberAnimation { property: "scale"; from: 1; to: 0.96; duration: Motion.normal; easing.type: Easing.InCubic }
+        }
+    }
     background: Rectangle { radius: 12; color: Theme.panel; border.color: Theme.border }
     header: Item {
         visible: control.title.length > 0

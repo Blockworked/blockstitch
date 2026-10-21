@@ -18,4 +18,18 @@ Menu {
         boundsBehavior: Flickable.StopAtBounds
     }
     delegate: BwMenuItem {}
+
+    // Grows out of the corner it opened from while fading in.
+    transformOrigin: Popup.TopLeft
+    enter: Transition {
+        enabled: Motion.enabled
+        ParallelAnimation {
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Motion.normal; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "scale"; from: 0.92; to: 1; duration: Motion.normal; easing.type: Easing.OutCubic }
+        }
+    }
+    exit: Transition {
+        enabled: Motion.enabled
+        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Motion.quick; easing.type: Easing.InCubic }
+    }
 }

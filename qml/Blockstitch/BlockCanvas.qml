@@ -180,12 +180,14 @@ Rectangle {
     property real _prevWorldH: 0
     onWorldWChanged: {
         if (_prevWorldW > 0 && flick) {
+            canvasScroll.stop();
             flick.contentX = Math.max(0, Math.min(Math.max(0, flick.contentWidth - flick.width), flick.contentX + (worldW - _prevWorldW) * root.zoom / 2));
         }
         _prevWorldW = worldW;
     }
     onWorldHChanged: {
         if (_prevWorldH > 0 && flick) {
+            canvasScroll.stop();
             flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), flick.contentY + (worldH - _prevWorldH) * root.zoom / 2));
         }
         _prevWorldH = worldH;
@@ -200,12 +202,14 @@ Rectangle {
         const cy = flick.contentY + vy;
         const lx = cx / root.zoom;
         const ly = cy / root.zoom;
+        canvasScroll.stop();
         root.zoom = newZoom;
         flick.contentX = Math.max(0, Math.min(Math.max(0, flick.contentWidth - flick.width), lx * newZoom - vx));
         flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), ly * newZoom - vy));
     }
     function setZoom(newZoom) { zoomAt(flick.width / 2, flick.height / 2, newZoom); }
     function centerOnOrigin() {
+        canvasScroll.stop();
         flick.contentX = Math.max(0, (flick.contentWidth - flick.width) / 2);
         flick.contentY = Math.max(0, (flick.contentHeight - flick.height) / 2);
     }
@@ -232,8 +236,7 @@ Rectangle {
         const p = item.mapToItem(workspace, 0, 0);
         const cx = (p.x + Math.min(item.width, flick.width / root.zoom) / 2) * root.zoom;
         const cy = (p.y + Math.min(item.height, 60) / 2) * root.zoom;
-        flick.contentX = Math.max(0, Math.min(Math.max(0, flick.contentWidth - flick.width), cx - flick.width / 2));
-        flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), cy - flick.height / 2));
+        canvasScroll.scrollTo(cx - flick.width / 2, cy - flick.height / 2, true);
         BlockRegistry.flash(id);
         return true;
     }
@@ -1002,6 +1005,7 @@ Rectangle {
         // diagonal kicked in - and slow diagonals died out entirely. The
         // WheelHandler below is then the single owner and pans 1:1.
         interactive: !wheelPan.active
+        SmoothScroll { id: canvasScroll; flickable: flick }
         // Two-finger touchpads emit one wheel event carrying both axes; pan
         // both from that same event so diagonal stays diagonal at any speed.
         WheelHandler {
@@ -1031,9 +1035,8 @@ Rectangle {
                     const d = ad !== 0 ? ad / 12 : pd;
                     return d * Math.min(24, 6 + 1.5 * Math.abs(d));
                 };
-                let dx = pan(event.angleDelta.x, event.pixelDelta.x), dy = pan(event.angleDelta.y, event.pixelDelta.y);
-                flick.contentX = Math.max(0, Math.min(flick.contentWidth - flick.width, flick.contentX - dx));
-                flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, flick.contentY - dy));
+                // A wheel notch glides to its target; touchpad pans already arrive smooth.
+                canvasScroll.scrollBy(pan(event.angleDelta.x, event.pixelDelta.x), pan(event.angleDelta.y, event.pixelDelta.y), !touchpad);
                 event.accepted = true;
             }
         }

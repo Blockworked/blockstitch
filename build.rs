@@ -7,6 +7,7 @@ fn main() {
             .qml_file(QmlFile::from("qml/Blockstitch/Theme.qml").singleton(true))
             .qml_file(QmlFile::from("qml/Blockstitch/BlockRegistry.qml").singleton(true))
             .qml_file(QmlFile::from("qml/Blockstitch/Icons.qml").singleton(true))
+            .qml_file(QmlFile::from("qml/Blockstitch/Motion.qml").singleton(true))
             .qml_files([
                 "qml/Blockstitch/LucideIcon.qml",
                 "qml/Blockstitch/BlockSurface.qml",
@@ -19,6 +20,8 @@ fn main() {
                 "qml/Blockstitch/BwMenu.qml",
                 "qml/Blockstitch/BwDialog.qml",
                 "qml/Blockstitch/BwSwitch.qml",
+                "qml/Blockstitch/BwSlider.qml",
+                "qml/Blockstitch/SmoothScroll.qml",
                 "qml/Blockstitch/ValueChip.qml",
                 "qml/Blockstitch/InstructionBlock.qml",
                 "qml/Blockstitch/InstructionList.qml",

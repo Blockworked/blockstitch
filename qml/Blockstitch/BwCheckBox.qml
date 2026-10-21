@@ -13,7 +13,15 @@ CheckBox {
         radius: 4
         color: control.checked ? Theme.accent : Theme.field
         border.color: control.checked ? Theme.accentHover : (control.activeFocus ? Theme.accent : Theme.border)
-        LucideIcon { anchors.centerIn: parent; width: 12; height: 12; name: "check"; color: "white"; strokeWidth: 2.6; visible: control.checked }
+        Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
+        Behavior on border.color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
+        // The tick pops in when checked and shrinks away when cleared.
+        LucideIcon {
+            anchors.centerIn: parent; width: 12; height: 12; name: "check"; color: "white"; strokeWidth: 2.6
+            opacity: control.checked ? 1 : 0; scale: control.checked ? 1 : 0.4; visible: opacity > 0
+            Behavior on opacity { enabled: Motion.enabled; NumberAnimation { duration: Motion.quick } }
+            Behavior on scale { enabled: Motion.enabled; NumberAnimation { duration: Motion.normal; easing.type: Easing.OutBack } }
+        }
     }
     contentItem: Text {
         leftPadding: control.indicator.width + control.spacing

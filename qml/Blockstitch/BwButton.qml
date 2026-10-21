@@ -41,5 +41,8 @@ Button {
                                               : (control.primary ? Theme.accent : (control.flat ? "transparent" : Theme.panelRaised))
         border.color: control.flat && !control.hovered ? "transparent" : (control.danger ? Theme.danger : (control.primary ? "#50b2ff" : Theme.border))
         opacity: control.enabled ? 1 : 0.42
+        Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
+        Behavior on border.color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
+        Behavior on opacity { enabled: Motion.enabled; NumberAnimation { duration: Motion.normal } }
     }
 }
