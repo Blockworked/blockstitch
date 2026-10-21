@@ -119,6 +119,7 @@ Rectangle {
         .concat(root.blockLibraryEnabled?[{id:"share",text:qsTr("Share as a pack..."),icon:"package"}]:[])
         .concat([{id:"delete",text:qsTr("Delete block"),icon:"trash",danger:true}])
     function customMenuAction(id,definition){
+        if(definition.read_only) return;
         if(id==="edit") root.editBlockRequested(definition);
         else if(id==="share") root.shareBlockRequested(definition);
         else if(id==="delete") root.deleteBlockRequested(definition.id);
@@ -155,7 +156,7 @@ Rectangle {
         } else { searchText=""; category=id; }
     }
     function categoryCount(c) {
-        if(c==="custom") return (blockDefinitions||[]).length;
+        if(c==="custom" || c==="community") return (blockDefinitions||[]).filter(def => !!def.read_only === (c==="community")).length;
         let n=0;
         const types=[].concat(Array.from(instructionTypes||[]));
         types.forEach(t=>{ if(instructionCategory(t)===c) n++; });
@@ -169,7 +170,7 @@ Rectangle {
         {id:"all",name:qsTr("All"),icon:"layout-grid"},{id:"events",name:qsTr("Events"),icon:"zap"},{id:"input",name:qsTr("Input"),icon:"keyboard"},
         {id:"control",name:qsTr("Flow"),icon:"git-branch"},{id:"data",name:qsTr("Data"),icon:"variable"},{id:"operators",name:qsTr("Operators"),icon:"equal"},
         {id:"system",name:qsTr("System"),icon:"monitor"}
-    ].concat(Array.from(appCategories || [])).concat([{id:"custom",name:qsTr("Custom"),icon:"blocks"}])
+    ].concat(Array.from(appCategories || [])).concat([{id:"custom",name:qsTr("Custom"),icon:"blocks"}]).concat(root.blockLibraryEnabled?[{id:"community",name:qsTr("Community"),icon:"package"}]:[])
     readonly property var systemOperators: ["PluggedIn","BatteryPercentage","CurrentTime","ClipboardText","ClipboardHasImage","ClipboardHasFiles"]
     function instructionCategory(type) {
         if(extraCategories[type]) return extraCategories[type];
@@ -325,10 +326,9 @@ Rectangle {
                     visible:blk.sectionShown("custom"); spacing:8; topPadding:8
                     Text { text:qsTr("MY BLOCKS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
                     BwButton { text:qsTr("Make a Block"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeBlockRequested() }
-                    BwButton { visible:root.blockLibraryEnabled; text:qsTr("Browse"); iconName:"book-open"; implicitHeight:28; font.pixelSize:11; onClicked:root.browseBlocksRequested() }
                 }
                 Repeater {
-                    model:root.blockDefinitions||[]
+                    model:(root.blockDefinitions||[]).filter(def=>!def.read_only)
                     delegate:Loader {
                         id:customItem; required property var modelData
                         visible:blk.itemShown("custom",root.customLabel(modelData))
@@ -356,6 +356,44 @@ Rectangle {
                                 onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,qsTr("A custom reporter block defined in this macro."))
                                 extraMenu:root.customMenu
                                 onExtraMenuTriggered:id=>root.customMenuAction(id,customItem.modelData)
+                            }
+                        }
+                    }
+                }
+                Row {
+                    visible:root.blockLibraryEnabled && blk.sectionShown("community"); spacing:8; topPadding:8
+                    Text { text:qsTr("COMMUNITY BLOCKS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
+                    BwButton { text:qsTr("Browse"); iconName:"book-open"; implicitHeight:28; font.pixelSize:11; onClicked:root.browseBlocksRequested() }
+                }
+                Repeater {
+                    model:(root.blockDefinitions||[]).filter(def=>def.read_only)
+                    delegate:Loader {
+                        id:communityItem; required property var modelData
+                        visible:blk.itemShown("community",root.customLabel(modelData))
+                        sourceComponent:root.isReporter(modelData)?communityReporter:communityCall
+                        Component {
+                            id:communityCall
+                            PaletteBlock {
+                                instruction:root.customInstruction(communityItem.modelData); spec:({kind:"custom",definition:communityItem.modelData,instruction:instruction,color:blockColor})
+                                variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; blockColor:communityItem.modelData.color||Theme.block
+                                onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                                onActivated:root.customBlockActivated(communityItem.modelData)
+                                onDetailsRequested:root.detailsRequested(root.customLabel(communityItem.modelData),communityItem.modelData.id,qsTr("A custom block defined in this macro."))
+                                extraMenu:[{id:"details",text:qsTr("Details"),icon:"info"}]
+                                onExtraMenuTriggered:id=>root.customMenuAction(id,communityItem.modelData)
+                            }
+                        }
+                        Component {
+                            id:communityReporter
+                            PaletteValue {
+                                valueData:root.customValue(communityItem.modelData); editable:false; forceBoolean:communityItem.modelData.shape==="ReturnsBool"; callLabel:root.customLabel(communityItem.modelData)
+                                blockDefinitions:root.blockDefinitions
+                                spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,label:callLabel})
+                                onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                                onActivated:root.valueActivated(valueData)
+                                onDetailsRequested:root.detailsRequested(root.customLabel(communityItem.modelData),communityItem.modelData.id,qsTr("A custom reporter block defined in this macro."))
+                                extraMenu:[{id:"details",text:qsTr("Details"),icon:"info"}]
+                                onExtraMenuTriggered:id=>root.customMenuAction(id,communityItem.modelData)
                             }
                         }
                     }
