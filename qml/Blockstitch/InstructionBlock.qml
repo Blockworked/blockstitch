@@ -913,7 +913,9 @@ Item {
             sourceComponent: kind === "label" ? labelPiece : kind === "value" ? valuePiece : kind === "dropdown" ? dropdownPiece : kind === "button" ? buttonPiece : textPiece
             Component {
                 id: labelPiece
-                Text { text: piece.modelData.text || ""; color: Theme.text; font.pixelSize: 12; height: 30; verticalAlignment: Text.AlignVCenter }
+                // Event (header) labels use the same caption style as the
+                // built-in event blocks above, so every hat reads alike.
+                Text { text: piece.modelData.text || ""; color: root.isHeader ? Theme.textDim : Theme.text; font.pixelSize: root.isHeader ? 11 : 12; font.weight: root.isHeader ? Font.DemiBold : Font.Normal; height: 30; verticalAlignment: Text.AlignVCenter }
             }
             Component {
                 id: valuePiece
