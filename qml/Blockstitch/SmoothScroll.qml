@@ -23,12 +23,19 @@ QtObject {
     }
 
     // Whether a wheel event comes from a touchpad rather than a mouse wheel.
-    // pixelDelta can't tell them apart: on Wayland every wheel notch carries
-    // one (the compositor's axis value), and so does X11 with libinput's
-    // high-resolution wheel scrolling. Touchpads are known by their scroll
-    // phases (Wayland, macOS) or their device type (X11).
+    // - pixelDelta can't tell: Wayland gives every wheel notch one (the
+    //   compositor's axis value), and so does X11 with libinput.
+    // - Neither can the device type on X11: Qt types any XInput device with
+    //   relative motion and a scroll valuator, i.e. every mouse, as TouchPad.
+    // Touchpads on Wayland and macOS send scroll phases. On X11 the device
+    // name is the only reliable hint.
+    readonly property bool x11: Qt.platform.pluginName === "xcb"
     function isTouchpad(event) {
-        return event.phase !== Qt.NoScrollPhase || (!!event.device && event.device.type === PointerDevice.TouchPad);
+        if (event.phase !== Qt.NoScrollPhase) return true;
+        const dev = event.device;
+        if (x11) return !!dev && /touch ?pad|track ?pad|synaptics|glidepoint/i.test(dev.name);
+        if (Qt.platform.pluginName === "wayland" || Qt.platform.os === "osx") return false;
+        return !!dev && dev.type === PointerDevice.TouchPad;
     }
 
     function stop() { animX.stop(); animY.stop(); }
