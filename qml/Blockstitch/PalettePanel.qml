@@ -108,6 +108,24 @@ Rectangle {
         let args=[]; for(let i=0;i<spec[2];i++) args.push(enumArg&&enumArg.index===i?t(firstChoice):spec[1]==="text"?t(""):spec[0]==="And"||spec[0]==="Or"||spec[0]==="Not"?{kind:"Bool"}:n(0));
         return {kind:"Op",op:spec[0]==="Join3"?"Join":spec[0],args:args,saved:n(0)};
     }
+    readonly property var communityPacks: {
+        const packs = [];
+        for (const definition of blockDefinitions || []) {
+            if (!definition.read_only) continue;
+            const memberships = definition.packs && definition.packs.length ? definition.packs
+                : [{id:definition.pack_name || "community",name:definition.pack_name || qsTr("Community blocks")}];
+            for (const membership of memberships) {
+                let pack = packs.find(p => p.id === membership.id);
+                if (!pack) {
+                    pack = {id:membership.id,name:membership.name,blocks:[]};
+                    packs.push(pack);
+                }
+                pack.blocks.push(definition);
+            }
+        }
+        return packs.sort((a,b) => a.name.localeCompare(b.name));
+    }
+
     function customInstruction(definition){
         const args=(definition.pieces||[]).filter(p=>p.kind==="Input").map(p=>p.value_type==="Bool"?{kind:"Bool"}:n(0));
         const count=(definition.pieces||[]).filter(p=>p.kind==="Branch").length;
@@ -138,7 +156,12 @@ Rectangle {
     property bool flyoutOpen: false
     property bool paletteDragging: false
     property string searchText: ""
-    readonly property int railWidth: 54
+    FontMetrics { id: railMetrics; font.pixelSize:10 }
+    readonly property int railWidth: {
+        let widest = 0;
+        for (const item of railModel) widest = Math.max(widest, railMetrics.advanceWidth(item.name));
+        return Math.min(96, Math.max(54, Math.ceil(widest) + 20));
+    }
     readonly property bool railVisible: layout==="rail"||layout==="flyout"
     readonly property bool flyoutShown: layout==="flyout"&&flyoutOpen&&!paletteDragging
     readonly property real contentWidth: Math.max(160, width-12-(railVisible?railWidth+1:0)-16)
@@ -189,7 +212,7 @@ Rectangle {
         const labels=[].concat(Array.from(instructionTypes||[]),Array.from(listInstructionTypes||[]),
             dictsEnabled?Array.from(dictInstructionTypes||[]):[],
             allOperators.map(o=>o[0]),listOperators.map(o=>o[0]),dictsEnabled?dictOperators.map(o=>o[0]):[],
-            Array.from(variables||[]),Array.from(blockDefinitions||[]).map(d=>customLabel(d)));
+            Array.from(variables||[]),Array.from(blockDefinitions||[]).map(d=>customLabel(d)),communityPacks.map(p=>p.name));
         return !labels.some(l=>matches(l));
     }
 
@@ -366,34 +389,55 @@ Rectangle {
                     BwButton { text:qsTr("Browse"); iconName:"book-open"; implicitHeight:28; font.pixelSize:11; onClicked:root.browseBlocksRequested() }
                 }
                 Repeater {
-                    model:(root.blockDefinitions||[]).filter(def=>def.read_only)
-                    delegate:Loader {
-                        id:communityItem; required property var modelData
-                        visible:blk.itemShown("community",root.customLabel(modelData))
-                        sourceComponent:root.isReporter(modelData)?communityReporter:communityCall
-                        Component {
-                            id:communityCall
-                            PaletteBlock {
-                                instruction:root.customInstruction(communityItem.modelData); spec:({kind:"custom",definition:communityItem.modelData,instruction:instruction,color:blockColor})
-                                variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; blockColor:communityItem.modelData.color||Theme.block
-                                onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                                onActivated:root.customBlockActivated(communityItem.modelData)
-                                onDetailsRequested:root.detailsRequested(root.customLabel(communityItem.modelData),communityItem.modelData.id,qsTr("A custom block defined in this macro."))
-                                extraMenu:[{id:"details",text:qsTr("Details"),icon:"info"}]
-                                onExtraMenuTriggered:id=>root.customMenuAction(id,communityItem.modelData)
-                            }
+                    model:root.communityPacks
+                    delegate:Column {
+                        id: packSection
+                        required property var modelData
+                        readonly property bool matchesPack: root.searching && root.matches(modelData.name)
+                        visible: modelData.blocks.some(def => matchesPack || blk.itemShown("community",root.customLabel(def)))
+                        spacing:8; topPadding:6
+                        Text {
+                            id: packHeading
+                            objectName: "communityPackHeading"
+                            width: root.contentWidth
+                            text: packSection.modelData.name
+                            color: Theme.textDim; font.pixelSize:12; font.weight:Font.DemiBold
+                            elide: Text.ElideRight
+                            ToolTip.visible: headingHover.hovered && truncated
+                            ToolTip.text: text
+                            HoverHandler { id: headingHover }
                         }
-                        Component {
-                            id:communityReporter
-                            PaletteValue {
-                                valueData:root.customValue(communityItem.modelData); editable:false; forceBoolean:communityItem.modelData.shape==="ReturnsBool"; callLabel:root.customLabel(communityItem.modelData)
-                                blockDefinitions:root.blockDefinitions
-                                spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,label:callLabel})
-                                onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                                onActivated:root.valueActivated(valueData)
-                                onDetailsRequested:root.detailsRequested(root.customLabel(communityItem.modelData),communityItem.modelData.id,qsTr("A custom reporter block defined in this macro."))
-                                extraMenu:[{id:"details",text:qsTr("Details"),icon:"info"}]
-                                onExtraMenuTriggered:id=>root.customMenuAction(id,communityItem.modelData)
+                        Repeater {
+                            model: packSection.modelData.blocks
+                            delegate:Loader {
+                                id:communityItem; required property var modelData
+                                visible:packSection.matchesPack || blk.itemShown("community",root.customLabel(modelData))
+                                sourceComponent:root.isReporter(modelData)?communityReporter:communityCall
+                                Component {
+                                    id:communityCall
+                                    PaletteBlock {
+                                        instruction:root.customInstruction(communityItem.modelData); spec:({kind:"custom",definition:communityItem.modelData,instruction:instruction,color:blockColor})
+                                        variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; blockColor:communityItem.modelData.color||Theme.block
+                                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                                        onActivated:root.customBlockActivated(communityItem.modelData)
+                                        onDetailsRequested:root.detailsRequested(root.customLabel(communityItem.modelData),communityItem.modelData.id,qsTr("A custom block defined in this macro."))
+                                        extraMenu:[{id:"details",text:qsTr("Details"),icon:"info"}]
+                                        onExtraMenuTriggered:id=>root.customMenuAction(id,communityItem.modelData)
+                                    }
+                                }
+                                Component {
+                                    id:communityReporter
+                                    PaletteValue {
+                                        valueData:root.customValue(communityItem.modelData); editable:false; forceBoolean:communityItem.modelData.shape==="ReturnsBool"; callLabel:root.customLabel(communityItem.modelData)
+                                        blockDefinitions:root.blockDefinitions
+                                        spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,label:callLabel})
+                                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                                        onActivated:root.valueActivated(valueData)
+                                        onDetailsRequested:root.detailsRequested(root.customLabel(communityItem.modelData),communityItem.modelData.id,qsTr("A custom reporter block defined in this macro."))
+                                        extraMenu:[{id:"details",text:qsTr("Details"),icon:"info"}]
+                                        onExtraMenuTriggered:id=>root.customMenuAction(id,communityItem.modelData)
+                                    }
+                                }
                             }
                         }
                     }
@@ -432,10 +476,18 @@ Rectangle {
                         color:current?Theme.panelRaised:(railHover.hovered?Theme.field:"transparent")
                         opacity:root.searching&&root.layout==="rail"?0.5:1
                         Column {
-                            anchors.centerIn:parent; spacing:3
+                            anchors.centerIn:parent; width:parent.width-8; spacing:3
                             LucideIcon { anchors.horizontalCenter:parent.horizontalCenter; width:18; height:18; name:modelData.icon; color:current?Theme.accent:Theme.textDim }
-                            Text { anchors.horizontalCenter:parent.horizontalCenter; text:modelData.name; font.pixelSize:10; color:current?Theme.text:Theme.textDim }
+                            Text {
+                                id: categoryLabel
+                                objectName: "paletteCategoryLabel"
+                                width:parent.width; horizontalAlignment:Text.AlignHCenter
+                                text:modelData.name; font.pixelSize:10; color:current?Theme.text:Theme.textDim
+                                elide:Text.ElideRight
+                            }
                         }
+                        ToolTip.visible:railHover.hovered && categoryLabel.truncated
+                        ToolTip.text:modelData.name
                         HoverHandler {
                             id:railHover
                             onHoveredChanged: {
