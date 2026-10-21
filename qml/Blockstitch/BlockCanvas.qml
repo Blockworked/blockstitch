@@ -220,8 +220,8 @@ Rectangle {
         flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), root._zoomAnchorY * z - vy));
     }
     // Zooms to newZoom while moving workspace point (ax, ay) to viewport
-    // point (vx, vy). With smooth, it glides there.
-    function _zoomTo(ax, ay, vx, vy, newZoom, smooth) {
+    // point (vx, vy). With smooth, it glides there, over ms if given.
+    function _zoomTo(ax, ay, vx, vy, newZoom, smooth, ms) {
         zoomGlide.stop();
         canvasScroll.stop();
         root._zoomAnchorX = ax;
@@ -233,22 +233,27 @@ Rectangle {
         root._zoomFrom = root.zoom;
         root._zoomTarget = newZoom;
         if (!smooth || !Motion.enabled) { _applyZoom(1); return; }
+        zoomGlide.duration = ms !== undefined ? Motion.dur(ms) : Motion.scroll;
         root._zoomProgress = 0;
         zoomGlide.start();
     }
     // Zoom around a viewport point (vx, vy in Flickable viewport pixels) so
-    // that point stays visually still. With smooth, the zoom glides there.
-    function zoomAt(vx, vy, newZoom, smooth) {
+    // that point stays visually still. With smooth, the zoom glides there
+    // (over ms if given).
+    function zoomAt(vx, vy, newZoom, smooth, ms) {
         newZoom = Math.max(0.5, Math.min(1.8, newZoom));
         if (!isFinite(vx) || !isFinite(vy)) return;
         if (newZoom === (zoomGlide.running ? root._zoomTarget : root.zoom)) return;
-        _zoomTo((flick.contentX + vx) / root.zoom, (flick.contentY + vy) / root.zoom, vx, vy, newZoom, smooth);
+        _zoomTo((flick.contentX + vx) / root.zoom, (flick.contentY + vy) / root.zoom, vx, vy, newZoom, smooth, ms);
     }
     // Scales the zoom by factor around a viewport point. Steps that land
     // mid-glide build on the glide's target, like wheel scrolling does.
-    function zoomBy(vx, vy, factor, smooth) {
-        zoomAt(vx, vy, (zoomGlide.running ? root._zoomTarget : root.zoom) * factor, smooth);
+    function zoomBy(vx, vy, factor, smooth, ms) {
+        zoomAt(vx, vy, (zoomGlide.running ? root._zoomTarget : root.zoom) * factor, smooth, ms);
     }
+    // Touchpad zoom (pinch, Ctrl+two-finger scroll) arrives as a stream of
+    // small steps; a short glide per step smooths it without trailing behind.
+    readonly property int _touchpadZoomMs: 80
     // Zoom around the middle of the view, by step (the zoom buttons).
     function stepZoom(step) {
         zoomAt(flick.width / 2, flick.height / 2, (zoomGlide.running ? root._zoomTarget : root.zoom) + step, true);
@@ -1059,6 +1064,34 @@ Rectangle {
         SmoothScroll { id: canvasScroll; flickable: flick }
         // A drag or flick takes over from a zoom glide in progress.
         onMovementStarted: zoomGlide.stop()
+        // Dragging the canvas with a mouse stops where it's let go: the
+        // release fling read as the view sliding away on its own. Touch
+        // screens keep their momentum.
+        property bool touchDrag: false
+        onFlickStarted: if (!touchDrag) cancelFlick()
+        PointHandler {
+            target: null
+            acceptedDevices: PointerDevice.TouchScreen
+            onActiveChanged: if (active) flick.touchDrag = true
+        }
+        PointHandler {
+            target: null
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad | PointerDevice.Stylus
+            onActiveChanged: if (active) flick.touchDrag = false
+        }
+        // A touchpad pinch zooms around the point between the fingers, like
+        // Ctrl+scroll does around the pointer.
+        PinchHandler {
+            id: pinchZoom
+            target: null
+            acceptedDevices: PointerDevice.TouchPad
+            onScaleChanged: delta => {
+                if (!isFinite(delta) || delta <= 0 || delta === 1) return;
+                const sp = pinchZoom.centroid.scenePosition;
+                const v = flick.mapFromItem(null, sp.x, sp.y);
+                root.zoomBy(v.x, v.y, delta, true, root._touchpadZoomMs);
+            }
+        }
         // Two-finger touchpads emit one wheel event carrying both axes; pan
         // both from that same event so diagonal stays diagonal at any speed.
         WheelHandler {
@@ -1076,11 +1109,11 @@ Rectangle {
                     const v = flick.mapFromItem(null, sp.x, sp.y);
                     // 12% per wheel notch (angleDelta 120), and in proportion
                     // for hi-res wheels. Touchpads send about 12 units per
-                    // pixel, so 12% takes 20px of finger travel; their events
-                    // already arrive smooth and apply directly.
+                    // pixel, so 12% takes 20px of finger travel, with a
+                    // shorter glide per step.
                     const delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.pixelDelta.y * 12;
                     const touchpad = canvasScroll.isTouchpad(event);
-                    root.zoomBy(v.x, v.y, Math.pow(1.12, delta / (touchpad ? 240 : 120)), !touchpad);
+                    root.zoomBy(v.x, v.y, Math.pow(1.12, delta / (touchpad ? 240 : 120)), true, touchpad ? root._touchpadZoomMs : undefined);
                     event.accepted = true;
                     return;
                 }
@@ -1095,8 +1128,11 @@ Rectangle {
                     const d = ad !== 0 ? ad / 12 : pd;
                     return d * Math.min(24, 6 + 1.5 * Math.abs(d));
                 };
-                // A wheel notch glides to its target; touchpad pans already arrive smooth.
-                canvasScroll.scrollBy(pan(event.angleDelta.x, event.pixelDelta.x), pan(event.angleDelta.y, event.pixelDelta.y), !touchpad);
+                // A wheel notch glides to its target; a touchpad pan trails its
+                // fingers by a few frames.
+                const px = pan(event.angleDelta.x, event.pixelDelta.x), py = pan(event.angleDelta.y, event.pixelDelta.y);
+                if (touchpad) canvasScroll.follow(px, py);
+                else canvasScroll.scrollBy(px, py, true);
                 event.accepted = true;
             }
         }

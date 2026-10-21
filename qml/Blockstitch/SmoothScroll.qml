@@ -1,8 +1,10 @@
 import QtQuick
 
 // Eases a Flickable to its scroll target, so a mouse wheel notch glides instead
-// of jumping. Notches that land mid-glide add to the target. Touchpads (already
-// smooth) and Instant animation speed move the content directly.
+// of jumping. Notches that land mid-glide add to the target. Touchpad pans
+// (follow) trail their target by a few frames instead, which evens out uneven
+// event timing without a noticeable lag. Instant animation speed moves the
+// content directly.
 QtObject {
     id: root
     property Flickable flickable: null
@@ -14,6 +16,27 @@ QtObject {
     }
     readonly property NumberAnimation animY: NumberAnimation {
         target: root.flickable; property: "contentY"; duration: Motion.scroll; easing.type: Easing.OutCubic
+    }
+
+    // Touchpad follow: each frame closes the same share of the remaining
+    // distance, about 95% within 100 ms at normal animation speed.
+    property real followX: 0
+    property real followY: 0
+    property bool following: false
+    readonly property real followTime: 0.035 * Motion.durationScale
+    readonly property FrameAnimation follower: FrameAnimation {
+        running: root.following
+        onTriggered: {
+            const f = root.flickable;
+            if (!f) { root.following = false; return; }
+            const k = Math.min(1, 1 - Math.exp(-Math.max(0, frameTime) / Math.max(0.001, root.followTime)));
+            const dx = root.followX - f.contentX;
+            const dy = root.followY - f.contentY;
+            const done = Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5;
+            f.contentX = done ? root.followX : f.contentX + dx * k;
+            f.contentY = done ? root.followY : f.contentY + dy * k;
+            if (done) root.following = false;
+        }
     }
 
     // A drag or flick takes over from a glide in progress.
@@ -38,7 +61,22 @@ QtObject {
         return !!dev && dev.type === PointerDevice.TouchPad;
     }
 
-    function stop() { animX.stop(); animY.stop(); }
+    function stop() { animX.stop(); animY.stop(); following = false; }
+
+    // Pans by (dx, dy) px from a touchpad, trailing slightly behind; positive
+    // moves the view up/left, like scrollBy.
+    function follow(dx, dy) {
+        const f = flickable;
+        if (!f) return;
+        if (!Motion.enabled) { scrollBy(dx, dy, false); return; }
+        animX.stop();
+        animY.stop();
+        const bx = following ? followX : f.contentX;
+        const by = following ? followY : f.contentY;
+        followX = Math.max(f.originX, Math.min(f.originX + Math.max(0, f.contentWidth - f.width), bx - dx));
+        followY = Math.max(f.originY, Math.min(f.originY + Math.max(0, f.contentHeight - f.height), by - dy));
+        following = true;
+    }
 
     // Scrolls by (dx, dy) px; positive moves the view up/left, like a wheel turned away.
     function scrollBy(dx, dy, smooth) {
@@ -53,6 +91,7 @@ QtObject {
         const f = flickable;
         if (!f) return;
         const glide = smooth && Motion.enabled;
+        following = false;
         if (!isNaN(x)) {
             targetX = Math.max(f.originX, Math.min(f.originX + Math.max(0, f.contentWidth - f.width), x));
             move(animX, "contentX", targetX, glide);
