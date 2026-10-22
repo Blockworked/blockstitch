@@ -9,7 +9,7 @@ ComboBox {
     FontMetrics { id:itemMetrics; font:control.font }
     readonly property real widestItem: { let w=0; for (let i=0;i<count;++i) w=Math.max(w,itemMetrics.advanceWidth(textAt(i))); return w; }
     contentItem:Text { text:control.displayText;color:control.enabled?Theme.text:Theme.textDim;font:control.font;verticalAlignment:Text.AlignVCenter;elide:Text.ElideRight }
-    indicator:LucideIcon { name:"chevron-down";rotation:control.popup.visible?180:0;color:Theme.textDim;width:15;height:15;x:control.width-width-9;y:(control.height-height)/2
+    indicator:LucideIcon { name:"chevron-down";rotation:control.popup.visible?180:0;color:control.enabled?Theme.text:Theme.textDim;width:15;height:15;x:control.width-width-9;y:(control.height-height)/2
         Behavior on rotation { enabled:Motion.enabled; NumberAnimation { duration:Motion.normal;easing.type:Easing.OutCubic } } }
     background:Rectangle { radius:5;color:control.down?"#292a2d":(control.hovered?"#3b3c40":Theme.panelRaised);border.color:control.activeFocus?Theme.accent:Theme.border
         Behavior on color { enabled:Motion.enabled; ColorAnimation { duration:Motion.quick } } }

@@ -304,7 +304,7 @@ Item {
         anchors.verticalCenterOffset: root.hasBranches ? 10 + content.implicitHeight / 2 - root.implicitHeight / 2 : 0
         visible: !root.draggedOut
         LucideIcon { visible: root.customCall; name: root.callDef && root.callDef.icon ? root.callDef.icon : "blocks"; color: root.refColor; width: 14; height: 14; anchors.verticalCenter: parent.verticalCenter }
-        Text { visible: root.opPrefix.length > 0; text: root.opPrefix; color: Theme.textDim; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+        Text { visible: root.opPrefix.length > 0; text: root.opPrefix; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
         Repeater {
             model: root.valueData && root.valueData.kind === "Op" && !root.opLayout ? (root.valueData.args || []) : []
             delegate: Row {
@@ -313,7 +313,7 @@ Item {
                 // The name/choice slot of a reporter is a dropdown over a plain Text leaf.
                 readonly property bool isEnum: index === root.enumIndex && !!modelData && modelData.kind === "Text"
                 anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                Text { visible: argRow.index > 0 && root.infixAt(argRow.index).length > 0; text: root.infixAt(argRow.index); color: Theme.textDim; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                Text { visible: argRow.index > 0 && root.infixAt(argRow.index).length > 0; text: root.infixAt(argRow.index); color: Theme.text; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
                 Loader {
                     active: argRow.isEnum
                     width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
@@ -348,7 +348,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     color: pickMouse.containsMouse && pickMouse.enabled ? Theme.panelRaised : Theme.field
                     border.color: pickMouse.containsMouse && pickMouse.enabled ? Theme.accent : Theme.border
-                    LucideIcon { anchors.centerIn: parent; name: root.opSpec && root.opSpec.pickArg && root.opSpec.pickArg.icon ? root.opSpec.pickArg.icon : "list"; width: 14; height: 14; color: Theme.textDim }
+                    LucideIcon { anchors.centerIn: parent; name: root.opSpec && root.opSpec.pickArg && root.opSpec.pickArg.icon ? root.opSpec.pickArg.icon : "list"; width: 14; height: 14; color: Theme.text }
                     MouseArea {
                         id: pickMouse
                         anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -381,7 +381,7 @@ Item {
                 Text {
                     id: hint; anchors.centerIn: parent; font.pixelSize: 12; visible: keycaps.showHint
                     text: root.keyCapturing ? qsTr("Press keys...") : qsTr("Click to set key")
-                    color: root.keyCapturing ? "white" : Theme.textDim
+                    color: root.keyCapturing ? "white" : Theme.text
                 }
                 Row {
                     id: capRow; spacing: 4; visible: !keycaps.showHint
@@ -392,7 +392,7 @@ Item {
                             id: capPart
                             required property var modelData; required property int index; spacing: 4
                             anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                            Text { visible: capPart.index > 0; text: "+"; color: Theme.textDim; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
+                            Text { visible: capPart.index > 0; text: "+"; color: Theme.text; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
                             Text { text: root.keyPartLabel(capPart.modelData); color: Theme.text; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
                         }
                     }
@@ -419,7 +419,7 @@ Item {
                     anchors.centerIn: parent; spacing: 6
                     LucideIcon {
                         visible: !!root.activePick.icon
-                        name: root.activePick.icon || ""; width: 13; height: 13; color: Theme.textDim
+                        name: root.activePick.icon || ""; width: 13; height: 13; color: Theme.text
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text { text: root.pickLabel; color: Theme.text; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
@@ -473,7 +473,7 @@ Item {
         }
         Item { visible: !!root.valueData && root.valueData.kind === "Bool"; width: 24; height: 17 }
         Text { visible: !!root.valueData && root.valueData.kind === "Op" && !root.opLayout && root.opPrefix.length===0 && root.opSuffix.length===0 && (root.valueData.args||[]).length===0; text: root.valueData && root.valueData.op ? root.valueData.op.toLowerCase() : ""; color: Theme.text; font.pixelSize: 12 }
-        Text { visible: root.opSuffix.length>0; text:root.opSuffix; color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+        Text { visible: root.opSuffix.length>0; text:root.opSuffix; color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
     }
     Column {
         id: branchCol
