@@ -31,6 +31,16 @@ QtObject {
     property var breakpointIds: []
     property var pausedIds: []
     signal breakpointClicked(string instructionId)
+    // JSON of the value location just dropped elsewhere; that chip stays
+    // blank until the new state arrives.
+    property string settlingValueKey: ""
+    // Key-order-independent JSON for a value location, so copies compare equal.
+    function locationKey(loc) {
+        const canon = v => Array.isArray(v) ? v.map(canon)
+            : (v && typeof v === "object") ? Object.keys(v).sort().reduce((o, k) => { o[k] = canon(v[k]); return o; }, {})
+            : v;
+        return JSON.stringify(canon(loc));
+    }
     // Outlined for a moment after BlockCanvas.revealInstruction.
     property string flashId: ""
     function flash(id) { flashId = id; flashTimer.restart(); }

@@ -127,6 +127,7 @@ Item {
     // The ghost carries the value while it is dragged out of its slot;
     // what's left behind reads as the blank field it will become.
     readonly property bool draggedOut: valueGrab.dragging
+        || (BlockRegistry.settlingValueKey !== "" && !!location && BlockRegistry.settlingValueKey === BlockRegistry.locationKey(location))
     readonly property bool inSlot: !!location && (location.kind === "Field" || (location.path || []).length > 0)
     readonly property bool hovered: (valueGrab.hovered && !valueGrab.dragging) || paletteHover.hovered
     // Sidebar prefabs have no location (so valueGrab never arms), but still

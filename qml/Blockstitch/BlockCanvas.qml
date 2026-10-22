@@ -59,6 +59,8 @@ Rectangle {
     signal valueTakeRequested(var location)
     signal valuePutRequested(var location, var value)
     signal valueCreateRequested(int x, int y, var value, string originBlockId)
+    // Moves a value in one edit: into `to`, or parked at x/y when `to` is null.
+    signal valueMoveRequested(var from, var to, int x, int y, string originBlockId)
     signal valueDragOutside(var location, var value, real sceneX, real sceneY)
     color:Theme.canvas; clip:true
     // Reporter name dropdowns offer whatever this document declares.
@@ -409,7 +411,15 @@ Rectangle {
         property var target: null
         property bool targetValid: false
         property var highlightItem: null
+        // After a drop the ghost stays at the landing spot (or hidden, for a
+        // trash) and the source stays blank until the new state arrives.
+        property bool settling: false
+        property bool settleHidden: false
+        property real settleX: 0
+        property real settleY: 0
+        property var settleSource: null
     }
+    property string _lastDrop: ""
     // Highlight set by the sidebar while a fresh palette value hovers the
     // canvas (palette drags are owned by the editor, not by valueDrag).
     property var paletteValueTarget: null
@@ -711,9 +721,8 @@ Rectangle {
         while (strandModel.count > list.length) strandModel.remove(strandModel.count - 1);
     }
     function beginDrag(strandId, path, tailCount, sx, sy, ox, oy, bw, bh) {
-        cancelValueDrag(); clearPaletteHighlight();
+        cancelValueDrag(); clearPaletteHighlight(); endSettle();
         const p = workspace.mapFromItem(null, sx, sy);
-        dragSession.settling = false; dragSession.settleHidden = false;
         dragSession.strandId = strandId; dragSession.path = path; dragSession.tailCount = tailCount;
         dragSession.startX = p.x; dragSession.startY = p.y; dragSession.originX = p.x - ox; dragSession.originY = p.y - oy;
         dragSession.dx = 0; dragSession.dy = 0; dragSession.active = true;
@@ -787,6 +796,7 @@ Rectangle {
         dragSession.settleStrandId = strandId;
         dragSession.settlePath = path;
         dragSession.settleHidden = false;
+        root._lastDrop = "block";
         if (!root.contains(root.mapFromItem(null, sx, sy))) {
             // The host calls settleTrashed() if it actually deletes the tail.
             clearSnap(); dragSession.settling = false;
@@ -800,7 +810,7 @@ Rectangle {
             dragSession.settleDx = dragSession.snapX - ox;
             dragSession.settleDy = dragSession.snapY - oy;
             dragSession.settling = true;
-            settleTimer.restart();
+            armSettle();
             if (isWhole) root.strandsMerged(strandId, snapTargetId, snapPath);
             else root.tailMerged(strandId, path, snapTargetId, snapPath);
             return;
@@ -812,19 +822,48 @@ Rectangle {
         dragSession.settleDx = dx;
         dragSession.settleDy = dy;
         dragSession.settling = true;
-        settleTimer.restart();
+        armSettle();
         const strand = strandById(strandId);
         if (isWhole && strand) root.strandMoved(strandId, Math.round(strand.x + dx), Math.round(strand.y + dy));
         else root.instructionSplit(strandId, path, Math.round(ox + dx - root.originOffsetX), Math.round(oy + dy - root.originOffsetY));
     }
-    // Hides the tail just dropped outside the canvas until its removal lands.
+    // Hides the block or value just dropped outside the canvas until its removal lands.
     function settleTrashed() {
+        if (root._lastDrop === "value") {
+            if (valueDrag.active || !valueDrag.settleSource) return;
+            settleValue(valueDrag.settleSource, 0, 0, true);
+            return;
+        }
         if (dragSession.active) return;
         dragSession.settleHidden = true;
         dragSession.settling = true;
-        settleTimer.restart();
+        armSettle();
+    }
+    // Keeps a palette drop's attach gap open until the new block lands.
+    function settlePaletteDrop() {
+        if (dragSession.active || !dragSession.snapValid) return;
+        dragSession.settleStrandId = ""; dragSession.settlePath = [];
+        dragSession.settling = true;
+        armSettle();
+    }
+    // Scene point where a palette drop will land (value slot or attach gap), or null.
+    function paletteDropScenePoint() {
+        if (paletteHighlightItem) return paletteHighlightItem.mapToItem(null, 0, 0);
+        if (dragSession.snapValid) return workspace.mapToItem(null, dragSession.snapX, dragSession.snapY);
+        return null;
+    }
+    function settleValue(source, x, y, hidden) {
+        valueDrag.settleX = x; valueDrag.settleY = y;
+        valueDrag.settleHidden = hidden;
+        valueDrag.settling = true;
+        BlockRegistry.settlingValueKey = BlockRegistry.locationKey(source);
+        armSettle();
     }
     function endSettle() {
+        if (valueDrag.settling) {
+            valueDrag.settling = false; valueDrag.settleHidden = false;
+            BlockRegistry.settlingValueKey = "";
+        }
         if (!dragSession.settling) return;
         dragSession.settling = false; dragSession.settleHidden = false;
         clearSnap();
@@ -974,7 +1013,7 @@ Rectangle {
     }
     function beginValueDrag(location, value, sx, sy, ox, oy, w, h) {
         if (root.locked) return;
-        cancelDrag();
+        cancelDrag(); endSettle();
         const p = workspace.mapFromItem(null, sx, sy);
         valueDrag.sourceLocation = JSON.parse(JSON.stringify(location));
         valueDrag.sourceValue = JSON.parse(JSON.stringify(value));
@@ -1018,38 +1057,43 @@ Rectangle {
         const source = valueDrag.sourceLocation ? JSON.parse(JSON.stringify(valueDrag.sourceLocation)) : null;
         const value = valueDrag.sourceValue ? JSON.parse(JSON.stringify(valueDrag.sourceValue)) : null;
         const target = valueDrag.targetValid && valueDrag.target ? JSON.parse(JSON.stringify(valueDrag.target)) : null;
+        const targetItem = valueDrag.highlightItem;
+        const gx = valueDrag.originX + valueDrag.dx, gy = valueDrag.originY + valueDrag.dy;
         valueDrag.active = false;
         clearValueTarget();
+        root._lastDrop = "value";
+        valueDrag.settleSource = source;
         if (!source || !value) return;
         if (!root.contains(root.mapFromItem(null, sx, sy))) { root.valueDragOutside(source, value, sx, sy); return; }
         if (target) {
             if (valueLocationsEqual(target, source)) return; // no-op put-back
-            root.valueTakeRequested(source);
-            root.valuePutRequested(target, value);
+            const p = targetItem ? workspace.mapFromItem(targetItem, 0, 0) : Qt.point(gx, gy);
+            settleValue(source, p.x, p.y, false);
+            root.valueMoveRequested(source, target, 0, 0, "");
             return;
         }
-        // Open canvas: a whole floating block just moves; anything pulled
-        // out of a field becomes a new floating block.
-        if (source.kind === "Floating" && !(source.path && source.path.length)) {
-            const at = workspacePoint(sx, sy);
-            // Center the block under the pointer like a fresh drop.
-            const fx = at ? Math.round(at.x - valueDrag.draggedWidth / 2) : 0;
-            const fy = at ? Math.round(at.y - valueDrag.draggedHeight / 2) : 0;
-            root.floatingValueMoved(source.floating_id, fx, fy);
-            return;
-        }
-        const at = workspacePoint(sx, sy);
-        if (!at) return;
-        const fx = Math.round(at.x - valueDrag.draggedWidth / 2);
-        const fy = Math.round(at.y - valueDrag.draggedHeight / 2);
-        root.valueTakeRequested(source);
-        root.valueCreateRequested(fx, fy, value, valueDrag.sourceOrigin);
+        // Open canvas: lands where the ghost is. A whole floating block just
+        // moves; anything pulled out of a field becomes a new floating block.
+        const fx = Math.round(gx - root.originOffsetX), fy = Math.round(gy - root.originOffsetY);
+        settleValue(source, gx, gy, false);
+        if (source.kind === "Floating" && !(source.path && source.path.length)) root.floatingValueMoved(source.floating_id, fx, fy);
+        else root.valueMoveRequested(source, null, fx, fy, valueDrag.sourceOrigin);
     }
     function cancelValueDrag() { valueDrag.active = false; clearValueTarget(); }
+    // A settle ends once the document differs from the drop moment; other
+    // state pushes (run log, debugger) reassign it unchanged and must not.
+    property string _settleDoc: ""
+    function docKey() { return JSON.stringify([root.strands, root.floatingValues]); }
+    function armSettle() { _settleDoc = docKey(); settleTimer.restart(); }
+    function settleOnDocChange() {
+        if ((dragSession.settling || valueDrag.settling) && docKey() === _settleDoc) return;
+        endSettle();
+    }
+    onFloatingValuesChanged: settleOnDocChange()
     Timer { id: settleTimer; interval: 1500; onTriggered: root.endSettle() }
     onStrandsChanged: {
         syncStrands();
-        endSettle();
+        settleOnDocChange();
         if (!dragSession.active && !dragSession.settling) {
             dragSession.sourceStrandId = ""; dragSession.sourceBasePath = []; dragSession.sourceShrink = 0;
         }
@@ -1385,8 +1429,9 @@ Rectangle {
             // Ghost following the pointer while an existing value is dragged.
             Item {
                 id: valueGhost
-                visible: valueDrag.active
-                x: valueDrag.originX + valueDrag.dx; y: valueDrag.originY + valueDrag.dy
+                visible: valueDrag.active || (valueDrag.settling && !valueDrag.settleHidden)
+                x: valueDrag.active ? valueDrag.originX + valueDrag.dx : valueDrag.settleX
+                y: valueDrag.active ? valueDrag.originY + valueDrag.dy : valueDrag.settleY
                 width: Math.max(40, valueDrag.draggedWidth); height: Math.max(27, valueDrag.draggedHeight)
                 z: 95; enabled: false; opacity: 0.9
                 ValueChip {
