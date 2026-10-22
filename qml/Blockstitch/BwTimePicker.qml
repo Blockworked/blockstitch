@@ -28,8 +28,8 @@ Popup {
     // January first, and Sunday first, like Date.
     property var monthNames: Array.from({ length: 12 }, (_, i) => Qt.locale().standaloneMonthName(i, Locale.LongFormat))
     property var weekdayNames: Array.from({ length: 7 }, (_, i) => Qt.locale().dayName(i, Locale.ShortFormat))
-    // 0 is Sunday.
-    property int firstDayOfWeek: Qt.locale().firstDayOfWeek
+    // The calendar's first column; 0 is Sunday.
+    property int firstDayOfWeek: 0
     // Refreshed on every open, for the calendar's ring and dimmed past days.
     property var today: new Date()
     signal pickedAt(int year, int month, int day, int hour, int minute)
