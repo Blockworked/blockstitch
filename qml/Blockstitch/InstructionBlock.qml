@@ -488,14 +488,14 @@ Item {
     Component { id: fieldsFor8
         Row {
             spacing: 7
-                    Text { text:qsTr("Text:"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("Text"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.text:null; location:root.fieldLocation("TextValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }
     }
     Component { id: fieldsFor9
         Row {
             spacing: 7
-                    Text { text:qsTr("Key:"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("Key"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; keyMode:true; keyCapturing:root.isCapturingKey(); onKeyCaptureRequested:root.keyCaptureRequested(root.strandId,root.path); valueData:instruction?instruction.key:null; location:root.fieldLocation("KeyValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Click"),qsTr("Press"),qsTr("Release")]; currentIndex: instruction?["Click","Press","Release"].indexOf(instruction.direction):0; implicitWidth:88; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("direction",["Click","Press","Release"][index]) }
         }
@@ -511,7 +511,7 @@ Item {
     Component { id: fieldsFor10
         Row {
             spacing: 7
-                    Text { text:qsTr("Mouse button:"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("Mouse button"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Left"),qsTr("Right"),qsTr("Middle"),qsTr("Side"),qsTr("Extra")]; currentIndex:instruction?["Left","Right","Middle","Side","Extra"].indexOf(instruction.button):0; implicitWidth:82; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("button",["Left","Right","Middle","Side","Extra"][index]) }
                     BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Click"),qsTr("Press"),qsTr("Release")]; currentIndex:instruction?["Click","Press","Release"].indexOf(instruction.direction):0; implicitWidth:88; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("direction",["Click","Press","Release"][index]) }
         }
@@ -557,21 +557,21 @@ Item {
     Component { id: fieldsFor13
         Row {
             spacing: 7
-                    Text { text:qsTr("Run command:"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("Run command"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     BwTextField { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.command?instruction.command:""; placeholderText:qsTr("command"); implicitWidth:Math.max(92,Math.min(480,contentWidth+22)); implicitHeight:30; font.pixelSize:12; onEditingFinished:root.setField("command",text) }
         }
     }
     Component { id: fieldsFor14
         Row {
             spacing: 7
-                    Text { text:qsTr("Open app:"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("Open app"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     BwButton { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.name?instruction.name:qsTr("Choose app..."); iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
         }
     }
     Component { id: fieldsFor15
         Row {
             spacing: 7
-                    Text { text:qsTr("Close app:"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("Close app"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     BwButton { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.name?instruction.name:qsTr("Choose app..."); iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
         }
     }
