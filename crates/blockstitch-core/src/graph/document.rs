@@ -499,6 +499,54 @@ impl<K: BlockKind> BlockGraph<K> {
         }
     }
 
+    /// Rebuilds every call site's branch bodies for `new_pieces`, matched by
+    /// [`BlockPiece::id`], so reordering or removing a branch keeps each body
+    /// with its branch. A new branch starts empty. Call before overwriting
+    /// the pieces.
+    pub fn reconcile_block_call_branches(
+        &mut self,
+        block_id: &str,
+        old_pieces: &[BlockPiece],
+        new_pieces: &[BlockPiece],
+    ) {
+        let branch_ids = |pieces: &[BlockPiece]| -> Vec<String> {
+            pieces
+                .iter()
+                .filter(|p| matches!(p, BlockPiece::Branch { .. }))
+                .map(|p| p.id().to_string())
+                .collect()
+        };
+        let old_ids = branch_ids(old_pieces);
+        let mapping: Vec<Option<usize>> = branch_ids(new_pieces)
+            .iter()
+            .map(|id| old_ids.iter().position(|old| old == id))
+            .collect();
+        if mapping.len() == old_ids.len() && mapping.iter().enumerate().all(|(i, m)| *m == Some(i)) {
+            return;
+        }
+        fn remap<T>(branches: &mut Vec<Vec<T>>, mapping: &[Option<usize>]) {
+            let mut old = std::mem::take(branches);
+            *branches = mapping
+                .iter()
+                .map(|i| i.and_then(|i| old.get_mut(i)).map(std::mem::take).unwrap_or_default())
+                .collect();
+        }
+        for strand in &mut self.strands {
+            for ins in &mut strand.instructions {
+                ins.for_each_call_branches_mut(
+                    block_id,
+                    &mut |b| remap(b, &mapping),
+                    &mut |b| remap(b, &mapping),
+                );
+            }
+        }
+        for floating in &mut self.floating_values {
+            floating
+                .value
+                .for_each_call_branches_mut(block_id, &mut |b| remap(b, &mapping));
+        }
+    }
+
     /// Deletes a custom block: its [`BlockDef`], its body strand, and every
     /// call of it, so no reference is left dangling.
     pub fn remove_block(&mut self, block_id: &str) {

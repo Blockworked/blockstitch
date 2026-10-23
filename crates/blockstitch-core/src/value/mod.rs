@@ -518,6 +518,42 @@ impl Value {
         }
     }
 
+    /// Applies `f` to the branch bodies of every call of `block_id` in this
+    /// tree, like [`Value::for_each_call_args_mut`].
+    pub fn for_each_call_branches_mut(
+        &mut self,
+        block_id: &str,
+        f: &mut dyn FnMut(&mut Vec<Vec<serde_json::Value>>),
+    ) {
+        match self {
+            Value::Number { .. }
+            | Value::Text { .. }
+            | Value::Bool
+            | Value::Var { .. }
+            | Value::Param { .. } => {}
+            Value::Op { args, saved, .. } => {
+                for a in args.iter_mut() {
+                    a.for_each_call_branches_mut(block_id, f);
+                }
+                saved.for_each_call_branches_mut(block_id, f);
+            }
+            Value::Call {
+                block_id: id,
+                args,
+                branches,
+                saved,
+            } => {
+                if id == block_id {
+                    f(branches);
+                }
+                for a in args.iter_mut() {
+                    a.for_each_call_branches_mut(block_id, f);
+                }
+                saved.for_each_call_branches_mut(block_id, f);
+            }
+        }
+    }
+
     /// Applies `f` to the `args` of every `Value::Call` on `block_id`, so
     /// call sites stay aligned with the block's current pieces.
     pub fn for_each_call_args_mut(&mut self, block_id: &str, f: &mut dyn FnMut(&mut Vec<Value>)) {

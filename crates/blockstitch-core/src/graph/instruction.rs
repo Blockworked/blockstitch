@@ -75,6 +75,13 @@ pub trait BlockKind:
         None
     }
 
+    /// The branch bodies of a command-position invocation of `block_id`, in
+    /// the definition's branch order, so editing the block can keep them
+    /// with their branch.
+    fn call_branches_mut(&mut self, _block_id: &str) -> Option<&mut Vec<Vec<Instruction<Self>>>> {
+        None
+    }
+
     /// The custom block whose body this kind heads, if it's a block header.
     fn block_header_id(&self) -> Option<&str> {
         None
@@ -232,6 +239,23 @@ impl<K: BlockKind> Instruction<K> {
             }
             ins.kind
                 .visit_values_mut(&mut |value, _| value.for_each_call_args_mut(block_id, &mut *f));
+        });
+    }
+
+    /// Applies `f_ins` to the branch bodies of every command-position call of
+    /// `block_id`, and `f_val` to those of every reporter call, wherever nested.
+    pub fn for_each_call_branches_mut(
+        &mut self,
+        block_id: &str,
+        f_ins: &mut dyn FnMut(&mut Vec<Vec<Instruction<K>>>),
+        f_val: &mut dyn FnMut(&mut Vec<Vec<serde_json::Value>>),
+    ) {
+        self.walk_mut(&mut |ins| {
+            if let Some(branches) = ins.kind.call_branches_mut(block_id) {
+                f_ins(branches);
+            }
+            ins.kind
+                .visit_values_mut(&mut |value, _| value.for_each_call_branches_mut(block_id, &mut *f_val));
         });
     }
 

@@ -30,6 +30,7 @@
     "PaletteValue.qml",
     "CollectionPanel.qml",
     "NameDialog.qml",
+    "BlockDefinitionEditor.qml",
     "PalettePanel.qml",
     "BlockCanvas.qml"
   ]
