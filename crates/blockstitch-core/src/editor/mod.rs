@@ -1,11 +1,16 @@
 //! The editing layer: addressing, undo history, and every mutation a
 //! canvas gesture performs on a [`crate::graph::BlockGraph`].
 
+mod command;
 mod history;
 mod location;
 mod ops;
 mod path;
 
+pub use command::{
+    BufferEffect, Created, EditCommand, EditContext, EditError, EditOutcome, NumberSpelling,
+    PreparedEdit, ValueDestination, apply_buffer_effects,
+};
 pub use history::{EditSession, History};
 pub use location::{
     ValueBuffers, ValueLocation, drop_strand_buffers, prune_value_buffers, retain_live_buffers,

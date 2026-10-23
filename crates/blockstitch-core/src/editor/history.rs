@@ -60,6 +60,19 @@ impl<S> History<S> {
         is_new
     }
 
+    /// Checkpoints for an accepted, changing edit: coalesced when it has a
+    /// session (see [`crate::editor::EditOutcome::coalesce`]), a plain step
+    /// otherwise. Returns whether a step was pushed.
+    pub fn checkpoint(&mut self, snapshot: S, session: Option<EditSession>) -> bool {
+        match session {
+            Some(session) => self.push_for_session(snapshot, session),
+            None => {
+                self.push(snapshot);
+                true
+            }
+        }
+    }
+
     /// Hands back the previous snapshot, taking `current` onto the redo
     /// branch. `None` (and `current` dropped) when there's nothing to undo.
     pub fn undo(&mut self, current: S) -> Option<S> {

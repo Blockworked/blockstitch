@@ -34,6 +34,22 @@ resolving the value a drag targeted, dropping one in, and undo/redo.
 Editor operations validate first and mutate second, and none of them lock,
 save or notify - a host wraps them in whatever state handling it already has.
 
+A gesture that should be one undo step goes through `editor::EditCommand`
+(move a value, type into a field, delete a tail, insert a block):
+
+```rust
+let prepared = graph.prepare_edit(command, &EditContext::default())?; // reads only
+if prepared.changes() {
+    history.checkpoint(snapshot(), prepared.coalesce().cloned());
+}
+let outcome = graph.commit_edit(prepared);
+apply_buffer_effects(&mut buffers, &outcome.buffers);
+if outcome.changed { /* save, notify */ }
+```
+
+A rejected command is an `Err` and touches nothing; a valid no-op has
+`changes() == false` and needs no history or save.
+
 ## Example
 
 ```rust

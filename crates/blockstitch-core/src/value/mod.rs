@@ -444,6 +444,19 @@ impl Value {
         Ok(self.eval()?.as_text())
     }
 
+    /// Read-only counterpart to [`Value::get_mut`].
+    pub fn get(&self, path: &[u8]) -> Option<&Value> {
+        match path.split_first() {
+            None => Some(self),
+            Some((&step, rest)) => match self {
+                Value::Op { args, .. } | Value::Call { args, .. } => {
+                    args.get(step as usize)?.get(rest)
+                }
+                _ => None,
+            },
+        }
+    }
+
     /// Walks `path` (`n` steps into `args[n]` at each `Op`) down to the
     /// addressed node; an empty path returns `self`.
     pub fn get_mut(&mut self, path: &[u8]) -> Option<&mut Value> {

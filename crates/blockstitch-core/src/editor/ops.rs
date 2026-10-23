@@ -665,6 +665,22 @@ impl<K: BlockKind> BlockGraph<K> {
         Ok(())
     }
 
+    /// Sets a block's public identifier, description and icon, trimmed; an
+    /// invalid icon resets to the default. Every host writes them through here.
+    pub fn set_block_details(
+        &mut self,
+        block_id: &str,
+        identifier: &str,
+        description: &str,
+        icon: &str,
+    ) -> Result<(), String> {
+        let def = self.block_def_mut(block_id).ok_or("Unknown block")?;
+        def.identifier = identifier.trim().to_string();
+        def.description = description.trim().to_string();
+        def.icon = crate::graph::normalize_block_icon(icon);
+        Ok(())
+    }
+
     /// Updates a block's prototype, reconciling call-site `args` to the new
     /// input list and renaming body params that only changed name.
     pub fn update_block(
