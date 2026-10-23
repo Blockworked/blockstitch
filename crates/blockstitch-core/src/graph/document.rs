@@ -352,7 +352,7 @@ impl<K: BlockKind> BlockGraph<K> {
 
     /// Renames a declared list and every reference to it, returning the
     /// trimmed name. Renaming to its own current name is a no-op success.
-    /// Command targets rename via [`BlockKind::list_target_mut`]; reporter
+    /// Command targets rename via [`BlockKind::visit_refs_mut`]; reporter
     /// name args rename inside every value tree.
     pub fn rename_list(&mut self, old: &str, new: &str) -> Result<String, String> {
         let trimmed = new.trim().to_string();
@@ -383,7 +383,7 @@ impl<K: BlockKind> BlockGraph<K> {
 
     /// Renames a declared dict and every reference to it, returning the
     /// trimmed name. Renaming to its own current name is a no-op success.
-    /// Command targets rename via [`BlockKind::dict_target_mut`]; reporter
+    /// Command targets rename via [`BlockKind::visit_refs_mut`]; reporter
     /// name args rename inside every value tree.
     pub fn rename_dict(&mut self, old: &str, new: &str) -> Result<String, String> {
         let trimmed = new.trim().to_string();

@@ -45,22 +45,43 @@ pub trait BlockKind:
         None
     }
 
-    /// The variable name this kind *writes* (a "set"/"change" block), so a
-    /// rename can follow it. Reads live in values and need nothing here.
+    /// Every variable, list and dict name this kind holds as plain text
+    /// rather than in a value: a "set" block's target, each output of a
+    /// block that writes several, a list block's list. Renames, packs and
+    /// usage scans all go through this, so one kind may report any number.
+    /// The default reports the three single-target methods below.
+    fn visit_refs_mut(&mut self, f: &mut dyn FnMut(RefKind, &mut String)) {
+        if let Some(name) = self.variable_target_mut() {
+            f(RefKind::Variable, name);
+        }
+        if let Some(name) = self.list_target_mut() {
+            f(RefKind::List, name);
+        }
+        if let Some(name) = self.dict_target_mut() {
+            f(RefKind::Dict, name);
+        }
+    }
+
+    /// Read-only counterpart to [`BlockKind::visit_refs_mut`]. The default
+    /// visits a clone; override it if that clone is costly.
+    fn visit_refs(&self, f: &mut dyn FnMut(RefKind, &str)) {
+        self.clone().visit_refs_mut(&mut |kind, name| f(kind, name));
+    }
+
+    /// Compatibility path: one variable name this kind writes. Only read by
+    /// the default [`BlockKind::visit_refs_mut`]; new hosts override that.
     fn variable_target_mut(&mut self) -> Option<&mut String> {
         None
     }
 
-    /// The list name this kind *writes* (an add/delete/insert/replace block),
-    /// so a rename can follow it. Reporter reads live in values and need
-    /// nothing here.
+    /// Compatibility path: one list name this kind writes. See
+    /// [`BlockKind::variable_target_mut`].
     fn list_target_mut(&mut self) -> Option<&mut String> {
         None
     }
 
-    /// The dict name this kind *writes* (a set/delete/load block), so a
-    /// rename can follow it. Reporter reads live in values and need nothing
-    /// here.
+    /// Compatibility path: one dict name this kind writes. See
+    /// [`BlockKind::variable_target_mut`].
     fn dict_target_mut(&mut self) -> Option<&mut String> {
         None
     }
@@ -98,6 +119,15 @@ pub trait BlockKind:
     fn field_requires_integer(&self, _field: &str) -> bool {
         false
     }
+}
+
+/// What a name in [`BlockKind::visit_refs_mut`] refers to. Each has its
+/// own namespace, so a rename only follows names of its own kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RefKind {
+    Variable,
+    List,
+    Dict,
 }
 
 fn new_instruction_id() -> String {
@@ -166,46 +196,45 @@ impl<K: BlockKind> Instruction<K> {
         self.walk_mut(&mut |ins| ins.kind.visit_values_mut(&mut *f));
     }
 
-    /// Renames variable reads, plus a "set"/"change" block's own target name.
-    pub fn rename_var(&mut self, old: &str, new: &str) {
+    /// Every name of `kind` this instruction and its nested bodies hold,
+    /// via [`BlockKind::visit_refs_mut`]. Reads inside values aren't visited.
+    pub fn rename_refs(&mut self, kind: RefKind, old: &str, new: &str) {
         self.walk_mut(&mut |ins| {
-            if let Some(target) = ins.kind.variable_target_mut()
-                && target == old
-            {
-                *target = new.to_string();
-            }
-            ins.kind
-                .visit_values_mut(&mut |value, _| value.rename_var(old, new));
+            ins.kind.visit_refs_mut(&mut |k, name| {
+                if k == kind && name == old {
+                    *name = new.to_string();
+                }
+            });
         });
     }
 
-    /// Renames list references: a list block's own target name plus reporter
+    /// Read-only walk over every name this instruction and its nested
+    /// bodies hold, via [`BlockKind::visit_refs`].
+    pub fn walk_refs(&self, f: &mut dyn FnMut(RefKind, &str)) {
+        self.walk(&mut |ins| ins.kind.visit_refs(&mut *f));
+    }
+
+    /// Renames variable reads, plus every variable name the block holds.
+    pub fn rename_var(&mut self, old: &str, new: &str) {
+        self.rename_refs(RefKind::Variable, old, new);
+        self.visit_values_mut(&mut |value, _| value.rename_var(old, new));
+    }
+
+    /// Renames list references: every list name a block holds plus reporter
     /// name args inside every value tree.
     pub fn rename_list(&mut self, old: &str, new: &str) {
-        self.walk_mut(&mut |ins| {
-            if let Some(target) = ins.kind.list_target_mut()
-                && target == old
-            {
-                *target = new.to_string();
-            }
-            ins.kind.visit_values_mut(&mut |value, _| {
-                crate::graph::lists::rename_list_in_value(value, old, new)
-            });
+        self.rename_refs(RefKind::List, old, new);
+        self.visit_values_mut(&mut |value, _| {
+            crate::graph::lists::rename_list_in_value(value, old, new)
         });
     }
 
-    /// Renames dict references: a dict block's own target name plus reporter
+    /// Renames dict references: every dict name a block holds plus reporter
     /// name args inside every value tree.
     pub fn rename_dict(&mut self, old: &str, new: &str) {
-        self.walk_mut(&mut |ins| {
-            if let Some(target) = ins.kind.dict_target_mut()
-                && target == old
-            {
-                *target = new.to_string();
-            }
-            ins.kind.visit_values_mut(&mut |value, _| {
-                crate::graph::dicts::rename_dict_in_value(value, old, new)
-            });
+        self.rename_refs(RefKind::Dict, old, new);
+        self.visit_values_mut(&mut |value, _| {
+            crate::graph::dicts::rename_dict_in_value(value, old, new)
         });
     }
 
@@ -269,5 +298,135 @@ impl<'de, K: Deserialize<'de>> Deserialize<'de> for Instruction<K> {
             InstructionEnvelope::Current { id, kind } => Instruction { id, kind },
             InstructionEnvelope::Legacy(kind) => Instruction::new(kind),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graph::BlockGraph;
+
+    #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
+    enum Block {
+        Set(String, Value),
+        // Writes two variables and a list, like a "find" block.
+        Find { x: String, y: String, hits: String },
+        Repeat(Vec<Instruction<Block>>),
+    }
+
+    impl BlockKind for Block {
+        fn visit_values_mut(&mut self, f: &mut dyn FnMut(&mut Value, InputValueType)) {
+            if let Block::Set(_, value) = self {
+                f(value, InputValueType::Any);
+            }
+        }
+        fn body(&self, slot: u8) -> Option<&Vec<Instruction<Block>>> {
+            match (self, slot) {
+                (Block::Repeat(body), 0) => Some(body),
+                _ => None,
+            }
+        }
+        fn body_mut(&mut self, slot: u8) -> Option<&mut Vec<Instruction<Block>>> {
+            match (self, slot) {
+                (Block::Repeat(body), 0) => Some(body),
+                _ => None,
+            }
+        }
+        fn visit_refs_mut(&mut self, f: &mut dyn FnMut(RefKind, &mut String)) {
+            match self {
+                Block::Set(name, _) => f(RefKind::Variable, name),
+                Block::Find { x, y, hits } => {
+                    f(RefKind::Variable, x);
+                    f(RefKind::Variable, y);
+                    f(RefKind::List, hits);
+                }
+                Block::Repeat(_) => {}
+            }
+        }
+    }
+
+    // Only the single-target compatibility method.
+    #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
+    struct Legacy(String);
+
+    impl BlockKind for Legacy {
+        fn visit_values_mut(&mut self, _: &mut dyn FnMut(&mut Value, InputValueType)) {}
+        fn variable_target_mut(&mut self) -> Option<&mut String> {
+            Some(&mut self.0)
+        }
+    }
+
+    fn var(name: &str) -> Value {
+        Value::Var { name: name.into() }
+    }
+
+    fn graph() -> BlockGraph<Block> {
+        let mut graph = BlockGraph::new();
+        for name in ["a", "b", "c"] {
+            graph.create_variable(name).unwrap();
+        }
+        let find = Block::Find {
+            x: "a".into(),
+            y: "b".into(),
+            hits: "a".into(),
+        };
+        let nested = Instruction::new(Block::Repeat(vec![
+            Instruction::new(find.clone()),
+            Instruction::new(Block::Set("c".into(), var("b"))),
+        ]));
+        graph.strands.push(crate::graph::Strand::with_instructions(
+            0,
+            0,
+            vec![Instruction::new(find), nested],
+        ));
+        graph
+    }
+
+    fn refs(graph: &BlockGraph<Block>) -> Vec<(RefKind, String)> {
+        let mut out = Vec::new();
+        for ins in &graph.strands[0].instructions {
+            ins.walk_refs(&mut |kind, name| out.push((kind, name.to_string())));
+        }
+        out
+    }
+
+    #[test]
+    fn rename_reaches_every_output_including_nested_ones() {
+        let mut graph = graph();
+        graph.rename_variable("a", "ax").unwrap();
+        graph.rename_variable("b", "by").unwrap();
+        use RefKind::*;
+        let expect = |list: &str| {
+            vec![
+                (Variable, "ax".to_string()),
+                (Variable, "by".to_string()),
+                (List, list.to_string()),
+                (Variable, "ax".to_string()),
+                (Variable, "by".to_string()),
+                (List, list.to_string()),
+                (Variable, "c".to_string()),
+            ]
+        };
+        // The list named "a" is a different thing and keeps its name.
+        assert_eq!(refs(&graph), expect("a"));
+        let Block::Repeat(body) = &graph.strands[0].instructions[1].kind else {
+            panic!()
+        };
+        assert_eq!(body[1].kind, Block::Set("c".into(), var("by")));
+        graph.create_list("a").unwrap();
+        graph.rename_list("a", "hits").unwrap();
+        assert_eq!(refs(&graph), expect("hits"));
+    }
+
+    #[test]
+    fn single_target_hosts_keep_working() {
+        let mut ins = Instruction::new(Legacy("a".into()));
+        let mut seen = Vec::new();
+        ins.walk_refs(&mut |kind, name| seen.push((kind, name.to_string())));
+        assert_eq!(seen, [(RefKind::Variable, "a".to_string())]);
+        ins.rename_var("a", "b");
+        assert_eq!(ins.kind, Legacy("b".into()));
+        ins.rename_list("b", "c");
+        assert_eq!(ins.kind, Legacy("b".into()));
     }
 }
