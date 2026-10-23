@@ -102,3 +102,29 @@ Visible ones get an editor card on the canvas that reports edits through
 `dictEntriesEdited`/`dictEditorStateChanged`, and the palette lists them in a
 `CollectionPanel` beside the lists with their reporters (`DictValue`,
 `DictHasKey`, `DictSize`, `DictKeys`, `DictAsJson`, `DictIsEmpty`).
+
+## Custom block definitions
+
+`BlockDefinitionEditor` is the "Make a Block" surface every host shares:
+labels, inputs and branches with stable piece ids, shape, color, icon,
+identifier, description and input defaults, with a live preview. Put it in
+the host's own dialog, call `load(def)` or `reset()` when it opens (then
+`focusFirst()`), and send what it emits:
+
+```qml
+BlockDefinitionEditor {
+    allowBranches: false            // what the host's runtime can run
+    onCreateRequested: draft => app.invoke("create_block", draft, close, e => fail(e))
+    onEditRequested: (id, draft) => app.invoke("edit_block", Object.assign({ blockId: id }, draft), close, e => fail(e))
+    onCancelled: close()
+}
+```
+
+A draft is `{pieces, shape, color, icon, identifier, description}`. A piece
+keeps every key it was loaded with, and a host without `allowDefaults` passes
+stored defaults through untouched, so nothing a definition holds is dropped.
+Branches a definition already has stay editable when `allowBranches` is off.
+`shapes`, `allowCustomColor` and `colorPresets` narrow the rest; `textMenu`,
+`detailsTitle`, `detailsNote` and `detailsPanel` are host hooks. The backend
+stays the authority: `BlockDef::validate_pieces` checks the pieces and
+`update_block` moves call-site arguments and branch bodies by piece id.

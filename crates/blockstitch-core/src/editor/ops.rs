@@ -681,8 +681,8 @@ impl<K: BlockKind> BlockGraph<K> {
         Ok(())
     }
 
-    /// Updates a block's prototype, reconciling call-site `args` to the new
-    /// input list and renaming body params that only changed name.
+    /// Updates a block's prototype, reconciling call-site `args` and branch
+    /// bodies to the new pieces and renaming body params that only changed name.
     pub fn update_block(
         &mut self,
         block_id: &str,
@@ -701,6 +701,7 @@ impl<K: BlockKind> BlockGraph<K> {
             self.rename_block_input_body(block_id, &old_name, &new_name);
         }
         self.reconcile_block_call_args(block_id, &old_pieces, &new_pieces);
+        self.reconcile_block_call_branches(block_id, &old_pieces, &new_pieces);
 
         let def = self.block_def_mut(block_id).ok_or("Unknown block")?;
         def.pieces = new_pieces;
