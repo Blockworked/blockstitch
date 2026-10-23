@@ -521,23 +521,26 @@ impl<K: BlockKind> BlockGraph<K> {
             .iter()
             .map(|id| old_ids.iter().position(|old| old == id))
             .collect();
-        if mapping.len() == old_ids.len() && mapping.iter().enumerate().all(|(i, m)| *m == Some(i)) {
+        if mapping.len() == old_ids.len() && mapping.iter().enumerate().all(|(i, m)| *m == Some(i))
+        {
             return;
         }
         fn remap<T>(branches: &mut Vec<Vec<T>>, mapping: &[Option<usize>]) {
             let mut old = std::mem::take(branches);
             *branches = mapping
                 .iter()
-                .map(|i| i.and_then(|i| old.get_mut(i)).map(std::mem::take).unwrap_or_default())
+                .map(|i| {
+                    i.and_then(|i| old.get_mut(i))
+                        .map(std::mem::take)
+                        .unwrap_or_default()
+                })
                 .collect();
         }
         for strand in &mut self.strands {
             for ins in &mut strand.instructions {
-                ins.for_each_call_branches_mut(
-                    block_id,
-                    &mut |b| remap(b, &mapping),
-                    &mut |b| remap(b, &mapping),
-                );
+                ins.for_each_call_branches_mut(block_id, &mut |b| remap(b, &mapping), &mut |b| {
+                    remap(b, &mapping)
+                });
             }
         }
         for floating in &mut self.floating_values {

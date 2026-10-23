@@ -30,8 +30,8 @@ pub use lists::{
 };
 pub use wire::{from_frontend, to_frontend};
 
-/// Ids for everything on the canvas - a bare uuid, since they only have to
-/// be unique within one document.
+/// Ids for everything on the canvas - a bare uuid by default, since they only
+/// have to be unique within one document. See [`crate::sources`].
 pub fn new_id() -> String {
-    uuid::Uuid::new_v4().simple().to_string()
+    crate::sources::new_id()
 }

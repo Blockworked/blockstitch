@@ -43,6 +43,7 @@
 
 pub mod editor;
 pub mod graph;
+pub mod sources;
 pub mod value;
 
 pub use graph::{

@@ -51,41 +51,12 @@ pub trait BlockKind:
     /// rather than in a value: a "set" block's target, each output of a
     /// block that writes several, a list block's list. Renames, packs and
     /// usage scans all go through this, so one kind may report any number.
-    /// The default reports the three single-target methods below.
-    fn visit_refs_mut(&mut self, f: &mut dyn FnMut(RefKind, &mut String)) {
-        if let Some(name) = self.variable_target_mut() {
-            f(RefKind::Variable, name);
-        }
-        if let Some(name) = self.list_target_mut() {
-            f(RefKind::List, name);
-        }
-        if let Some(name) = self.dict_target_mut() {
-            f(RefKind::Dict, name);
-        }
-    }
+    fn visit_refs_mut(&mut self, _f: &mut dyn FnMut(RefKind, &mut String)) {}
 
     /// Read-only counterpart to [`BlockKind::visit_refs_mut`]. The default
     /// visits a clone; override it if that clone is costly.
     fn visit_refs(&self, f: &mut dyn FnMut(RefKind, &str)) {
         self.clone().visit_refs_mut(&mut |kind, name| f(kind, name));
-    }
-
-    /// Compatibility path: one variable name this kind writes. Only read by
-    /// the default [`BlockKind::visit_refs_mut`]; new hosts override that.
-    fn variable_target_mut(&mut self) -> Option<&mut String> {
-        None
-    }
-
-    /// Compatibility path: one list name this kind writes. See
-    /// [`BlockKind::variable_target_mut`].
-    fn list_target_mut(&mut self) -> Option<&mut String> {
-        None
-    }
-
-    /// Compatibility path: one dict name this kind writes. See
-    /// [`BlockKind::variable_target_mut`].
-    fn dict_target_mut(&mut self) -> Option<&mut String> {
-        None
     }
 
     /// True if this is a command-position invocation of `block_id`.
@@ -290,8 +261,9 @@ impl<K: BlockKind> Instruction<K> {
             if let Some(branches) = ins.kind.call_branches_mut(block_id) {
                 f_ins(branches);
             }
-            ins.kind
-                .visit_values_mut(&mut |value, _| value.for_each_call_branches_mut(block_id, &mut *f_val));
+            ins.kind.visit_values_mut(&mut |value, _| {
+                value.for_each_call_branches_mut(block_id, &mut *f_val)
+            });
         });
     }
 
@@ -397,17 +369,6 @@ mod tests {
         }
     }
 
-    // Only the single-target compatibility method.
-    #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
-    struct Legacy(String);
-
-    impl BlockKind for Legacy {
-        fn visit_values_mut(&mut self, _: &mut dyn FnMut(&mut Value, InputValueType)) {}
-        fn variable_target_mut(&mut self) -> Option<&mut String> {
-            Some(&mut self.0)
-        }
-    }
-
     fn var(name: &str) -> Value {
         Value::Var { name: name.into() }
     }
@@ -468,17 +429,5 @@ mod tests {
         graph.create_list("a").unwrap();
         graph.rename_list("a", "hits").unwrap();
         assert_eq!(refs(&graph), expect("hits"));
-    }
-
-    #[test]
-    fn single_target_hosts_keep_working() {
-        let mut ins = Instruction::new(Legacy("a".into()));
-        let mut seen = Vec::new();
-        ins.walk_refs(&mut |kind, name| seen.push((kind, name.to_string())));
-        assert_eq!(seen, [(RefKind::Variable, "a".to_string())]);
-        ins.rename_var("a", "b");
-        assert_eq!(ins.kind, Legacy("b".into()));
-        ins.rename_list("b", "c");
-        assert_eq!(ins.kind, Legacy("b".into()));
     }
 }

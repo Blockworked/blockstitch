@@ -14,7 +14,6 @@ pub use ops::{
     operator_kind, register_operators,
 };
 
-use rand::RngExt;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 
@@ -326,7 +325,7 @@ impl Value {
                 ..
             } => {
                 use chrono::{Datelike, Timelike};
-                let now = chrono::Local::now();
+                let now = crate::sources::now();
                 let n = match args[0].eval_text()?.as_str() {
                     "Year" => now.year() as f64,
                     "Month" => now.month() as f64,
@@ -426,9 +425,9 @@ impl Value {
                     Op::Random => {
                         let (lo, hi) = (l.min(r), l.max(r));
                         if l.fract() == 0.0 && r.fract() == 0.0 {
-                            rand::rng().random_range(lo as i64..=hi as i64) as f64
+                            crate::sources::random_int(lo as i64, hi as i64) as f64
                         } else {
-                            rand::rng().random_range(lo..=hi)
+                            crate::sources::random_float(lo, hi)
                         }
                     }
                     other => unreachable!("{} matched above", other.name()),
