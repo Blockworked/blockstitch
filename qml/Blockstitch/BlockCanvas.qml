@@ -1091,6 +1091,9 @@ Rectangle {
     }
     onFloatingValuesChanged: settleOnDocChange()
     Timer { id: settleTimer; interval: 1500; onTriggered: root.endSettle() }
+    // The settling key lives in the shared registry; don't leave it naming a
+    // location on whatever canvas comes next.
+    Component.onDestruction: endSettle()
     onStrandsChanged: {
         syncStrands();
         settleOnDocChange();
