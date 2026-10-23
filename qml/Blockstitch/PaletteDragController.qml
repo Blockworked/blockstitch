@@ -82,19 +82,19 @@ Item {
     function move(sx, sy) {
         if (!drag) return;
         const p = root.mapFromItem(null, sx, sy);
-        ghost.x = p.x - drag.offsetX; ghost.y = p.y - drag.offsetY;
+        ghost.x = p.x - drag.offsetX * ghost.scale; ghost.y = p.y - drag.offsetY * ghost.scale;
         if (drag.entry.kind === "value") {
             canvas.clearSnap();
             // The ghost's footprint picks the nearest slot; before the ghost
             // has a size the canvas falls back to the pointer.
-            const g1 = root.mapToItem(null, ghost.x, ghost.y);
-            const g2 = root.mapToItem(null, ghost.x + ghost.width, ghost.y + ghost.height);
+            const g1 = ghost.mapToItem(null, 0, 0);
+            const g2 = ghost.mapToItem(null, ghost.width, ghost.height);
             canvas.updatePaletteValueTargetRect(g1.x, g1.y, g2.x, g2.y, sx, sy);
             return;
         }
         canvas.updatePaletteValueTarget(null, null);
         const at = canvas.workspacePoint(sx, sy);
-        if (at) canvas.updatePaletteSnap(at.x - drag.offsetX / canvas.zoom, at.y - drag.offsetY / canvas.zoom, drag.entry.instruction, ghost.width, ghost.height);
+        if (at) canvas.updatePaletteSnap(at.x - drag.offsetX, at.y - drag.offsetY, drag.entry.instruction, ghost.width, ghost.height);
         else canvas.clearSnap();
     }
     function end(sx, sy) {
@@ -115,7 +115,7 @@ Item {
         }
         const at = canvas.workspacePoint(sx, sy);
         if (!at) { cancel(); return; }
-        const x = Math.round(at.x - d.offsetX / canvas.zoom), y = Math.round(at.y - d.offsetY / canvas.zoom);
+        const x = Math.round(at.x - d.offsetX), y = Math.round(at.y - d.offsetY);
         if (entry.kind === "value") {
             canvas.clearSnap();
             dropped({ kind: "create_floating_value", x: x, y: y, value: entry.value, originBlockId: entry.originBlockId }, null);
@@ -259,6 +259,9 @@ Item {
         enabled: false
         property var spec: null
         property var instruction: null
+        // Match the canvas at pickup, keeping the grabbed point under the pointer.
+        scale: root.canvas ? root.canvas.zoom : 1
+        transformOrigin: Item.TopLeft
         visible: false; opacity: 0.92
         width: ghostBlock.active ? ghostBlock.item.width : (ghostValue.active ? ghostValue.item.width : 0)
         height: ghostBlock.active ? ghostBlock.item.height : (ghostValue.active ? ghostValue.item.height : 0)

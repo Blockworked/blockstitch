@@ -208,13 +208,50 @@ Item {
             drop(waitSpec, 800, 600);
             const at = canvas.workspacePoint(806, 606);
             compare(scene.edits[0].kind, "add_strand");
-            compare(scene.edits[0].x, Math.round(at.x - 6 / 1.5));
-            compare(scene.edits[0].y, Math.round(at.y - 6 / 1.5));
+            compare(scene.edits[0].x, Math.round(at.x - 6));
+            compare(scene.edits[0].y, Math.round(at.y - 6));
             // Gaps still follow the blocks.
             scene.edits = [];
             drop(waitSpec, below("if1").x + 2, below("if1").y + 4);
             compare(scene.edits[0].kind, "insert_instruction");
             compare(scene.edits[0].path[0].index, 2);
+        }
+        function test_pickup_matches_canvas_zoom_data() {
+            return [
+                { tag: "instruction_in", spec: waitSpec, zoom: 1.5 },
+                { tag: "instruction_out", spec: waitSpec, zoom: 0.6 },
+                { tag: "value_in", spec: addSpec, zoom: 1.5 },
+                { tag: "value_out", spec: addSpec, zoom: 0.6 }
+            ];
+        }
+        function test_pickup_matches_canvas_zoom(data) {
+            scene.strands = [];
+            canvas.setZoom(data.zoom);
+            wait(20);
+            controller.begin(data.spec, 100, 100, 12, 16);
+            const g = ghost();
+            verify(g.visible);
+            compare(g.scale, data.zoom);
+            const grabbed = g.mapToItem(null, 12, 16);
+            fuzzyCompare(grabbed.x, 100, 0.01);
+            fuzzyCompare(grabbed.y, 100, 0.01);
+            controller.move(900, 650);
+            const top = g.mapToItem(null, 0, 0);
+            const edge = g.mapToItem(null, g.width, g.height);
+            verify(edge.x > top.x && edge.y > top.y);
+            fuzzyCompare(edge.x - top.x, g.width * data.zoom, 0.01);
+            fuzzyCompare(edge.y - top.y, g.height * data.zoom, 0.01);
+            const at = canvas.workspacePoint(top.x, top.y);
+            controller.end(900, 650);
+            compare(scene.edits.length, 1);
+            compare(scene.edits[0].kind, data.spec.kind === "value" ? "create_floating_value" : "add_strand");
+            compare(scene.edits[0].x, Math.round(at.x));
+            compare(scene.edits[0].y, Math.round(at.y));
+            verify(controller.holding);
+            compare(g.scale, data.zoom);
+            const held = g.mapToItem(null, 0, 0);
+            fuzzyCompare(held.x, top.x, 0.01);
+            fuzzyCompare(held.y, top.y, 0.01);
         }
         function test_trash() {
             verify(!controller.trashBlocks("s1", [{ index: 1 }], 1, 600, 300));
