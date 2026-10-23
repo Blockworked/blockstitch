@@ -1,8 +1,14 @@
 //! The value system: the recursive expression tree behind every numeric,
 //! text and boolean slot on the canvas, plus its evaluation.
 
+mod descriptor;
 mod ops;
 
+pub use descriptor::{
+    ArgDescriptor, NameSource, OperatorDescriptor, ValueType, builtin_operator_descriptors,
+    host_operator_descriptors, operator_descriptor, operator_descriptors, render_descriptors_qml,
+    replace_generated,
+};
 pub use ops::{
     BUILTIN_OPERATOR_KINDS, ExtOperator, Op, OperatorKind, OperatorKindSpec, ext_operator,
     operator_kind, register_operators,

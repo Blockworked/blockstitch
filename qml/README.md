@@ -42,7 +42,7 @@ BlockRegistry.registerOperators({ MyReporter: { prefix: "my reporter", result: "
 BlockRegistry.registerPrefabs({ Say: () => ({ text: { kind: "Text", value: "Hello" } }) });
 ```
 
-A type without a row falls back to the built-in Blockwork rows. `shape`
+A type without a row falls back to the built-in classic rows. `shape`
 (`"header"`/`"cap"`) and `mouths` (the instruction keys holding nested
 bodies) decide a block's outline; the comments in `BlockRegistry.qml` list
 every piece kind. `blockMenu`/`canvasMenu` add app-specific context menu
@@ -53,6 +53,34 @@ operator's `enumArg` may give its choices as an array, a function, or
 text; a click calls `BlockRegistry.pickHandler(action, location, value)` with
 the slot's location, so the host can open a picker and write the choice back
 like a typed edit.
+
+### Operator descriptors
+
+What a fresh operator holds comes from `blockstitch-core`, not the QML.
+`value::operator_descriptors()` describes every palette operator: its `kind`,
+wire `op`, `arity`, `result` (`number`/`text`/`bool`, none for a host one) and
+per slot a `type`, a `default` value, and where known the fixed `choices`, a
+list/dict `names` source and `one_based`. `BlockRegistry` carries the
+built-ins as a generated table (`blockstitch-core/tests/descriptors.rs`
+checks it; `BLESS=1` rewrites it), and a host hands over its registered
+operators the same way:
+
+```qml
+BlockRegistry.registerDescriptors(hostDescriptors)   // host_operator_descriptors() as JSON
+const value = BlockRegistry.freshValue("LetterOf")   // {kind:"Op", op:"LetterOf", args:[1, ""], ...}
+```
+
+`freshValue(kind, names)` fills an empty list/dict slot with the first name
+and an empty dropdown slot with its first choice; everything else is the
+core's default. Labels, layouts and dropdown choices stay in
+`registerOperators`.
+
+### What a neutral host gets
+
+Nothing host-specific: no recording-target menu entry (`recordingTargets` is
+off), no battery or clipboard reporters, and icon fallbacks only for the
+shared control and data blocks. A host turns its features on and registers
+the rest (`registerIcons({MoveMouse: "move"})`).
 
 A row whose pieces depend on the instruction (one generic type that many
 app-defined blocks share) gives `head` as a function of the instruction, and

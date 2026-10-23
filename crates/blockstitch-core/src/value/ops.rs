@@ -448,6 +448,14 @@ pub fn ext_operator(op: &str) -> Option<&'static ExtOperator> {
         .copied()
 }
 
+/// Every host operator, in registration order.
+pub(super) fn registered_operators() -> Vec<&'static ExtOperator> {
+    match EXT_OPERATORS.read() {
+        Ok(registry) => registry.clone(),
+        Err(poisoned) => poisoned.into_inner().clone(),
+    }
+}
+
 /// One palette entry, built-in or host-registered - what a sidebar drop
 /// needs to construct a fresh operator node.
 pub struct OperatorKind {
