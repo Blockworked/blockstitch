@@ -5,25 +5,17 @@ edition = "2024"
 description = "C ABI over blockstitch-core: handle-based sessions speaking JSON, for hosts that can't link Rust directly (Qt for WebAssembly)."
 license = "MIT"
 
+# A host crate depends on this, implements `Host` for its document and
+# expands `export_abi!`; that crate is the staticlib a page links. Build it
+# with `panic = "abort"` for wasm32-unknown-emscripten: Rust's emscripten std
+# unwinds with wasm exceptions, which Qt's prebuilt wasm_singlethread (JS
+# exceptions) can't link against.
 [lib]
 name = "blockstitch_ffi"
-crate-type = ["staticlib", "rlib"]
-
-[features]
-# Adds a `__panic` command, to check a panic comes back as an error.
-panic-probe = []
 
 [dependencies]
 blockstitch-core = { path = "../blockstitch-core" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-
-[profile.release]
-opt-level = "z"
-lto = true
-codegen-units = 1
-# Rust's emscripten std unwinds with wasm exceptions, which Qt's prebuilt
-# wasm_singlethread (JS exceptions) can't link against. A panic aborts.
-panic = "abort"
 
 [workspace]

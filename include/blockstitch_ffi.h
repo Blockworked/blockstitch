@@ -1,6 +1,8 @@
-/* C ABI over blockstitch-core (crates/blockstitch-ffi). Strings are UTF-8.
- * Inputs are borrowed for the call; every returned string must be passed
- * back to bs_string_free. One thread per session. */
+/* C ABI over blockstitch-core (crates/blockstitch-ffi, ABI version 2). A host
+ * crate's static library exports these through `export_abi!`, so the
+ * commands are that host's. Strings are UTF-8. Inputs are borrowed for the
+ * call; every returned string must be passed back to bs_string_free. One
+ * thread per session. */
 #ifndef BLOCKSTITCH_FFI_H
 #define BLOCKSTITCH_FFI_H
 #include <stdint.h>

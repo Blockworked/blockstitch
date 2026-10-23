@@ -1,142 +1,64 @@
-//! C ABI over blockstitch-core. A host opens a session (one document plus
-//! its history), sends JSON commands, and frees every string it gets back.
+//! C ABI over blockstitch-core for hosts that can't link Rust directly (Qt
+//! for WebAssembly). A host crate implements [`Host`] for its document type
+//! and expands [`export_abi!`] once; that gives a static library with the
+//! five `bs_*` functions in `include/blockstitch_ffi.h`.
 //!
 //! Ownership: input strings are borrowed for the call only; output strings
 //! are allocated here and must go back through `bs_string_free`.
 //! Not thread-safe: a session must be used from one thread at a time.
 
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_char};
+use std::ops::DerefMut;
 
-use blockstitch_core::editor::{History, ValueLocation};
-use blockstitch_core::graph::{BlockGraph, BlockKind, InputValueType, Instruction};
-use blockstitch_core::value::Value;
-use serde::{Deserialize, Serialize};
+use blockstitch_core::editor::{EditCommand, EditContext, EditError, EditOutcome, History};
+use blockstitch_core::graph::{BlockGraph, BlockKind};
+use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use serde_json::{Value as Json, json};
 
-/// Bumped whenever a signature or the command/response shape changes.
-pub const ABI_VERSION: u32 = 1;
+/// Bumped whenever a signature or the envelope shape changes. Version 2
+/// hands the session to a host vocabulary instead of a fixed stand-in.
+pub const ABI_VERSION: u32 = 2;
 
-/// A stand-in vocabulary until a headless host vocabulary exists.
-#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
-pub enum Block {
-    Start,
-    Say { message: Value },
-    Repeat { count: Value, body: Vec<Instruction<Block>> },
+/// One document behind a session handle. `dispatch` gets the command name
+/// and its `args` object and answers the `result` of the envelope.
+pub trait Host: Default {
+    fn dispatch(&mut self, command: &str, args: &Json) -> Result<Json, String>;
 }
 
-impl BlockKind for Block {
-    fn visit_values_mut(&mut self, f: &mut dyn FnMut(&mut Value, InputValueType)) {
-        match self {
-            Block::Say { message } => f(message, InputValueType::Any),
-            Block::Repeat { count, .. } => f(count, InputValueType::Any),
-            Block::Start => {}
-        }
-    }
-    fn is_header(&self) -> bool {
-        matches!(self, Block::Start)
-    }
-    fn body(&self, slot: u8) -> Option<&Vec<Instruction<Block>>> {
-        match (self, slot) {
-            (Block::Repeat { body, .. }, 0) => Some(body),
-            _ => None,
-        }
-    }
-    fn body_mut(&mut self, slot: u8) -> Option<&mut Vec<Instruction<Block>>> {
-        match (self, slot) {
-            (Block::Repeat { body, .. }, 0) => Some(body),
-            _ => None,
-        }
-    }
-    fn value_slot_mut(&mut self, field: &str) -> Option<&mut Value> {
-        match (self, field) {
-            (Block::Say { message }, "message") => Some(message),
-            (Block::Repeat { count, .. }, "count") => Some(count),
-            _ => None,
-        }
-    }
-    fn field_requires_integer(&self, field: &str) -> bool {
-        matches!((self, field), (Block::Repeat { .. }, "count"))
-    }
-}
-
-struct Session {
-    graph: BlockGraph<Block>,
-    history: History<BlockGraph<Block>>,
-}
-
-thread_local! {
-    static SESSIONS: RefCell<HashMap<u32, Session>> = RefCell::new(HashMap::new());
-    static NEXT: RefCell<u32> = const { RefCell::new(1) };
-}
-
+/// `{"command": name, "args": {...}}`, the line a host sends.
 #[derive(Deserialize)]
-struct Command {
-    command: String,
+pub struct Command {
+    pub command: String,
     #[serde(default)]
-    args: Json,
+    pub args: Json,
 }
 
-fn arg<T: for<'de> Deserialize<'de>>(args: &Json, key: &str) -> Result<T, String> {
+/// Reads `args[key]`; a missing key reads as `null`, so `Option` fields work.
+pub fn arg<T: DeserializeOwned>(args: &Json, key: &str) -> Result<T, String> {
     serde_json::from_value(args.get(key).cloned().unwrap_or(Json::Null))
         .map_err(|e| format!("bad `{key}`: {e}"))
 }
 
-/// Runs one command. `Ok` carries the result; an edit that changes nothing
-/// pushes no undo step.
-fn run(session: &mut Session, command: &Command) -> Result<Json, String> {
-    let args = &command.args;
-    let before = session.graph.clone();
-    let result = match command.command.as_str() {
-        "snapshot" => return serde_json::to_value(&session.graph).map_err(|e| e.to_string()),
-        "evaluate" => {
-            let value: Value = arg(args, "value")?;
-            return value.eval().map(|v| json!(v)).map_err(|e| e);
-        }
-        "undo" | "redo" => {
-            let current = session.graph.clone();
-            let next = if command.command == "undo" {
-                session.history.undo(current)
-            } else {
-                session.history.redo(current)
-            };
-            let changed = next.is_some();
-            if let Some(graph) = next {
-                session.graph = graph;
-            }
-            return Ok(json!({ "changed": changed }));
-        }
-        "add_strand" => {
-            let x: i32 = arg(args, "x")?;
-            let y: i32 = arg(args, "y")?;
-            let kinds: Vec<Block> = arg(args, "instructions")?;
-            let id = session.graph.add_strand(x, y, kinds.into_iter().map(Instruction::new).collect());
-            json!({ "strand_id": id })
-        }
-        "edit_value_field" => {
-            let location: ValueLocation = arg(args, "location")?;
-            let text: String = arg(args, "text")?;
-            json!(format!("{:?}", session.graph.edit_value_text(&location, text)))
-        }
-        "put_value" => {
-            let location: ValueLocation = arg(args, "location")?;
-            let value: Value = arg(args, "value")?;
-            if !session.graph.put_value(&location, value) {
-                return Err("no value at that location".into());
-            }
-            Json::Null
-        }
-        "__panic" if cfg!(feature = "panic-probe") => panic!("probe"),
-        other => return Err(format!("unsupported command `{other}`")),
-    };
-    if session.graph != before {
-        session.history.push(before);
+/// Runs one typed edit with the contract's host steps: prepare (read only),
+/// checkpoint only a changing edit, commit. `snapshot` is the host's own
+/// undo scope (the document around the graph), taken before the commit.
+pub fn run_edit<K: BlockKind, D: DerefMut<Target = BlockGraph<K>>, S>(
+    doc: &mut D,
+    history: &mut History<S>,
+    snapshot: impl FnOnce(&D) -> S,
+    command: EditCommand<K>,
+    ctx: &EditContext,
+) -> Result<EditOutcome, EditError> {
+    let prepared = doc.prepare_edit(command, ctx)?;
+    if prepared.changes() {
+        history.checkpoint(snapshot(doc), prepared.coalesce().cloned());
     }
-    Ok(result)
+    Ok(doc.commit_edit(prepared))
 }
 
-fn respond(result: Result<Json, String>) -> *mut c_char {
+/// The `{"ok", "result", "error"}` envelope as an owned C string.
+pub fn respond(result: Result<Json, String>) -> *mut c_char {
     let body = match result {
         Ok(result) => json!({ "ok": true, "result": result, "error": null }),
         Err(error) => json!({ "ok": false, "result": null, "error": error }),
@@ -144,37 +66,12 @@ fn respond(result: Result<Json, String>) -> *mut c_char {
     CString::new(body.to_string()).unwrap_or_default().into_raw()
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn bs_abi_version() -> u32 {
-    ABI_VERSION
-}
-
-/// Opens an empty document. Never returns 0.
-#[unsafe(no_mangle)]
-pub extern "C" fn bs_session_new() -> u32 {
-    let handle = NEXT.with(|n| {
-        let mut n = n.borrow_mut();
-        let h = *n;
-        *n += 1;
-        h
-    });
-    let session = Session { graph: BlockGraph::new(), history: History::new(100) };
-    SESSIONS.with(|s| s.borrow_mut().insert(handle, session));
-    handle
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn bs_session_free(handle: u32) {
-    SESSIONS.with(|s| s.borrow_mut().remove(&handle));
-}
-
-/// Runs a `{"command": ..., "args": {...}}` line against a session and
-/// answers `{"ok", "result", "error"}`. Free the answer with `bs_string_free`.
+/// Parses a command line and runs it on `host`. A panic becomes an error
+/// where unwinding exists; a `panic = "abort"` build (the web) stops instead.
 ///
 /// # Safety
-/// `command` must be a valid NUL-terminated string.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn bs_dispatch(handle: u32, command: *const c_char) -> *mut c_char {
+/// `command` must be null or a valid NUL-terminated string.
+pub unsafe fn dispatch_raw<H: Host>(host: Option<&mut H>, command: *const c_char) -> *mut c_char {
     if command.is_null() {
         return respond(Err("null command".into()));
     }
@@ -183,53 +80,73 @@ pub unsafe extern "C" fn bs_dispatch(handle: u32, command: *const c_char) -> *mu
         Ok(c) => c,
         Err(e) => return respond(Err(format!("bad command: {e}"))),
     };
-    // A panic must not unwind into C++. Where unwinding exists it becomes an
-    // error answer; the web build is panic=abort, so there it ends the page.
+    let Some(host) = host else {
+        return respond(Err("no such session".into()));
+    };
     let answer = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        SESSIONS.with(|s| match s.borrow_mut().get_mut(&handle) {
-            Some(session) => run(session, &parsed),
-            None => Err(format!("no session {handle}")),
-        })
+        host.dispatch(&parsed.command, &parsed.args)
     }));
     respond(answer.unwrap_or_else(|_| Err("the core panicked".into())))
 }
 
 /// # Safety
-/// `text` must come from this library and not have been freed.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn bs_string_free(text: *mut c_char) {
+/// `text` must come from [`respond`] and not have been freed.
+pub unsafe fn free_raw(text: *mut c_char) {
     if !text.is_null() {
         drop(unsafe { CString::from_raw(text) });
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Emits `bs_abi_version`, `bs_session_new`, `bs_session_free`,
+/// `bs_dispatch` and `bs_string_free` over sessions of `$host`. Expand it
+/// once per linked library.
+#[macro_export]
+macro_rules! export_abi {
+    ($host:ty) => {
+        ::std::thread_local! {
+            static __BS_FFI_SESSIONS: ::core::cell::RefCell<::std::collections::HashMap<u32, $host>> =
+                ::core::cell::RefCell::new(::std::collections::HashMap::new());
+            static __BS_FFI_NEXT: ::core::cell::Cell<u32> = const { ::core::cell::Cell::new(1) };
+        }
 
-    fn call(h: u32, line: &str) -> Json {
-        let c = CString::new(line).unwrap();
-        let out = unsafe { bs_dispatch(h, c.as_ptr()) };
-        let text = unsafe { CStr::from_ptr(out) }.to_str().unwrap().to_owned();
-        unsafe { bs_string_free(out) };
-        serde_json::from_str(&text).unwrap()
-    }
+        #[unsafe(no_mangle)]
+        pub extern "C" fn bs_abi_version() -> u32 {
+            $crate::ABI_VERSION
+        }
 
-    #[test]
-    fn edit_and_undo() {
-        let h = bs_session_new();
-        let r = call(h, r#"{"command":"add_strand","args":{"x":0,"y":0,"instructions":["Start",{"Say":{"message":{"kind":"Number","value":1}}}]}}"#);
-        let strand = r["result"]["strand_id"].as_str().unwrap().to_owned();
-        let edit = format!(
-            r#"{{"command":"edit_value_field","args":{{"location":{{"kind":"Field","strand_id":"{strand}","index":[{{"index":1}}],"field_id":"message","path":[]}},"text":"42"}}}}"#
-        );
-        assert_eq!(call(h, &edit)["ok"], true);
-        let snap = call(h, r#"{"command":"snapshot"}"#);
-        assert_eq!(snap["result"]["strands"][0]["instructions"][1]["kind"]["Say"]["message"]["value"], 42.0);
-        assert_eq!(call(h, r#"{"command":"undo"}"#)["result"]["changed"], true);
-        let snap = call(h, r#"{"command":"snapshot"}"#);
-        assert_eq!(snap["result"]["strands"][0]["instructions"][1]["kind"]["Say"]["message"]["value"], 1.0);
-        assert_eq!(call(h, r#"{"command":"nope"}"#)["ok"], false);
-        bs_session_free(h);
-    }
+        /// Opens a session on a fresh host document. Never returns 0.
+        #[unsafe(no_mangle)]
+        pub extern "C" fn bs_session_new() -> u32 {
+            let handle = __BS_FFI_NEXT.with(|n| {
+                let h = n.get();
+                n.set(h.wrapping_add(1).max(1));
+                h
+            });
+            let host = <$host as ::core::default::Default>::default();
+            __BS_FFI_SESSIONS.with(|s| s.borrow_mut().insert(handle, host));
+            handle
+        }
+
+        #[unsafe(no_mangle)]
+        pub extern "C" fn bs_session_free(handle: u32) {
+            __BS_FFI_SESSIONS.with(|s| s.borrow_mut().remove(&handle));
+        }
+
+        /// # Safety
+        /// `command` must be null or a valid NUL-terminated string.
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn bs_dispatch(handle: u32, command: *const ::core::ffi::c_char) -> *mut ::core::ffi::c_char {
+            __BS_FFI_SESSIONS.with(|s| {
+                let mut sessions = s.borrow_mut();
+                unsafe { $crate::dispatch_raw(sessions.get_mut(&handle), command) }
+            })
+        }
+
+        /// # Safety
+        /// `text` must come from `bs_dispatch` and not have been freed.
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn bs_string_free(text: *mut ::core::ffi::c_char) {
+            unsafe { $crate::free_raw(text) }
+        }
+    };
 }
