@@ -1554,6 +1554,7 @@ Item {
                 Layout.fillWidth: true
             }
             BwButton {
+                objectName: "cancelButton"
                 text: qsTr("Cancel")
                 onClicked: root.cancelled()
             }
