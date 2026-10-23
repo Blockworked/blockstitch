@@ -3,9 +3,8 @@ import QtQuick
 
 // What a host's blocks look like, as data - the QML side of the Vue
 // frontend's register* calls. Built-in tables cover blockstitch's own
-// operators and the classic Blockwork block set, so a host that registers
-// nothing gets the old behaviour; `registerRows`/`registerOperators` add to
-// or override them.
+// operators and control blocks; a host adds its vocabulary with
+// `registerRows`/`registerOperators`/`registerIcons`/`registerDescriptors`.
 QtObject {
     id: registry
 
@@ -15,8 +14,8 @@ QtObject {
     property var dictNames: []
     // Bump to re-evaluate option lists that read host state through a function.
     property int revision: 0
-    // Whether block menus offer "Set Recording Target" (a Blockwork feature).
-    property bool recordingTargets: true
+    // Whether block menus offer "Set Recording Target". Off unless the host has recording.
+    property bool recordingTargets: false
     // Kept in step with the canvas so block menus can label themselves.
     property string recordingTargetId: ""
     property var commentedIds: []
@@ -128,9 +127,6 @@ QtObject {
             Gte:{infix:"≥",result:b}, Lte:{infix:"≤",result:b}, And:{infix:qsTr("and"),result:b}, Or:{infix:qsTr("or"),result:b},
             Not:{prefix:qsTr("not"),result:b}, True:{prefix:qsTr("true"),result:b}, False:{prefix:qsTr("false"),result:b},
             CurrentTime:{prefix:qsTr("current"),result:n,enumArg:{index:0,options:timeOptions}},
-            BatteryPercentage:{prefix:qsTr("battery percentage"),result:n}, PluggedIn:{prefix:qsTr("plugged in?"),result:b},
-            ClipboardText:{prefix:qsTr("clipboard text"),result:t}, ClipboardHasImage:{prefix:qsTr("clipboard has image"),result:b},
-            ClipboardHasFiles:{prefix:qsTr("clipboard has files"),result:b},
             ListItem:{prefix:qsTr("item"),infix:qsTr("of"),result:t,enumArg:{index:1,source:"lists"},oneBased:[0]},
             ListItemNumber:{prefix:qsTr("item # of"),infix:qsTr("in"),result:n,enumArg:{index:1,source:"lists"}},
             ListAmount:{prefix:qsTr("amount of"),infix:qsTr("in"),result:n,enumArg:{index:1,source:"lists"}},
@@ -147,6 +143,85 @@ QtObject {
             DictIsEmpty:{prefix:qsTr("is"),suffix:qsTr("empty?"),result:b,enumArg:{index:0,source:"dicts"}}
         };
     }
+
+    // kind -> operator descriptor from blockstitch-core: arity, each slot's
+    // type and default, and the result. The built-ins are generated below;
+    // a host adds its registered operators with registerDescriptors.
+    property var descriptors: indexDescriptors(builtinDescriptors)
+    function indexDescriptors(list) {
+        const map = {};
+        for (const d of list || []) map[d.kind] = d;
+        return map;
+    }
+    function registerDescriptors(list) { descriptors = Object.assign({}, descriptors, indexDescriptors(list)); }
+    function descriptor(kind) { return (kind && descriptors[kind]) || null; }
+    // A fresh operator value for a palette entry, or null for a kind with no
+    // descriptor. An empty list/dict slot takes the first name (from `names`,
+    // {lists, dicts}, when given), and an empty dropdown slot its first choice.
+    function freshValue(kind, names) {
+        const d = descriptor(kind);
+        if (!d) return null;
+        const spec = operator(d.op);
+        const enumArg = spec && spec.enumArg;
+        const args = d.args.map((arg, i) => {
+            const v = JSON.parse(JSON.stringify(arg.default));
+            if (v.kind !== "Text" || v.value !== "") return v;
+            if (arg.names === "list" || arg.names === "dict")
+                return { kind: "Text", value: ((arg.names === "list" ? (names && names.lists) || listNames
+                                                                     : (names && names.dicts) || dictNames)[0]) || "" };
+            if (enumArg && enumArg.index === i)
+                return { kind: "Text", value: (enumChoices(enumArg)[0] || { value: "" }).value };
+            return v;
+        });
+        return { kind: "Op", op: d.op, args: args, saved: { kind: "Number", value: 0 } };
+    }
+    // BEGIN GENERATED operator descriptors (blockstitch-core tests/descriptors.rs; BLESS=1 rewrites)
+    readonly property var builtinDescriptors: [
+        {"kind":"Add","op":"Add","arity":2,"result":"number","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Sub","op":"Sub","arity":2,"result":"number","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Mul","op":"Mul","arity":2,"result":"number","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Div","op":"Div","arity":2,"result":"number","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Mod","op":"Mod","arity":2,"result":"number","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Round","op":"Round","arity":1,"result":"number","args":[{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Math","op":"Math","arity":2,"result":"number","args":[{"type":"text","default":{"kind":"Text","value":"Abs"},"choices":["Abs","Floor","Ceiling","Sign","Sqrt","Sin","Cos","Tan","Asin","Acos","Atan","Ln","Log","Log2","EPower","TenPower"]},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Random","op":"Random","arity":2,"result":"number","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Join","op":"Join","arity":2,"result":"text","args":[{"type":"text","default":{"kind":"Text","value":""}},{"type":"text","default":{"kind":"Text","value":""}}]},
+        {"kind":"Join3","op":"Join","arity":3,"result":"text","args":[{"type":"text","default":{"kind":"Text","value":""}},{"type":"text","default":{"kind":"Text","value":""}},{"type":"text","default":{"kind":"Text","value":""}}]},
+        {"kind":"NewLine","op":"NewLine","arity":0,"result":"text","args":[]},
+        {"kind":"Tab","op":"Tab","arity":0,"result":"text","args":[]},
+        {"kind":"IndexOf","op":"IndexOf","arity":2,"result":"number","args":[{"type":"text","default":{"kind":"Text","value":""}},{"type":"text","default":{"kind":"Text","value":""}}]},
+        {"kind":"LastIndexOf","op":"LastIndexOf","arity":2,"result":"number","args":[{"type":"text","default":{"kind":"Text","value":""}},{"type":"text","default":{"kind":"Text","value":""}}]},
+        {"kind":"LetterOf","op":"LetterOf","arity":2,"result":"text","args":[{"type":"number","default":{"kind":"Number","value":1.0},"one_based":true},{"type":"text","default":{"kind":"Text","value":""}}]},
+        {"kind":"Length","op":"Length","arity":1,"result":"number","args":[{"type":"text","default":{"kind":"Text","value":""}}]},
+        {"kind":"Case","op":"Case","arity":2,"result":"text","args":[{"type":"text","default":{"kind":"Text","value":""}},{"type":"text","default":{"kind":"Text","value":"Upper"},"choices":["Upper","Lower"]}]},
+        {"kind":"Eq","op":"Eq","arity":2,"result":"bool","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Neq","op":"Neq","arity":2,"result":"bool","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Gt","op":"Gt","arity":2,"result":"bool","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Lt","op":"Lt","arity":2,"result":"bool","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Gte","op":"Gte","arity":2,"result":"bool","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"Lte","op":"Lte","arity":2,"result":"bool","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},
+        {"kind":"And","op":"And","arity":2,"result":"bool","args":[{"type":"bool","default":{"kind":"Bool"}},{"type":"bool","default":{"kind":"Bool"}}]},
+        {"kind":"Or","op":"Or","arity":2,"result":"bool","args":[{"type":"bool","default":{"kind":"Bool"}},{"type":"bool","default":{"kind":"Bool"}}]},
+        {"kind":"Not","op":"Not","arity":1,"result":"bool","args":[{"type":"bool","default":{"kind":"Bool"}}]},
+        {"kind":"True","op":"True","arity":0,"result":"bool","args":[]},
+        {"kind":"False","op":"False","arity":0,"result":"bool","args":[]},
+        {"kind":"CurrentTime","op":"CurrentTime","arity":1,"result":"number","args":[{"type":"text","default":{"kind":"Text","value":"Year"},"choices":["Year","Month","Date","DayOfWeek","Hour","Minute","Second"]}]},
+        {"kind":"ListItem","op":"ListItem","arity":2,"result":"text","args":[{"type":"number","default":{"kind":"Number","value":1.0},"one_based":true},{"type":"text","default":{"kind":"Text","value":""},"names":"list"}]},
+        {"kind":"ListItemNumber","op":"ListItemNumber","arity":2,"result":"number","args":[{"type":"text","default":{"kind":"Text","value":"thing"}},{"type":"text","default":{"kind":"Text","value":""},"names":"list"}]},
+        {"kind":"ListAmount","op":"ListAmount","arity":2,"result":"number","args":[{"type":"text","default":{"kind":"Text","value":"thing"}},{"type":"text","default":{"kind":"Text","value":""},"names":"list"}]},
+        {"kind":"ListLength","op":"ListLength","arity":1,"result":"number","args":[{"type":"text","default":{"kind":"Text","value":""},"names":"list"}]},
+        {"kind":"ListContains","op":"ListContains","arity":2,"result":"bool","args":[{"type":"text","default":{"kind":"Text","value":""},"names":"list"},{"type":"text","default":{"kind":"Text","value":"thing"}}]},
+        {"kind":"ListItemExists","op":"ListItemExists","arity":2,"result":"bool","args":[{"type":"number","default":{"kind":"Number","value":1.0},"one_based":true},{"type":"text","default":{"kind":"Text","value":""},"names":"list"}]},
+        {"kind":"ListIsEmpty","op":"ListIsEmpty","arity":1,"result":"bool","args":[{"type":"text","default":{"kind":"Text","value":""},"names":"list"}]},
+        {"kind":"ListAsJson","op":"ListAsJson","arity":1,"result":"text","args":[{"type":"text","default":{"kind":"Text","value":""},"names":"list"}]},
+        {"kind":"DictValue","op":"DictValue","arity":2,"result":"text","args":[{"type":"text","default":{"kind":"Text","value":"key"}},{"type":"text","default":{"kind":"Text","value":""},"names":"dict"}]},
+        {"kind":"DictHasKey","op":"DictHasKey","arity":2,"result":"bool","args":[{"type":"text","default":{"kind":"Text","value":""},"names":"dict"},{"type":"text","default":{"kind":"Text","value":"key"}}]},
+        {"kind":"DictSize","op":"DictSize","arity":1,"result":"number","args":[{"type":"text","default":{"kind":"Text","value":""},"names":"dict"}]},
+        {"kind":"DictKeys","op":"DictKeys","arity":1,"result":"text","args":[{"type":"text","default":{"kind":"Text","value":""},"names":"dict"}]},
+        {"kind":"DictAsJson","op":"DictAsJson","arity":1,"result":"text","args":[{"type":"text","default":{"kind":"Text","value":""},"names":"dict"}]},
+        {"kind":"DictIsEmpty","op":"DictIsEmpty","arity":1,"result":"bool","args":[{"type":"text","default":{"kind":"Text","value":""},"names":"dict"}]}
+    ]
+    // END GENERATED operator descriptors
 
     function operator(op) { return (op && operators[op]) || null; }
     // `result` may be a function(value) for an operator whose type depends on
@@ -175,11 +250,14 @@ QtObject {
     }
 
     function row(type) { return rows[type] || null; }
+    // type -> Lucide icon for a type drawn without a registered row.
+    property var icons: ({})
+    function registerIcons(map) { icons = Object.assign({}, icons, map); }
+    readonly property var builtinIcons: ({Wait:"clock",SetVariable:"equal",ChangeVariable:"trending-up",AddToList:"plus",DeleteOfList:"trash",DeleteAllOfList:"trash",ShiftList:"arrow-left",InsertIntoList:"plus",ReplaceItemOfList:"repeat",ReverseList:"rotate",Return:"undo",If:"git-branch",IfElse:"git-fork",Repeat:"repeat",Forever:"infinity",While:"rotate",EscapeLoop:"log-out",ContinueLoop:"skip-forward",BlockHeader:"blocks",CallBlock:"blocks",BranchCallBlock:"blocks",RunBranch:"git-branch"})
     function iconFor(type) {
         const r = row(type);
         if (r && r.icon) return r.icon;
-        const p={WhenRan:"play",WhenBatteryDischargedTo:"battery-warning",WhenBatteryChargedTo:"battery-charging",WhenTime:"clock",WhenPowerPluggedIn:"plug-zap",WhenPowerUnplugged:"unplug",WhenClipboardChanged:"clipboard-check",WhenKey:"keyboard",Wait:"clock",Text:"text-cursor",Key:"keyboard",Button:"mouse-pointer-click",MoveMouse:"move",Scroll:"mouse",Command:"terminal",OpenApp:"app-window",CloseApp:"square-x",SetVariable:"equal",ChangeVariable:"trending-up",SetClipboard:"clipboard",AddToList:"plus",DeleteOfList:"trash",DeleteAllOfList:"trash",ShiftList:"arrow-left",InsertIntoList:"plus",ReplaceItemOfList:"repeat",ReverseList:"rotate",Return:"undo",If:"git-branch",IfElse:"git-fork",Repeat:"repeat",Forever:"infinity",While:"rotate",EscapeLoop:"log-out",ContinueLoop:"skip-forward",BlockHeader:"blocks",CallBlock:"blocks",BranchCallBlock:"blocks",RunBranch:"git-branch"};
-        return p[type] || "blocks";
+        return icons[type] || builtinIcons[type] || "blocks";
     }
 
     // ---- shapes ----

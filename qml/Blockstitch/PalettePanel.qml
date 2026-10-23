@@ -80,33 +80,21 @@ Rectangle {
         return i;
     }
     function firstListName(){return lists&&lists.length?lists[0].name:"";}
-    function firstDictName(){return dicts&&dicts.length?dicts[0].name:"";}
     readonly property var operators: [
         ["Add","number",2],["Sub","number",2],["Mul","number",2],["Div","number",2],["Mod","number",2],["Round","number",1],["Math","number",2],["Random","number",2],
         ["Join","text",2],["Join3","text",3],["NewLine","text",0],["Tab","text",0],["IndexOf","text",2],["LastIndexOf","text",2],["LetterOf","text",2],["Length","text",1],["Case","text",2],
-        ["Eq","bool",2],["Neq","bool",2],["Gt","bool",2],["Lt","bool",2],["Gte","bool",2],["Lte","bool",2],["And","bool",2],["Or","bool",2],["Not","bool",1],["True","bool",0],["False","bool",0],["PluggedIn","bool",0],["BatteryPercentage","number",0],["CurrentTime","number",1],
-        ["ClipboardText","text",0],["ClipboardHasImage","bool",0],["ClipboardHasFiles","bool",0]
+        ["Eq","bool",2],["Neq","bool",2],["Gt","bool",2],["Lt","bool",2],["Gte","bool",2],["Lte","bool",2],["And","bool",2],["Or","bool",2],["Not","bool",1],["True","bool",0],["False","bool",0],["CurrentTime","number",1]
     ]
     readonly property var listOperators: [["ListItem","text",2],["ListItemNumber","number",2],["ListAmount","number",2],["ListLength","number",1],["ListContains","bool",2],["ListItemExists","bool",2],["ListIsEmpty","bool",1],["ListAsJson","text",1]]
     readonly property var dictOperators: [["DictValue","text",2],["DictHasKey","bool",2],["DictSize","number",1],["DictKeys","text",1],["DictAsJson","text",1],["DictIsEmpty","bool",1]]
+    // A fresh value for an [op, result, arity, args?] entry: the given args,
+    // else blockstitch-core's defaults (see BlockRegistry.freshValue).
     function operatorValue(spec) {
         if(spec[3])return {kind:"Op",op:spec[0],args:JSON.parse(JSON.stringify(spec[3])),saved:n(0)};
-        const listName=firstListName();
-        if(spec[0]==="ListItem")return {kind:"Op",op:spec[0],args:[n(1),t(listName)],saved:n(0)};
-        if(spec[0]==="ListItemNumber"||spec[0]==="ListAmount")return {kind:"Op",op:spec[0],args:[t("thing"),t(listName)],saved:n(0)};
-        if(spec[0]==="ListLength"||spec[0]==="ListIsEmpty")return {kind:"Op",op:spec[0],args:[t(listName)],saved:n(0)};
-        if(spec[0]==="ListContains")return {kind:"Op",op:spec[0],args:[t(listName),t("thing")],saved:n(0)};
-        if(spec[0]==="ListItemExists")return {kind:"Op",op:spec[0],args:[n(1),t(listName)],saved:n(0)};
-        if(spec[0]==="ListAsJson")return {kind:"Op",op:spec[0],args:[t(listName)],saved:n(0)};
-        const dictName=firstDictName();
-        if(spec[0]==="DictValue")return {kind:"Op",op:spec[0],args:[t("key"),t(dictName)],saved:n(0)};
-        if(spec[0]==="DictHasKey")return {kind:"Op",op:spec[0],args:[t(dictName),t("key")],saved:n(0)};
-        if(spec[0].indexOf("Dict")===0)return {kind:"Op",op:spec[0],args:[t(dictName)],saved:n(0)};
-        const reg=BlockRegistry.operator(spec[0]==="Join3"?"Join":spec[0]);
-        const enumArg=reg&&reg.enumArg?reg.enumArg:null;
-        const firstChoice=enumArg?(BlockRegistry.enumChoices(enumArg)[0]||{value:""}).value:"";
-        let args=[]; for(let i=0;i<spec[2];i++) args.push(enumArg&&enumArg.index===i?t(firstChoice):spec[1]==="text"?t(""):spec[0]==="And"||spec[0]==="Or"||spec[0]==="Not"?{kind:"Bool"}:n(0));
-        return {kind:"Op",op:spec[0]==="Join3"?"Join":spec[0],args:args,saved:n(0)};
+        const fresh=BlockRegistry.freshValue(spec[0],{lists:(lists||[]).map(l=>l.name),dicts:(dicts||[]).map(d=>d.name)});
+        if(fresh) return fresh;
+        let args=[]; for(let i=0;i<spec[2];i++) args.push(spec[1]==="text"?t(""):n(0));
+        return {kind:"Op",op:spec[0],args:args,saved:n(0)};
     }
     readonly property var communityPacks: {
         const packs = [];
@@ -206,7 +194,7 @@ Rectangle {
         {id:"control",name:qsTr("Flow"),icon:"git-branch"},{id:"data",name:qsTr("Data"),icon:"variable"},{id:"operators",name:qsTr("Operators"),icon:"equal"},
         {id:"system",name:qsTr("System"),icon:"monitor"}
     ].concat(Array.from(appCategories || [])).concat([{id:"custom",name:qsTr("Custom"),icon:"blocks"}]).concat(root.blockLibraryEnabled?[{id:"community",name:qsTr("Community"),icon:"package"}]:[])
-    readonly property var systemOperators: ["PluggedIn","BatteryPercentage","CurrentTime","ClipboardText","ClipboardHasImage","ClipboardHasFiles"]
+    readonly property var systemOperators: ["CurrentTime"]
     function instructionCategory(type) {
         if(extraCategories[type]) return extraCategories[type];
         if(type.indexOf("When")===0) return "events";
