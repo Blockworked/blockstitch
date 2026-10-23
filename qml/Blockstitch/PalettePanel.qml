@@ -114,18 +114,7 @@ Rectangle {
         return packs.sort((a,b) => a.name.localeCompare(b.name));
     }
 
-    function customArguments(definition){
-        return (definition.pieces||[]).filter(p=>p.kind==="Input").map(p=>{
-            const value=p.default_value;
-            if(value && p.value_type==="Bool" && value.kind==="Bool" && typeof value.value==="boolean")
-                return {kind:"Op",op:value.value?"True":"False",args:[],saved:n(0)};
-            if(value && p.value_type!=="Bool" &&
-                    ((value.kind==="Number" && typeof value.value==="number" && isFinite(value.value)) ||
-                     (value.kind==="Text" && typeof value.value==="string")))
-                return JSON.parse(JSON.stringify(value));
-            return p.value_type==="Bool"?{kind:"Bool"}:n(0);
-        });
-    }
+    function customArguments(definition){ return BlockRegistry.freshCallArgs(definition); }
     function customInstruction(definition){
         const args=customArguments(definition);
         const count=(definition.pieces||[]).filter(p=>p.kind==="Branch").length;

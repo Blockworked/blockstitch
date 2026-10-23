@@ -175,6 +175,19 @@ QtObject {
         });
         return { kind: "Op", op: d.op, args: args, saved: { kind: "Number", value: 0 } };
     }
+    // A fresh call's arguments for a custom block definition: each input's
+    // default, else its typed blank. A boolean default becomes True/False.
+    function freshCallArgs(definition) {
+        return ((definition && definition.pieces) || []).filter(p => p.kind === "Input").map(p => {
+            const d = p.default_value, bool = p.value_type === "Bool";
+            if (d && bool && d.kind === "Bool" && typeof d.value === "boolean")
+                return { kind: "Op", op: d.value ? "True" : "False", args: [], saved: { kind: "Number", value: 0 } };
+            if (d && !bool && ((d.kind === "Number" && typeof d.value === "number" && isFinite(d.value))
+                               || (d.kind === "Text" && typeof d.value === "string")))
+                return JSON.parse(JSON.stringify(d));
+            return bool ? { kind: "Bool" } : { kind: "Number", value: 0 };
+        });
+    }
     // BEGIN GENERATED operator descriptors (blockstitch-core tests/descriptors.rs; BLESS=1 rewrites)
     readonly property var builtinDescriptors: [
         {"kind":"Add","op":"Add","arity":2,"result":"number","args":[{"type":"number","default":{"kind":"Number","value":0.0}},{"type":"number","default":{"kind":"Number","value":0.0}}]},

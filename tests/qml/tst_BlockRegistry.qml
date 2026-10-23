@@ -53,4 +53,24 @@ TestCase {
         compare(BlockRegistry.iconFor("Pick"), "hand");
         verify(BlockRegistry.descriptor("Add") !== null);
     }
+
+    function test_freshCallArgsUseEachInputsDefault() {
+        const def = { pieces: [
+            { kind: "Label", text: "move" },
+            { kind: "Input", value_type: "Number", default_value: { kind: "Number", value: 10 } },
+            { kind: "Input", value_type: "Bool", default_value: { kind: "Bool", value: true } },
+            { kind: "Branch" },
+            { kind: "Input", value_type: "Text", default_value: { kind: "Text", value: "hi" } },
+            { kind: "Input", value_type: "Bool" },
+            { kind: "Input", value_type: "Number", default_value: { kind: "Number", value: NaN } }
+        ] };
+        compare(BlockRegistry.freshCallArgs(def), [
+            { kind: "Number", value: 10 },
+            { kind: "Op", op: "True", args: [], saved: { kind: "Number", value: 0 } },
+            { kind: "Text", value: "hi" },
+            { kind: "Bool" },
+            { kind: "Number", value: 0 }
+        ]);
+        compare(BlockRegistry.freshCallArgs(null), []);
+    }
 }

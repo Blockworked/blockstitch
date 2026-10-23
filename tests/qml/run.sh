@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs the QML tests against qml/Blockstitch, laid out as qml/module.json says.
-# QMLTESTRUNNER names Qt 6's qmltestrunner if it isn't on PATH.
+# Usage: tests/qml/run.sh [qmltestrunner]; QMLTESTRUNNER works too.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 temp="$(mktemp -d)"
@@ -16,4 +16,4 @@ for f in m["files"]:
     print(("singleton " if f in m["singletons"] else "") + f"{f[:-4]} {m['version']} {f}")
 PY
 QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}" QML_DISABLE_DISK_CACHE=1 \
-    "${QMLTESTRUNNER:-qmltestrunner}" -import "$temp" -input "$root/tests/qml" "$@"
+    "${1:-${QMLTESTRUNNER:-qmltestrunner}}" -import "$temp" -input "$root/tests/qml"
