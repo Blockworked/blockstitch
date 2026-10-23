@@ -31,6 +31,7 @@
     "CollectionPanel.qml",
     "NameDialog.qml",
     "PalettePanel.qml",
+    "PaletteDragController.qml",
     "BlockCanvas.qml"
   ]
 }
