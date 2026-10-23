@@ -6,3 +6,4 @@ dist/
 crates/**/target
 /target/
 /Cargo.lock
+crates/blockstitch-ffi/target/
