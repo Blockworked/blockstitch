@@ -31,47 +31,72 @@ Shape {
     preferredRendererType: Shape.CurveRenderer
 
     // connector profile, relative to the connector's left edge: [x, depth]
-    readonly property var profile: [[0, 0], [4, 5], [8, 8], [18, 8], [22, 5], [26, 0]]
+    readonly property var profile: [[0, 0], [8, 8], [22, 8], [30, 0]]
 
-    function notch(ctx, x0, y) { for (let i = 0; i < 6; ++i) ctx.lineTo(x0 + profile[i][0], y + profile[i][1]); }
-    function tabTo(ctx, x0, y) { for (let i = 5; i >= 0; --i) ctx.lineTo(x0 + profile[i][0], y + profile[i][1]); }
+    function connector(ctx, x0, y, reverse) {
+        const rounding = 1.5;
+        const points = reverse ? profile.slice().reverse() : profile;
+        const direction = reverse ? -1 : 1;
+        for (let i = 0; i < points.length; ++i) {
+            const point = points[i];
+            const before = i > 0 ? points[i - 1] : [point[0] - direction, point[1]];
+            const after = i + 1 < points.length ? points[i + 1] : [point[0] + direction, point[1]];
+            const incoming = Math.hypot(before[0] - point[0], before[1] - point[1]);
+            const outgoing = Math.hypot(after[0] - point[0], after[1] - point[1]);
+            ctx.lineTo(x0 + point[0] + (before[0] - point[0]) * rounding / incoming,
+                       y + point[1] + (before[1] - point[1]) * rounding / incoming);
+            ctx.quadraticCurveTo(x0 + point[0], y + point[1],
+                                 x0 + point[0] + (after[0] - point[0]) * rounding / outgoing,
+                                 y + point[1] + (after[1] - point[1]) * rounding / outgoing);
+        }
+    }
+
+    function notch(ctx, x0, y) { connector(ctx, x0, y, false); }
+    function tabTo(ctx, x0, y) { connector(ctx, x0, y, true); }
 
     function trace(ctx) {
         const ins = .6, r = 5, w = width, h = height;
-        const L = ins, R = w - ins, T = ins;
+        // Shared horizontal edges must land on the same line when blocks interlock.
+        const L = ins, R = w - ins, T = 0;
         if (shape !== "wrap") {
             const topNotch = shape !== "header", bottomTab = shape !== "cap";
-            const base = (bottomTab ? h - tab : h) - ins;
+            const base = bottomTab ? h - tab : h;
             ctx.moveTo(L + r, T);
-            if (topNotch) { ctx.lineTo(13, T); notch(ctx, 13, T); }
+            if (topNotch) { notch(ctx, 13, T); }
             ctx.lineTo(R - r, T); ctx.quadraticCurveTo(R, T, R, T + r);
             ctx.lineTo(R, base - r); ctx.quadraticCurveTo(R, base, R - r, base);
-            if (bottomTab) { ctx.lineTo(39, base); tabTo(ctx, 13, base); }
+            if (bottomTab) { tabTo(ctx, 13, base); }
             ctx.lineTo(L + r, base); ctx.quadraticCurveTo(L, base, L, base - r);
             ctx.lineTo(L, T + r); ctx.quadraticCurveTo(L, T, L + r, T);
             ctx.closePath();
             return;
         }
-        const S = spine, mouths = mouthHeights || [];
+        const S = spine, mouthLeft = S + ins, mouths = mouthHeights || [];
         ctx.moveTo(L + r, T);
-        if (headNotch) { ctx.lineTo(13, T); notch(ctx, 13, T); }
+        if (headNotch) { notch(ctx, 13, T); }
         ctx.lineTo(R - r, T); ctx.quadraticCurveTo(R, T, R, T + r);
         let y = headHeight;
         ctx.lineTo(R, y - r); ctx.quadraticCurveTo(R, y, R - r, y);
-        ctx.lineTo(S + 39, y); tabTo(ctx, S + 13, y); ctx.lineTo(S, y);
+        tabTo(ctx, S + 13, y);
+        ctx.lineTo(mouthLeft + r, y);
+        ctx.quadraticCurveTo(mouthLeft, y, mouthLeft, y + r);
         for (let k = 0; k < mouths.length; ++k) {
             const foot = k === mouths.length - 1;
             y += mouths[k];
-            ctx.lineTo(S, y);
-            if (!(flatEnds || [])[k]) { ctx.lineTo(S + 13, y); notch(ctx, S + 13, y); }
+            // Match the nested block's left corners so the canvas cannot show through.
+            ctx.lineTo(mouthLeft, y - r);
+            ctx.quadraticCurveTo(mouthLeft, y, mouthLeft + r, y);
+            if (!(flatEnds || [])[k]) { notch(ctx, S + 13, y); }
             ctx.lineTo(R - r, y); ctx.quadraticCurveTo(R, y, R, y + r);
-            y += foot ? footHeight - ins : midHeight;
+            y += foot ? footHeight : midHeight;
             ctx.lineTo(R, y - r); ctx.quadraticCurveTo(R, y, R - r, y);
             if (foot) {
-                if (footTab) { ctx.lineTo(39, y); tabTo(ctx, 13, y); }
+                if (footTab) { tabTo(ctx, 13, y); }
                 ctx.lineTo(L + r, y); ctx.quadraticCurveTo(L, y, L, y - r);
             } else {
-                ctx.lineTo(S + 39, y); tabTo(ctx, S + 13, y); ctx.lineTo(S, y);
+                tabTo(ctx, S + 13, y);
+                ctx.lineTo(mouthLeft + r, y);
+                ctx.quadraticCurveTo(mouthLeft, y, mouthLeft, y + r);
             }
         }
         ctx.lineTo(L, T + r); ctx.quadraticCurveTo(L, T, L + r, T);
@@ -95,6 +120,29 @@ Shape {
         const w = writer();
         trace(w);
         return w.text();
+    }
+
+    // Back the rounded corners between nested blocks with the enclosing block's fill.
+    readonly property string mouthBackingPath: {
+        if (shape !== "wrap") return "";
+        const w = writer();
+        let y = headHeight;
+        for (let k = 0; k < mouthHeights.length; ++k) {
+            const bottom = y + mouthHeights[k];
+            w.moveTo(spine, y);
+            w.lineTo(spine + 5.6, y);
+            w.lineTo(spine + 5.6, bottom);
+            w.lineTo(spine, bottom);
+            w.closePath();
+            y = bottom + midHeight;
+        }
+        return w.text();
+    }
+
+    ShapePath {
+        strokeColor: "transparent"
+        fillColor: root.fill
+        PathSvg { path: root.mouthBackingPath }
     }
 
     ShapePath {

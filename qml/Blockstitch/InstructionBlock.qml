@@ -231,19 +231,19 @@ Item {
         const w = width, t = tabDepth;
         if (!isWrap) {
             const bottomTab = !isCap, body = bottomTab ? height - t : height;
-            if (inRect(x, y, 0, 0, w, body)) return !(!isHeader && inRect(x, y, 13, 0, 26, t));
-            return bottomTab && inRect(x, y, 13, body, 26, t);
+            if (inRect(x, y, 0, 0, w, body)) return !(!isHeader && inRect(x, y, 13, 0, 30, t));
+            return bottomTab && inRect(x, y, 13, body, 30, t);
         }
-        if (inRect(x, y, 0, 0, w, headHeight)) return !inRect(x, y, 13, 0, 26, t);
-        if (inRect(x, y, spine + 13, headHeight, 26, t)) return true;
+        if (inRect(x, y, 0, 0, w, headHeight)) return !inRect(x, y, 13, 0, 30, t);
+        if (inRect(x, y, spine + 13, headHeight, 30, t)) return true;
         const n = slotCount();
         let top = headHeight;
         for (let k = 0; k < n; ++k) {
             const mh = mouthHeights[k] || emptyMouth, barTop = top + mh, foot = k === n - 1;
             if (inRect(x, y, 0, top, spine, mh)) return true;
             const barH = foot ? footHeight : midHeight;
-            if (inRect(x, y, 0, barTop, w, barH)) return !(inRect(x, y, spine + 13, barTop, 26, t) && !flatEnds[k]);
-            if (!(foot && isCap) && inRect(x, y, foot ? 13 : spine + 13, barTop + barH, 26, t)) return true;
+            if (inRect(x, y, 0, barTop, w, barH)) return !(inRect(x, y, spine + 13, barTop, 30, t) && !flatEnds[k]);
+            if (!(foot && isCap) && inRect(x, y, foot ? 13 : spine + 13, barTop + barH, 30, t)) return true;
             top = barTop + barH;
         }
         return false;
@@ -333,6 +333,7 @@ Item {
     }
 
     BlockSurface {
+        id: surface
         anchors.fill: parent
         shape: root.isWrap ? "wrap" : root.isHeader ? "header" : root.isCap ? "cap" : "stack"
         fill: root.displayColor; hovered: root.hovered || root.dragRole === 1 || root.flashing || root.running || root.pausedHere
@@ -342,6 +343,20 @@ Item {
         mouthHeights: root.isWrap ? root.effMouthHeights : []
         footTab: !(root.isWrap && root.isCap)
         flatEnds: root.flatEnds
+    }
+    // Keep the enclosing outline above the blocks in its mouths.
+    Shape {
+        anchors.fill: parent
+        z: 1
+        visible: root.isWrap
+        preferredRendererType: Shape.CurveRenderer
+        ShapePath {
+            strokeColor: surface.hovered ? surface.hoverColor : surface.outline
+            strokeWidth: surface.outlineWidth
+            joinStyle: ShapePath.RoundJoin
+            fillColor: "transparent"
+            PathSvg { path: surface.outlinePath }
+        }
     }
     QtObject { id: hitMask; function contains(point: point): bool { return root.hitTest(point.x, point.y); } }
     BlockDragArea {
