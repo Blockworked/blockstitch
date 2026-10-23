@@ -156,7 +156,7 @@ Item {
                         anchors.fill: parent
                         anchors.margins: 3
                         radius: 6
-                        color: tile.hovered ? "#414246" : Theme.field
+                        color: tile.hovered ? Theme.hover : Theme.field
                         Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
                         border.color: root.blockIcon === modelData ? Theme.accent : Theme.border
                         border.width: root.blockIcon === modelData ? 2 : 1
@@ -761,7 +761,7 @@ Item {
             anchors.fill: parent
             visible: !piece.isBool
             radius: 5
-            color: piece.isInput ? Theme.field : piece.selected ? "#424348" : "transparent"
+            color: piece.isInput ? Theme.field : piece.selected ? Theme.hover : "transparent"
             border.width: piece.selected ? 2 : piece.isInput ? 1 : 0
             border.color: piece.selected ? Theme.accent : Theme.border
         }
@@ -772,6 +772,7 @@ Item {
             antialiasing: true
             onWidthChanged: requestPaint()
             onHeightChanged: requestPaint()
+            Connections { target: Theme; function onDarkChanged() { boolCanvas.requestPaint(); } }
             Connections {
                 target: piece
                 function onSelectedChanged() {
@@ -790,7 +791,7 @@ Item {
                 c.lineTo(n, height - .5);
                 c.lineTo(.5, height / 2);
                 c.closePath();
-                c.fillStyle = "#2e2f32";
+                c.fillStyle = Theme.field;
                 c.fill();
                 c.strokeStyle = piece.selected ? Theme.accent : Theme.border;
                 c.lineWidth = piece.selected ? 2 : 1;
@@ -885,7 +886,7 @@ Item {
                         }
                         background: Rectangle {
                             radius: 4
-                            color: actionButton.hovered ? "#47484c" : "transparent"
+                            color: actionButton.hovered ? Theme.hover : "transparent"
                             Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
                         }
                     }
@@ -910,11 +911,13 @@ Item {
             border.color: Theme.border
             clip: true
             Canvas {
+                id: previewGrid
                 anchors.fill: parent
+                Connections { target: Theme; function onDarkChanged() { previewGrid.requestPaint(); } }
                 onPaint: {
                     const c = getContext("2d");
                     c.reset();
-                    c.fillStyle = "#45464b";
+                    c.fillStyle = Theme.border;
                     for (let x = 11; x < width; x += 22)
                         for (let y = 11; y < height; y += 22) {
                             c.beginPath();
@@ -946,6 +949,7 @@ Item {
                         anchors.fill: parent; visible: root.returnsValue; antialiasing: true
                         onWidthChanged: requestPaint(); onHeightChanged: requestPaint()
                         Connections { target: root; function onBlockShapeChanged() { reporterCanvas.requestPaint(); } function onBlockColorChanged() { reporterCanvas.requestPaint(); } }
+                        Connections { target: Theme; function onDarkChanged() { reporterCanvas.requestPaint(); } }
                         onPaint: {
                             const c = getContext("2d"); c.reset(); c.beginPath();
                             if (root.blockShape === "ReturnsBool") {
@@ -1136,7 +1140,7 @@ Item {
                                                 }
                                                 background: Rectangle {
                                                     radius: 4
-                                                    color: branchAction.hovered ? "#47484c" : "transparent"
+                                                    color: branchAction.hovered ? Theme.hover : "transparent"
                                                     Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
                                                 }
                                             }
@@ -1165,7 +1169,7 @@ Item {
                                 background: Rectangle {
                                     radius: 4
                                     color: separatorField.activeFocus ? Theme.field
-                                        : separatorField.hovered ? "#414246" : "transparent"
+                                        : separatorField.hovered ? Theme.hover : "transparent"
                                     border.color: separatorField.activeFocus ? Theme.accent
                                         : separatorField.hovered ? Theme.border : "transparent"
                                 }
@@ -1502,7 +1506,7 @@ Item {
                     }
                     background: Rectangle {
                         radius: Theme.radius
-                        color: parent.hovered ? "#3b3c40" : Theme.panelRaised
+                        color: parent.hovered ? Theme.hover : Theme.panelRaised
                         border.color: parent.hovered ? Theme.accent : Theme.border
                         Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
                         Behavior on border.color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
