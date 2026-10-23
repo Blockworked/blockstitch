@@ -29,6 +29,7 @@ resolving the value a drag targeted, dropping one in, and undo/redo.
 | -------- | -------------------------------------------------------------------------------------------------------------- |
 | `value`  | `Value` expression trees, `Evaluated` results, the built-in `Op` set, and the host operator registry             |
 | `graph`  | `BlockGraph` (strands, instructions, parked values, notes, variables, lists, custom blocks) and the `BlockKind` trait   |
+| `sources` | where fresh ids, random numbers and the clock come from (`Seeded` for replays)                         |
 | `editor` | `PathStep`/`ValueLocation` addressing, the undo `History`, and every structural edit a canvas gesture performs   |
 
 Editor operations validate first and mutate second, and none of them lock,
@@ -57,6 +58,9 @@ lifts instructions and the notes pinned to them, and `PasteFragment` or
 `BlockKind::body` declares (`outcome.ids` maps old ids to new). A paste that
 calls a custom block the canvas doesn't define, or carries a definition's
 header, is refused.
+
+Fresh ids, `pick random` and `current (time)` go through `sources`; a host
+installs `sources::Seeded` (or its own) per thread for reproducible runs.
 
 Documents store an instruction as `{"id", "kind": {...}}`. A frontend that
 wants the flat `{"id", "type", ...}` node shape uses `graph::to_frontend` /
@@ -98,4 +102,7 @@ impl BlockKind for Block {
 }
 ```
 
-That's the whole contract. `BlockGraph<Block>` is now a working canvas.
+That's the whole contract. `BlockGraph<Block>` is now a working canvas. A
+block that holds a variable, list or dict name as text also reports it from
+`visit_refs_mut`, so renames reach it. `docs/hosting.md` walks through a
+full desktop and browser host.
