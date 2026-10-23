@@ -8,7 +8,7 @@ use crate::editor::location::{
     ValueBuffers, ValueLocation, drop_strand_buffers, prune_value_buffers,
 };
 use crate::editor::path::{InstrPath, PathStep, resolve_body};
-use crate::graph::{BlockGraph, BlockKind, Instruction};
+use crate::graph::{BlockGraph, BlockKind, Comment, Fragment, IdMap, Instruction};
 use crate::value::Value;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -39,6 +39,16 @@ pub enum EditCommand<K> {
         path: InstrPath,
         instruction: Instruction<K>,
     },
+    /// A copied fragment dropped as a new strand at `(x, y)`, with fresh
+    /// ids (see [`crate::graph::Fragment`] for the policy).
+    PasteFragment {
+        fragment: Fragment<K>,
+        x: i32,
+        y: i32,
+    },
+    /// A copy of the instruction at `path`, its bodies and its notes,
+    /// inserted right after it.
+    DuplicateInstruction { strand_id: String, path: InstrPath },
 }
 
 /// Where a moved value lands.
@@ -105,6 +115,7 @@ impl From<EditError> for String {
 pub enum Created {
     FloatingValue(String),
     Strand(String),
+    Comment(String),
 }
 
 /// What the host should do to its [`ValueBuffers`].
@@ -144,6 +155,8 @@ pub struct EditOutcome {
     pub buffers: Vec<BufferEffect>,
     /// Keystroke grouping key for [`crate::editor::History::checkpoint`].
     pub coalesce: Option<EditSession>,
+    /// For a paste or duplicate: which instruction became which clone.
+    pub ids: IdMap,
 }
 
 /// A validated edit, ready for [`BlockGraph::commit_edit`]. Commit it
@@ -186,6 +199,20 @@ enum Plan<K> {
         strand_id: String,
         path: InstrPath,
         instruction: Instruction<K>,
+    },
+    /// Already cloned with fresh ids.
+    Paste {
+        fragment: Fragment<K>,
+        ids: IdMap,
+        x: i32,
+        y: i32,
+    },
+    Duplicate {
+        strand_id: String,
+        path: InstrPath,
+        instruction: Instruction<K>,
+        comments: Vec<Comment>,
+        ids: IdMap,
     },
 }
 
@@ -281,6 +308,42 @@ impl<K: BlockKind> BlockGraph<K> {
                         strand_id,
                         path,
                         instruction,
+                    },
+                    coalesce: None,
+                })
+            }
+            EditCommand::PasteFragment { fragment, x, y } => {
+                self.check_paste(&fragment)?;
+                let (fragment, ids) = fragment.clone_fresh();
+                Ok(PreparedEdit {
+                    plan: Plan::Paste {
+                        fragment,
+                        ids,
+                        x,
+                        y,
+                    },
+                    buffers: Vec::new(),
+                    coalesce: None,
+                })
+            }
+            EditCommand::DuplicateInstruction { strand_id, path } => {
+                let copied = self.copy_fragment(&strand_id, &path, Some(1))?;
+                let (mut copy, ids) = copied.clone_fresh();
+                let instruction = copy.instructions.remove(0);
+                let mut next = path;
+                if let Some(last) = next.last_mut() {
+                    last.index += 1;
+                }
+                self.check_header_placement(&strand_id, &next, &instruction)
+                    .map_err(EditError::Rejected)?;
+                Ok(PreparedEdit {
+                    buffers: vec![BufferEffect::DropStrand(strand_id.clone())],
+                    plan: Plan::Duplicate {
+                        strand_id,
+                        path: next,
+                        instruction,
+                        comments: copy.comments,
+                        ids,
                     },
                     coalesce: None,
                 })
@@ -401,6 +464,7 @@ impl<K: BlockKind> BlockGraph<K> {
             coalesce,
         } = prepared;
         let mut created = Vec::new();
+        let mut renamed = IdMap::new();
         let changed = match plan {
             Plan::Nothing => false,
             Plan::MoveToSlot { from, to } => match self.take_value(&from) {
@@ -444,12 +508,41 @@ impl<K: BlockKind> BlockGraph<K> {
             } => self
                 .insert_instruction(&strand_id, &path, instruction)
                 .unwrap_or(false),
+            Plan::Paste {
+                fragment,
+                ids,
+                x,
+                y,
+            } => {
+                let strand = self.add_strand(x, y, fragment.instructions);
+                created.push(Created::Strand(strand));
+                self.add_comments(fragment.comments, &mut created);
+                renamed = ids;
+                true
+            }
+            Plan::Duplicate {
+                strand_id,
+                path,
+                instruction,
+                comments,
+                ids,
+            } => {
+                let inserted = self
+                    .insert_instruction(&strand_id, &path, instruction)
+                    .unwrap_or(false);
+                if inserted {
+                    self.add_comments(comments, &mut created);
+                    renamed = ids;
+                }
+                inserted
+            }
         };
         EditOutcome {
             changed,
             created,
             buffers,
             coalesce,
+            ids: renamed,
         }
     }
 
@@ -462,6 +555,13 @@ impl<K: BlockKind> BlockGraph<K> {
     ) -> Result<EditOutcome, EditError> {
         let prepared = self.prepare_edit(command, context)?;
         Ok(self.commit_edit(prepared))
+    }
+
+    fn add_comments(&mut self, comments: Vec<Comment>, created: &mut Vec<Created>) {
+        for comment in comments {
+            created.push(Created::Comment(comment.id.clone()));
+            self.comments.push(comment);
+        }
     }
 
     /// Removes up to `count` instructions starting at `path` as one step.

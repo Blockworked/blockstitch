@@ -35,7 +35,8 @@ Editor operations validate first and mutate second, and none of them lock,
 save or notify - a host wraps them in whatever state handling it already has.
 
 A gesture that should be one undo step goes through `editor::EditCommand`
-(move a value, type into a field, delete a tail, insert a block):
+(move a value, type into a field, delete a tail, insert a block, paste a
+copied fragment, duplicate a block):
 
 ```rust
 let prepared = graph.prepare_edit(command, &EditContext::default())?; // reads only
@@ -49,6 +50,19 @@ if outcome.changed { /* save, notify */ }
 
 A rejected command is an `Err` and touches nothing; a valid no-op has
 `changes() == false` and needs no history or save.
+
+Copy and paste go through `graph::Fragment`: `BlockGraph::copy_fragment`
+lifts instructions and the notes pinned to them, and `PasteFragment` or
+`DuplicateInstruction` clones them with fresh ids through every body
+`BlockKind::body` declares (`outcome.ids` maps old ids to new). A paste that
+calls a custom block the canvas doesn't define, or carries a definition's
+header, is refused.
+
+Documents store an instruction as `{"id", "kind": {...}}`. A frontend that
+wants the flat `{"id", "type", ...}` node shape uses `graph::to_frontend` /
+`graph::from_frontend`, which flatten only real `Instruction` positions, so
+host JSON inside a kind is left alone. The kind must serialize as an object
+(an internally tagged enum).
 
 ## Example
 

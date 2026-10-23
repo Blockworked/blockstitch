@@ -16,7 +16,9 @@ pub trait BlockKind:
     Clone + Debug + PartialEq + Hash + Serialize + DeserializeOwned + Sized
 {
     /// How many nested instruction lists one kind can own - `2` covers an
-    /// if/else. [`BlockKind::body`] is asked for every slot below this.
+    /// if/else. [`BlockKind::body`] is asked for every slot below this, gaps
+    /// included, so a kind with a dynamic number of branches sets `u8::MAX`
+    /// and keeps its count at 255 or fewer.
     const BODY_SLOTS: u8 = 2;
 
     /// What the app calls its header blocks, for the placement errors the
@@ -91,6 +93,12 @@ pub trait BlockKind:
         false
     }
 
+    /// The custom block this kind invokes in command position, if any, so a
+    /// paste can tell which definitions it needs.
+    fn called_block(&self) -> Option<&str> {
+        None
+    }
+
     /// The argument list of a command-position invocation of `block_id`.
     fn call_args_mut(&mut self, _block_id: &str) -> Option<&mut Vec<Value>> {
         None
@@ -137,8 +145,7 @@ fn new_instruction_id() -> String {
 /// The wrapper every instruction is stored as: `id` is a stable identity
 /// that survives drags and reorders, and is what comments attach to.
 /// Equality and hashing ignore it and compare `kind` alone.
-#[derive(Debug, Clone, Serialize)]
-#[serde(bound(serialize = "K: Serialize"))]
+#[derive(Debug, Clone)]
 pub struct Instruction<K> {
     pub id: String,
     pub kind: K,
@@ -283,7 +290,24 @@ impl<K: Hash> Hash for Instruction<K> {
     }
 }
 
-/// Wire shape for [`Instruction`]: `{"id": ..., "kind": ...}`, or a bare
+/// Stored as `{"id": ..., "kind": ...}`, or flat inside
+/// [`crate::graph::to_frontend`].
+impl<K: Serialize> Serialize for Instruction<K> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::{Error, SerializeStruct};
+        if crate::graph::wire::flat() {
+            return crate::graph::wire::flatten(&self.id, &self.kind)
+                .map_err(S::Error::custom)?
+                .serialize(serializer);
+        }
+        let mut out = serializer.serialize_struct("Instruction", 2)?;
+        out.serialize_field("id", &self.id)?;
+        out.serialize_field("kind", &self.kind)?;
+        out.end()
+    }
+}
+
+/// Stored shape for [`Instruction`]: `{"id": ..., "kind": ...}`, or a bare
 /// kind from before ids existed, which gets a fresh one on load.
 #[derive(Deserialize)]
 #[serde(untagged, bound(deserialize = "K: Deserialize<'de>"))]
@@ -294,6 +318,10 @@ enum InstructionEnvelope<K> {
 
 impl<'de, K: Deserialize<'de>> Deserialize<'de> for Instruction<K> {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        if crate::graph::wire::flat() {
+            let json = serde_json::Value::deserialize(deserializer)?;
+            return crate::graph::wire::unflatten(json).map_err(serde::de::Error::custom);
+        }
         Ok(match InstructionEnvelope::deserialize(deserializer)? {
             InstructionEnvelope::Current { id, kind } => Instruction { id, kind },
             InstructionEnvelope::Legacy(kind) => Instruction::new(kind),

@@ -550,6 +550,35 @@ impl Value {
         }
     }
 
+    /// Every custom block id a `Value::Call` in this tree names.
+    pub fn visit_block_calls(&self, f: &mut dyn FnMut(&str)) {
+        match self {
+            Value::Number { .. }
+            | Value::Text { .. }
+            | Value::Bool
+            | Value::Var { .. }
+            | Value::Param { .. } => {}
+            Value::Op { args, saved, .. } => {
+                for arg in args {
+                    arg.visit_block_calls(f);
+                }
+                saved.visit_block_calls(f);
+            }
+            Value::Call {
+                block_id,
+                args,
+                saved,
+                ..
+            } => {
+                f(block_id);
+                for arg in args {
+                    arg.visit_block_calls(f);
+                }
+                saved.visit_block_calls(f);
+            }
+        }
+    }
+
     /// Replaces every `Value::Call` on `block_id` with a plain `0` leaf, so
     /// deleting a block leaves no dangling reference.
     pub fn scrub_block_calls(&mut self, block_id: &str) {

@@ -5,11 +5,14 @@ mod block;
 mod canvas;
 mod dicts;
 mod document;
+mod fragment;
 mod instruction;
 mod lists;
+mod wire;
 
 pub use block::{
-    BlockDef, BlockPiece, BlockShape, InputValueType, default_block_color, normalize_block_color, normalize_block_icon,
+    BlockDef, BlockPiece, BlockShape, InputValueType, default_block_color, normalize_block_color,
+    normalize_block_icon,
 };
 pub use canvas::{Comment, FloatingValue, Strand, VariableDef};
 pub use dicts::{
@@ -18,12 +21,14 @@ pub use dicts::{
     resolve_dict_reporter, resolve_dict_reporters,
 };
 pub use document::BlockGraph;
+pub use fragment::{Fragment, IdMap};
 pub use instruction::{BlockKind, Instruction, RefKind};
 pub use lists::{
     ListDef, ListItem, ListStore, is_list_reporter, list_index, list_reporter_name_index,
     list_to_json, parse_json_array, rename_list_in_value, resolve_list_reporter,
     resolve_list_reporters,
 };
+pub use wire::{from_frontend, to_frontend};
 
 /// Ids for everything on the canvas - a bare uuid, since they only have to
 /// be unique within one document.
