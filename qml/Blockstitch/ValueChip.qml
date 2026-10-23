@@ -238,7 +238,7 @@ Item {
                 strokeColor: chipShape.edge
                 strokeWidth: root.dropHighlighted ? 2.4 : ((root.hovered || root.dragPreview) ? 1.6 : 1)
                 joinStyle: ShapePath.RoundJoin
-                fillColor: "#2e2f32"
+                fillColor: Theme.field
                 PathSvg { path: chipShape.outline }
             }
         }
@@ -376,7 +376,7 @@ Item {
                 implicitWidth: showHint ? Math.max(36, hint.implicitWidth + 24) : Math.max(36, capRow.implicitWidth + 24)
                 Rectangle {
                     anchors.fill: parent; radius: 5
-                    color: root.keyCapturing ? Theme.accent : (capHover.hovered ? "#3b3c40" : Theme.field)
+                    color: root.keyCapturing ? Theme.accent : (capHover.hovered ? Theme.hover : Theme.field)
                     border.color: root.keyCapturing ? Theme.accentHover : Theme.border
                 }
                 Text {
@@ -411,7 +411,7 @@ Item {
                 implicitHeight: 27
                 implicitWidth: Math.max(36, pickRow.implicitWidth + 18)
                 radius: 5
-                color: pickHover.hovered && live ? "#3b3c40" : (root.flatLeaf ? "transparent" : Theme.field)
+                color: pickHover.hovered && live ? Theme.hover : (root.flatLeaf ? "transparent" : Theme.field)
                 border.color: root.flatLeaf ? "transparent" : (pickHover.hovered && live ? Theme.accent : Theme.border)
                 Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
                 Behavior on border.color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }

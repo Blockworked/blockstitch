@@ -26,7 +26,7 @@ Column {
         model: root.sorted
         delegate: Rectangle {
             id: row; required property var modelData
-            width: root.rowWidth; height: 30; radius: Theme.radius; color: hover.hovered ? "#303134" : "transparent"
+            width: root.rowWidth; height: 30; radius: Theme.radius; color: hover.hovered ? Theme.panelRaised : "transparent"
             Row {
                 anchors.fill: parent; anchors.leftMargin: 6; anchors.rightMargin: 6; spacing: 7
                 BwCheckBox {

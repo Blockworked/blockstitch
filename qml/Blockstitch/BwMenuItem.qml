@@ -16,7 +16,7 @@ MenuItem {
         Text { text: control.text; color: control.danger?Theme.danger:Theme.text; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter; verticalAlignment: Text.AlignVCenter }
     }
     background: Rectangle {
-        radius: 5; color: control.highlighted ? "#3d3f44" : "transparent"
+        radius: 5; color: control.highlighted ? Theme.hover : "transparent"
         Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
     }
 }

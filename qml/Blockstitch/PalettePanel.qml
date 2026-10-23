@@ -631,7 +631,7 @@ Rectangle {
     // Delete target, shown only while something is dragged from the canvas.
     Rectangle {
         anchors.fill: parent; z: 4; radius: root.radius
-        color: root.trashArmed ? "#f5321e20" : "#f5242527"
+        color: root.trashArmed ? Qt.alpha(Theme.dangerBackground, 0.96) : Qt.alpha(Theme.panel, 0.96)
         opacity: root.trashActive ? 1 : 0; visible: opacity > 0
         Behavior on opacity { enabled: Motion.enabled; NumberAnimation { duration: Motion.quick } }
         Shape {

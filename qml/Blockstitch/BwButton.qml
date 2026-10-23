@@ -36,8 +36,8 @@ Button {
     }
     background: Rectangle {
         radius: control.radius
-        color: control.down ? (control.primary ? "#087bd4" : "#292a2d")
-                            : control.hovered ? (control.primary ? Theme.accentHover : "#3b3c40")
+        color: control.down ? (control.primary ? "#087bd4" : Theme.field)
+                            : control.hovered ? (control.primary ? Theme.accentHover : Theme.hover)
                                               : (control.primary ? Theme.accent : (control.flat ? "transparent" : Theme.panelRaised))
         border.color: control.flat && !control.hovered ? "transparent" : (control.danger ? Theme.danger : (control.primary ? "#50b2ff" : Theme.border))
         opacity: control.enabled ? 1 : 0.42
