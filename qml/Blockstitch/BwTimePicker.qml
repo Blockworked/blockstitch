@@ -168,7 +168,7 @@ Popup {
                                 required property bool modelData
                                 readonly property bool on: (control.hour >= 12) === modelData
                                 width: 50; height: 30; radius: 6
-                                color: on ? Theme.accent : meridiemMouse.containsMouse ? "#3b3c40" : Theme.field
+                                color: on ? Theme.accent : meridiemMouse.containsMouse ? Theme.hover : Theme.field
                                 border.color: on ? Theme.accentHover : Theme.border
                                 Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
                                 Text {
@@ -221,7 +221,7 @@ Popup {
         property int by: 1
         property string icon: "chevron-up"
         width: 64; height: 22; radius: 5
-        color: nudge.pressed ? Theme.field : nudge.containsMouse ? "#3b3c40" : "transparent"
+        color: nudge.pressed ? Theme.field : nudge.containsMouse ? Theme.hover : "transparent"
         Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
         LucideIcon { anchors.centerIn: parent; name: nudgeButton.icon; width: 16; height: 16; color: Theme.textDim }
         MouseArea {
@@ -267,7 +267,7 @@ Popup {
                 x: (index % grid.columns) * (grid.cell + grid.gap)
                 y: Math.floor(index / grid.columns) * (30 + grid.gap)
                 width: grid.cell; height: 30; radius: 6
-                color: isChosen ? "transparent" : cellMouse.containsMouse ? "#3b3c40" : Theme.field
+                color: isChosen ? "transparent" : cellMouse.containsMouse ? Theme.hover : Theme.field
                 Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
                 Text {
                     anchors.centerIn: parent; text: grid.labels[index] || ""
@@ -349,7 +349,7 @@ Popup {
                     x: (slot % 7) * (calendar.cell + calendar.gap)
                     y: Math.floor(slot / 7) * (calendar.rowHeight + calendar.gap)
                     width: calendar.cell; height: calendar.rowHeight; radius: 6
-                    color: isChosen ? "transparent" : dayMouse.containsMouse ? "#3b3c40" : Theme.field
+                    color: isChosen ? "transparent" : dayMouse.containsMouse ? Theme.hover : Theme.field
                     border.color: isToday && !isChosen ? Theme.accent : "transparent"
                     Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
                     Text {
@@ -375,7 +375,7 @@ Popup {
         id: monthArrow
         property int by: 1
         width: 32; height: 32; radius: 6
-        color: arrowMouse.pressed ? Theme.field : arrowMouse.containsMouse ? "#3b3c40" : "transparent"
+        color: arrowMouse.pressed ? Theme.field : arrowMouse.containsMouse ? Theme.hover : "transparent"
         Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
         LucideIcon { anchors.centerIn: parent; name: monthArrow.by > 0 ? "chevron-right" : "chevron-left"; width: 16; height: 16; color: Theme.textDim }
         MouseArea {

@@ -1207,7 +1207,7 @@ Rectangle {
                 scale:0.5; transformOrigin:Item.TopLeft
                 fillMode:Image.Tile; smooth:true
                 sourceSize: Qt.size(44, 44)
-                source: "data:image/svg+xml;utf8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><g fill='#46474d'>"
+                source: "data:image/svg+xml;utf8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><g fill='" + Theme.grid + "'>"
                     + "<circle cx='0' cy='0' r='2.3'/><circle cx='44' cy='0' r='2.3'/><circle cx='0' cy='44' r='2.3'/><circle cx='44' cy='44' r='2.3'/></g></svg>")
             }
             MouseArea {
@@ -1332,7 +1332,7 @@ Rectangle {
                     function editItem(index,value){const next=JSON.parse(JSON.stringify(modelData.items||[]));next[index]=itemFromText(value);root.listItemsEdited(modelData.name,next);}
                     function removeItem(index){const next=JSON.parse(JSON.stringify(modelData.items||[]));next.splice(index,1);root.listItemsEdited(modelData.name,next);}
                     function addItem(){const next=JSON.parse(JSON.stringify(modelData.items||[]));next.push({kind:"Text",value:""});root.listItemsEdited(modelData.name,next);}
-                    Rectangle { id:listHead;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;height:38;color:"#393a3e";border.color:Theme.borderSoft
+                    Rectangle { id:listHead;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;height:38;color:Theme.panelRaised;border.color:Theme.borderSoft
                         Row { anchors.fill:parent;anchors.margins:6;spacing:6
                             LucideIcon{name:"layers";color:Theme.textDim;width:16;height:16;anchors.verticalCenter:parent.verticalCenter}
                             Text{text:listCard.modelData.name;color:Theme.text;font.pixelSize:13;font.weight:Font.Bold;width:220;elide:Text.ElideRight;anchors.verticalCenter:parent.verticalCenter}
@@ -1375,7 +1375,7 @@ Rectangle {
                     function editValue(index,value){const next=copy();next[index].value=itemFromText(value);save(next);}
                     function removeEntry(index){const next=copy();next.splice(index,1);save(next);}
                     function addEntry(){const next=copy();next.push({key:"",value:{kind:"Text",value:""}});save(next);}
-                    Rectangle { id:dictHead;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;height:38;color:"#393a3e";border.color:Theme.borderSoft
+                    Rectangle { id:dictHead;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;height:38;color:Theme.panelRaised;border.color:Theme.borderSoft
                         Row { anchors.fill:parent;anchors.margins:6;spacing:6
                             LucideIcon{name:"book-key";color:Theme.textDim;width:16;height:16;anchors.verticalCenter:parent.verticalCenter}
                             Text{text:dictCard.modelData.name;color:Theme.text;font.pixelSize:13;font.weight:Font.Bold;width:280;elide:Text.ElideRight;anchors.verticalCenter:parent.verticalCenter}
