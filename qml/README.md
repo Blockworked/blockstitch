@@ -12,6 +12,20 @@ Native consumers depend on the repository's root Cargo package and call
 `blockstitch_qml::init()` before creating their QML engine. The existing npm
 package and everything under `src/` remain the browser implementation.
 
+`qml/module.json` is the module's one manifest: its URI and version, every
+file, the singletons and the Qt modules it needs. `build.rs` registers the
+crate's module from it, and CMake projects (the website's WebAssembly demo)
+get the same module from `cmake/BlockstitchQml.cmake`:
+
+```cmake
+include(<blockstitch>/cmake/BlockstitchQml.cmake)
+blockstitch_add_qml_module(blockstitch)   # static; link blockstitchplugin
+```
+
+Both builds fail when `qml/Blockstitch/` holds a `.qml` file the manifest
+doesn't list, or the manifest lists one that isn't there, so a new component
+is added to `module.json` and nowhere else.
+
 ## Registering an app's blocks
 
 `BlockRegistry` is the QML side of the Vue `register*` calls. An app describes

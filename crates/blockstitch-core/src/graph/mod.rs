@@ -18,7 +18,7 @@ pub use dicts::{
     resolve_dict_reporter, resolve_dict_reporters,
 };
 pub use document::BlockGraph;
-pub use instruction::{BlockKind, Instruction};
+pub use instruction::{BlockKind, Instruction, RefKind};
 pub use lists::{
     ListDef, ListItem, ListStore, is_list_reporter, list_index, list_reporter_name_index,
     list_to_json, parse_json_array, rename_list_in_value, resolve_list_reporter,
