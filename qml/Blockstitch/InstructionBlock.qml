@@ -4,6 +4,10 @@ import QtQuick.Shapes
 
 Item {
     id: root
+    // Keep each block as a semantic subtree. Without this boundary Qt's
+    // macOS bridge repeatedly flattens every decorative item in a long stack.
+    Accessible.role: Accessible.Grouping
+    Accessible.name: root.headPieces.filter(p => p.kind === "label" && p.text).map(p => p.text).join(" ") || root.type
     property var instruction
     property string strandId: ""
     property var path: []

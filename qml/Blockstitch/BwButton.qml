@@ -19,6 +19,9 @@ Button {
     leftPadding: 12
     rightPadding: 12
     font.pixelSize: 13
+    // Icon-only buttons already describe their action in a tooltip. Expose
+    // that same description to VoiceOver and other accessibility clients.
+    Accessible.name: control.text.length > 0 ? control.text : control.ToolTip.text
 
     HoverHandler { cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
 

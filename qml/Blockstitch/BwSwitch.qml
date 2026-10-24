@@ -5,6 +5,18 @@ Control {
     id: root
     property bool checked: false
     signal toggled(bool checked)
+    focusPolicy: Qt.StrongFocus
+    Accessible.role: Accessible.CheckBox
+    Accessible.checkable: true
+    Accessible.checked: root.checked
+    Accessible.onToggleAction: root.toggle()
+    Accessible.onPressAction: root.toggle()
+    Keys.onSpacePressed: root.toggle()
+    function toggle() {
+        if (!enabled) return;
+        checked = !checked;
+        toggled(checked);
+    }
     implicitWidth: row.implicitWidth
     implicitHeight: 28
 
@@ -25,7 +37,7 @@ Control {
                 color: "#f4f4f5"
                 Behavior on x { enabled: Motion.enabled; NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic } }
             }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.checked = !root.checked; root.toggled(root.checked) } }
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.forceActiveFocus(); root.toggle(); } }
         }
         Text { text: root.Accessible.name; color: Theme.text; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
     }
