@@ -6,6 +6,8 @@ Rectangle {
     id: root
     readonly property bool isBlockCanvas: true
     readonly property var branchDragState: dragSession
+    Accessible.role: Accessible.Grouping
+    Accessible.name: qsTr("Block canvas")
     property var strands: []
     property string recordingTargetId: ""
     property var comments: []
@@ -1496,6 +1498,8 @@ Rectangle {
                 model: strandModel
                 delegate:Column {
                     id:strand
+                    Accessible.role: Accessible.Grouping
+                    Accessible.name: qsTr("Block strand")
                     required property string sid
                     required property real sx
                     required property real sy
