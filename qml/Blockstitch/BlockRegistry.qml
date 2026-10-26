@@ -93,7 +93,8 @@ QtObject {
     // "lists"/"dicts" for the document's names.
     property var rows: ({})
     // op -> { prefix, infix (one label, or a list: one per gap), suffix, result, enumArg: {index, options|source}, oneBased: [index],
-    //        pickArg: {index, action, icon} (a button after that arg's text field, see pickHandler) }
+    //        pickArg: {index, action, icon} (a button after that arg's text field, see pickHandler),
+    //        pickOp: {action, icon, tip} (a button after the whole operator; pickHandler gets its own location) }
     // An operator may instead give `layout`: [piece] or function(value) -> [piece],
     // piece {label, arg: -1} | {arg, bool}, `arg` indexing the value's args. Args no
     // piece names are not drawn (a host's generic operator keeps its

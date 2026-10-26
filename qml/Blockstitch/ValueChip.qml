@@ -475,6 +475,23 @@ Item {
         Item { visible: !!root.valueData && root.valueData.kind === "Bool"; width: 24; height: 17 }
         Text { visible: !!root.valueData && root.valueData.kind === "Op" && !root.opLayout && root.opPrefix.length===0 && root.opSuffix.length===0 && (root.valueData.args||[]).length===0; text: root.valueData && root.valueData.op ? root.valueData.op.toLowerCase() : ""; color: Theme.text; font.pixelSize: 12 }
         Text { visible: root.opSuffix.length>0; text:root.opSuffix; color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+        // The host's picker for the whole operator, which may rewrite every arg.
+        Rectangle {
+            readonly property var spec: root.opSpec && root.opSpec.pickOp && root.valueData && root.valueData.kind === "Op" ? root.opSpec.pickOp : null
+            visible: !!spec
+            width: visible ? 27 : 0; height: 27; radius: 5
+            anchors.verticalCenter: parent.verticalCenter
+            color: opPickMouse.containsMouse && opPickMouse.enabled ? Theme.panelRaised : Theme.field
+            border.color: opPickMouse.containsMouse && opPickMouse.enabled ? Theme.accent : Theme.border
+            LucideIcon { anchors.centerIn: parent; name: parent.spec && parent.spec.icon ? parent.spec.icon : "crosshair"; width: 14; height: 14; color: Theme.text }
+            MouseArea {
+                id: opPickMouse
+                anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                enabled: root.editable && !!root.location && !root.paletteMode
+                onClicked: BlockRegistry.requestPick(parent.spec.action || "", root.location, root.valueData, parent)
+            }
+            ToolTip.visible: !!spec && !!spec.tip && opPickMouse.containsMouse; ToolTip.delay: 500; ToolTip.text: spec && spec.tip ? spec.tip : ""
+        }
     }
     Column {
         id: branchCol
