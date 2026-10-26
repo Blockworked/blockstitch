@@ -82,6 +82,13 @@ QtObject {
     // shows typed text as a picker button (see ValueChip.pick). A dropdown's
     // `encode(chosen, instruction)` turns the choice into what's stored.
     // Any piece may carry `when: function(instruction) -> bool`.
+    // A row may also list `components`: optional groups of pieces the user
+    // adds from the row's "+" button and takes off with each group's "x".
+    // component: {key, label, icon, fresh, pieces, present?}. It is on while
+    // the instruction holds `key`; adding sets `key` to `fresh` (a value, or
+    // function(instruction) -> value), removing deletes it. `present(instruction)`
+    // overrides that test. Components follow the head in declared order, or
+    // stand where the head has a {kind:"components"} piece.
     // `options` is an array of {value,label}, a function(instruction), or
     // "lists"/"dicts" for the document's names.
     property var rows: ({})
@@ -263,6 +270,54 @@ QtObject {
     }
 
     function row(type) { return rows[type] || null; }
+
+    // Components, see `rows`. Pieces are cached on the spec so a row keeps
+    // the same piece objects, and so its controls, between edits.
+    function hasComponent(component, instruction) {
+        if (!instruction) return false;
+        if (component.present) return !!component.present(instruction);
+        const v = instruction[component.key];
+        return v !== undefined && v !== null;
+    }
+    function missingComponents(spec, instruction) {
+        return ((spec && spec.components) || []).filter(c => !hasComponent(c, instruction));
+    }
+    function componentPieces(component) {
+        if (!component._pieces) component._pieces = (component.pieces || []).concat([{ kind: "removeComponent", component: component }]);
+        return component._pieces;
+    }
+    function addComponentPiece(spec) {
+        if (!spec._addPiece) spec._addPiece = { kind: "addComponent" };
+        return spec._addPiece;
+    }
+    // The pieces a row draws for one instruction, components included.
+    function rowPieces(spec, instruction, palette) {
+        if (!spec || !spec.head) return [];
+        const head = typeof spec.head === "function" ? spec.head(instruction) : spec.head;
+        const comps = spec.components || [];
+        let extra = [];
+        for (const c of comps) if (hasComponent(c, instruction)) extra = extra.concat(componentPieces(c));
+        if (!palette && comps.length && missingComponents(spec, instruction).length) extra.push(addComponentPiece(spec));
+        const all = [];
+        let placed = false;
+        for (const p of (head || [])) {
+            if (p.kind === "components") { all.push(...extra); placed = true; }
+            else all.push(p);
+        }
+        if (!placed) all.push(...extra);
+        return all.filter(p => !p.when || p.when(instruction));
+    }
+    // The instruction with a component added or taken off.
+    function withComponent(component, instruction) {
+        const n = JSON.parse(JSON.stringify(instruction));
+        n[component.key] = typeof component.fresh === "function" ? component.fresh(instruction) : JSON.parse(JSON.stringify(component.fresh === undefined ? "" : component.fresh));
+        return n;
+    }
+    function withoutComponent(component, instruction) {
+        const n = JSON.parse(JSON.stringify(instruction));
+        delete n[component.key];
+        return n;
+    }
     // type -> Lucide icon for a type drawn without a registered row.
     property var icons: ({})
     function registerIcons(map) { icons = Object.assign({}, icons, map); }

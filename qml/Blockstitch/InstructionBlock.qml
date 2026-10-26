@@ -71,9 +71,7 @@ Item {
     property var headPieces: []
     readonly property var wantedPieces: {
         BlockRegistry.revision;
-        if (!rowSpec || !rowSpec.head) return [];
-        const head = typeof rowSpec.head === "function" ? rowSpec.head(instruction) : rowSpec.head;
-        return (head || []).filter(p => !p.when || p.when(instruction));
+        return BlockRegistry.rowPieces(rowSpec, instruction, paletteMode);
     }
     onWantedPiecesChanged: {
         const a = headPieces, b = wantedPieces;
@@ -285,12 +283,20 @@ Item {
     function setPieceField(piece, value) {
         if (piece.index === undefined) { setField(piece.key, value); return; }
         const n = cloneInstruction();
+        if (typeof piece.index === "string") {
+            // A named entry of an object, a component's own fields say.
+            n[piece.key] = Object.assign({}, n[piece.key] || {}, { [piece.index]: value });
+            instructionEdited(strandId, path, n);
+            return;
+        }
         const list = Array.isArray(n[piece.key]) ? n[piece.key] : [];
         while (list.length <= piece.index) list.push("");
         list[piece.index] = value;
         n[piece.key] = list;
         instructionEdited(strandId, path, n);
     }
+    function addComponent(component) { instructionEdited(strandId, path, BlockRegistry.withComponent(component, instruction)); }
+    function removeComponent(component) { instructionEdited(strandId, path, BlockRegistry.withoutComponent(component, instruction)); }
     function setPiece(piece, chosen) { setPieceField(piece, piece.encode ? piece.encode(chosen, instruction) : chosen); }
     function defFor(id) { for(let i=0;i<(blockDefinitions||[]).length;i++) if(blockDefinitions[i].id===id) return blockDefinitions[i]; return null; }
     function callLabel() { const d=instruction?defFor(instruction.block_id):null; if(!d) return qsTr("custom block"); return (d.pieces||[]).filter(p=>p.kind!=="Branch").map(p=>p.kind==="Label"?p.text:("("+p.name+")")).join(" "); }
@@ -389,7 +395,20 @@ Item {
             BwMenuItem { visible: !root.paletteMode; iconName: "scissors"; text: qsTr("Cut block"); onTriggered: root.menuActionRequested("cut", root.strandId, root.path, root.instruction) }
             BwMenuItem { visible: !root.paletteMode; iconName: "message-square"; text: root.hasComment ? qsTr("Comment") : qsTr("Add Comment"); onTriggered: root.commentRequested(root.instruction) }
             BwMenuItem { visible: !root.paletteMode || !root.extraMenu || root.extraMenu.length === 0; iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(root.isCustomBlock && root.instruction ? root.instruction.block_id : root.type) }
-            BwMenuItem { visible: !root.paletteMode; iconName: "trash"; danger: true; text: qsTr("Delete block"); onTriggered: root.removeRequested(root.strandId, root.path) }
+            BwMenuItem { id: deleteItem; visible: !root.paletteMode; iconName: "trash"; danger: true; text: qsTr("Delete block"); onTriggered: root.removeRequested(root.strandId, root.path) }
+            // Add or take off each of the row's components.
+            Instantiator {
+                model: !root.paletteMode && root.rowSpec && root.rowSpec.components ? root.rowSpec.components : []
+                delegate: BwMenuItem {
+                    required property var modelData
+                    readonly property bool on: BlockRegistry.hasComponent(modelData, root.instruction)
+                    iconName: on ? "x" : (modelData.icon || "plus")
+                    text: on ? qsTr("Remove %1").arg(modelData.label) : qsTr("Add %1").arg(modelData.label)
+                    onTriggered: on ? root.removeComponent(modelData) : root.addComponent(modelData)
+                }
+                onObjectAdded: (index, object) => { let at = 0; while (at < menu.count && menu.itemAt(at) !== deleteItem) ++at; menu.insertItem(at, object); }
+                onObjectRemoved: (index, object) => menu.removeItem(object)
+            }
             Instantiator {
                 model: root.paletteMode ? root.extraMenu : BlockRegistry.blockMenu
                 delegate: BwMenuItem {
@@ -925,7 +944,8 @@ Item {
             required property var modelData
             readonly property string kind: modelData.kind
             anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-            sourceComponent: kind === "label" ? labelPiece : kind === "value" ? valuePiece : kind === "dropdown" ? dropdownPiece : kind === "button" ? buttonPiece : textPiece
+            sourceComponent: kind === "label" ? labelPiece : kind === "value" ? valuePiece : kind === "dropdown" ? dropdownPiece : kind === "button" ? buttonPiece
+                : kind === "addComponent" ? addComponentPiece : kind === "removeComponent" ? removeComponentPiece : textPiece
             Component {
                 id: labelPiece
                 // Event (header) labels use the same caption style as the
@@ -1003,6 +1023,51 @@ Item {
                         anchors.fill: parent; hoverEnabled: true; enabled: !root.paletteMode
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.pieceActionRequested(piece.modelData.action || "", root.strandId, root.path, root.instruction)
+                    }
+                }
+            }
+            // The row's "+": a menu of the components the block doesn't have yet.
+            Component {
+                id: addComponentPiece
+                Rectangle {
+                    id: addButton
+                    implicitWidth: 22; implicitHeight: 22; radius: 11
+                    color: addMouse.containsMouse ? Theme.panelRaised : "transparent"
+                    border.color: addMouse.containsMouse ? Theme.accent : Theme.border
+                    LucideIcon { anchors.centerIn: parent; name: "plus"; width: 13; height: 13; color: addMouse.containsMouse ? Theme.accent : Theme.textDim }
+                    ToolTip.visible: addMouse.containsMouse; ToolTip.delay: 400; ToolTip.text: qsTr("Add an option")
+                    MouseArea {
+                        id: addMouse
+                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: addMenu.popup(0, addButton.height + 2)
+                    }
+                    BwMenu {
+                        id: addMenu
+                        Instantiator {
+                            model: BlockRegistry.missingComponents(root.rowSpec, root.instruction)
+                            delegate: BwMenuItem {
+                                required property var modelData
+                                iconName: modelData.icon || "plus"; text: modelData.label
+                                onTriggered: root.addComponent(modelData)
+                            }
+                            onObjectAdded: (index, object) => addMenu.insertItem(index, object)
+                            onObjectRemoved: (index, object) => addMenu.removeItem(object)
+                        }
+                    }
+                }
+            }
+            // The "x" that ends a component's pieces.
+            Component {
+                id: removeComponentPiece
+                Item {
+                    implicitWidth: 16; implicitHeight: 22
+                    LucideIcon { anchors.centerIn: parent; name: "x"; width: 12; height: 12; color: removeMouse.containsMouse ? Theme.danger : Theme.textDim }
+                    ToolTip.visible: removeMouse.containsMouse; ToolTip.delay: 400
+                    ToolTip.text: qsTr("Remove %1").arg(piece.modelData.component.label || "")
+                    MouseArea {
+                        id: removeMouse
+                        anchors.fill: parent; hoverEnabled: true; enabled: !root.paletteMode; cursorShape: Qt.PointingHandCursor
+                        onClicked: root.removeComponent(piece.modelData.component)
                     }
                 }
             }

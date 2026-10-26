@@ -54,6 +54,21 @@ text; a click calls `BlockRegistry.pickHandler(action, location, value)` with
 the slot's location, so the host can open a picker and write the choice back
 like a typed edit.
 
+A row's `components` keep a block short: each is an optional group of pieces
+the user adds from the "+" at the end of the row (or the block's right-click
+menu) and takes off with its "x". A component is on while the instruction
+holds its `key`, so the host stores it as an optional field:
+
+```qml
+FindImage: { head: [{ kind: "label", text: "find" }, picture],
+    components: [{ key: "region", label: "search region", icon: "square-dashed", fresh: "",
+                   pieces: [{ kind: "label", text: "in region" }, { kind: "text", key: "region" }] }] }
+```
+
+A piece inside one may name a field of an object `key` holds with a string
+`index`. Components follow the head, or stand where it has a
+`{kind: "components"}` piece. The palette shows a block without the "+".
+
 ### Operator descriptors
 
 What a fresh operator holds comes from `blockstitch-core`, not the QML.
