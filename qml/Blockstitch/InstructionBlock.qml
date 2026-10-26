@@ -78,6 +78,18 @@ Item {
         if (a.length === b.length && a.every((p, i) => p === b[i])) return;
         headPieces = b;
     }
+    // Group only the displayed pieces; hidden conditional fields take no space.
+    readonly property var headGroups: {
+        const groups = [];
+        for (const piece of headPieces) {
+            if (piece.kind !== "removeComponent") { groups.push(piece); continue; }
+            const pieces = [piece], members = piece.component.pieces || [];
+            while (groups.length && members.indexOf(groups[groups.length - 1]) >= 0)
+                pieces.unshift(groups.pop());
+            groups.push({ kind: "component", component: piece.component, pieces: pieces });
+        }
+        return groups;
+    }
     readonly property int rowHeight: 58
     readonly property real tabDepth: 8
     readonly property real spine: 20
@@ -121,11 +133,11 @@ Item {
     // Match the web canvas: the chosen color marks a custom block's icon and
     // hover outline, while the block body stays in the neutral canvas palette.
     readonly property color displayColor: isCustomBlock ? Theme.block : blockColor
-    implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 36), hasBranchHeader ? pvOuterWidth + 28 : 0)
+    implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 28), hasBranchHeader ? pvOuterWidth + 28 : 0)
     implicitHeight: isWrap ? headHeight + mouthTotal + Math.max(0, slotCount() - 1) * midHeight + footHeight + (isCap ? 0 : tabDepth) : hasBranchHeader ? pvTop + pvOuterHeight + 8 + tabDepth : isCap ? rowHeight - tabDepth : rowHeight
     z: dragRole > 0 ? 50 : hovered ? 2 : 1
-    // Trashed tail waiting on its removal.
-    opacity: dragRole === 1 && dragState && !dragState.active && dragState.settling && dragState.settleHidden ? 0 : 1
+    // The overlay draws active tails; trashed tails wait for their removal.
+    opacity: dragRole === 1 && dragState && ((dragState.active && dragState.externalPreview) || (!dragState.active && dragState.settling && dragState.settleHidden)) ? 0 : 1
     readonly property real dragOffsetX: {
         if (!dragState || dragRole !== 1) return 0;
         if (dragState.active) return dragState.dx;
@@ -325,7 +337,7 @@ Item {
     readonly property bool pvReporter: pvShape === "ReturnsValue" || pvShape === "ReturnsBool"
     readonly property bool pvBool: pvShape === "ReturnsBool"
     readonly property bool pvNoTab: pvReporter || pvShape === "Ending"
-    readonly property real pvPadX: pvReporter ? (pvBool ? 36 : 22) : 0
+    readonly property real pvPadX: pvReporter ? (pvBool ? pvOuterHeight / 2 : 22) : 0
     readonly property real pvPadY: pvReporter ? 12 : 0
     readonly property real pvHeight: pvHead + branchModel.length * pvMouth + Math.max(0, branchModel.length - 1) * pvMid + pvFoot + (pvNoTab ? 0 : tabDepth)
     readonly property real pvOuterHeight: pvHeight + 2 * pvPadY
@@ -396,19 +408,6 @@ Item {
             BwMenuItem { visible: !root.paletteMode; iconName: "message-square"; text: root.hasComment ? qsTr("Comment") : qsTr("Add Comment"); onTriggered: root.commentRequested(root.instruction) }
             BwMenuItem { visible: !root.paletteMode || !root.extraMenu || root.extraMenu.length === 0; iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(root.isCustomBlock && root.instruction ? root.instruction.block_id : root.type) }
             BwMenuItem { id: deleteItem; visible: !root.paletteMode; iconName: "trash"; danger: true; text: qsTr("Delete block"); onTriggered: root.removeRequested(root.strandId, root.path) }
-            // Add or take off each of the row's components.
-            Instantiator {
-                model: !root.paletteMode && root.rowSpec && root.rowSpec.components ? root.rowSpec.components : []
-                delegate: BwMenuItem {
-                    required property var modelData
-                    readonly property bool on: BlockRegistry.hasComponent(modelData, root.instruction)
-                    iconName: on ? "x" : (modelData.icon || "plus")
-                    text: on ? qsTr("Remove %1").arg(modelData.label) : qsTr("Add %1").arg(modelData.label)
-                    onTriggered: on ? root.removeComponent(modelData) : root.addComponent(modelData)
-                }
-                onObjectAdded: (index, object) => { let at = 0; while (at < menu.count && menu.itemAt(at) !== deleteItem) ++at; menu.insertItem(at, object); }
-                onObjectRemoved: (index, object) => menu.removeItem(object)
-            }
             Instantiator {
                 model: root.paletteMode ? root.extraMenu : BlockRegistry.blockMenu
                 delegate: BwMenuItem {
@@ -668,10 +667,25 @@ Item {
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.amount:null; location:root.fieldLocation("ShiftListAmount"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }
     }
+    Component {
+        id: listDropdown
+        BwComboBox {
+            readonly property var choices: BlockRegistry.listChoices(root.listNames())
+            model: choices; textRole: "label"
+            currentIndex: choices.findIndex(c => c.value === (root.instruction ? root.instruction.name : ""))
+            displayText: currentIndex >= 0 ? currentText : (root.instruction && root.instruction.name ? root.instruction.name : qsTr("Choose list"))
+            implicitWidth: 98; implicitHeight: 30; font.pixelSize: 12
+            onActivated: index => {
+                const choice = choices[index];
+                if (choice.action) choice.action(name => root.setField("name", name));
+                else root.setField("name", choice.value);
+            }
+        }
+    }
     Component { id: fieldsFor23
         Row {
             spacing: 7
-                    BwComboBox { model:root.listNames(); currentIndex:instruction?root.listNames().indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose list")); implicitWidth:98; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("name",currentText) }
+                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: listDropdown }
         }
     }
     Component { id: fieldsFor24
@@ -682,7 +696,7 @@ Item {
                     Text { text:qsTr("at"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.index:null; location:root.fieldLocation("InsertIntoListIndex"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     Text { text:qsTr("of"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:root.listNames(); currentIndex:instruction?root.listNames().indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose list")); implicitWidth:98; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("name",currentText) }
+                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: listDropdown }
         }
     }
     Component { id: fieldsFor25
@@ -691,7 +705,7 @@ Item {
                     Text { text:qsTr("replace item"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.index:null; location:root.fieldLocation("ReplaceItemOfListIndex"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     Text { text:qsTr("of"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:root.listNames(); currentIndex:instruction?root.listNames().indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose list")); implicitWidth:98; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("name",currentText) }
+                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: listDropdown }
                     Text { text:qsTr("with"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("ReplaceItemOfListValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }
@@ -700,7 +714,7 @@ Item {
         Row {
             spacing: 7
                     Text { text:qsTr("reverse"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:root.listNames(); currentIndex:instruction?root.listNames().indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose list")); implicitWidth:98; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("name",currentText) }
+                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: listDropdown }
         }
     }
     Component { id: fieldsFor27
@@ -736,7 +750,7 @@ Item {
                 const w = width, h = height;
                 if (w <= 0 || h <= 0) return "";
                 if (root.pvBool) {
-                    const n = Math.min(24, h / 2);
+                    const n = Math.min(w / 2, h / 2);
                     return "M" + n + " .5 L" + (w - n) + " .5 L" + (w - .5) + " " + h / 2 + " L" + (w - n) + " " + (h - .5) + " L" + n + " " + (h - .5) + " L.5 " + h / 2 + " Z";
                 }
                 const r = Math.min(24, h / 2), R = w - .5, B = h - .5;
@@ -834,7 +848,7 @@ Item {
                 Text { visible:root.type==="RunBranch"; text:qsTr("run branch %1").arg(instruction?instruction.name:""); color:Theme.text; font.pixelSize:12; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
             }
         }
-        Repeater { model: root.isWrap ? [] : root.headPieces; delegate: pieceDelegate }
+        Repeater { model: root.isWrap ? [] : root.headGroups; delegate: pieceDelegate }
     }
 
     // Head bar content, then one mouth per body (nested blocks) with separator bars between them.
@@ -854,7 +868,7 @@ Item {
                 Text { visible:root.type==="While"; text:qsTr("while"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
             }
         }
-        Repeater { model: root.isWrap ? root.headPieces : []; delegate: pieceDelegate }
+        Repeater { model: root.isWrap ? root.headGroups : []; delegate: pieceDelegate }
         Repeater { model:root.type==="BranchCallBlock"?root.callHeadPieces():[];delegate:Item {
             required property var modelData;width:modelData.kind==="Label"?branchPieceText.implicitWidth:branchPieceValue.implicitWidth;height:30
             Text{id:branchPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;anchors.centerIn:parent}
@@ -945,7 +959,31 @@ Item {
             readonly property string kind: modelData.kind
             anchors.verticalCenter: parent ? parent.verticalCenter : undefined
             sourceComponent: kind === "label" ? labelPiece : kind === "value" ? valuePiece : kind === "dropdown" ? dropdownPiece : kind === "button" ? buttonPiece
-                : kind === "addComponent" ? addComponentPiece : kind === "removeComponent" ? removeComponentPiece : textPiece
+                : kind === "component" ? componentPiece : kind === "addComponent" ? addComponentPiece : kind === "removeComponent" ? removeComponentPiece : textPiece
+            Component {
+                id: componentPiece
+                Rectangle {
+                    objectName: "componentCapsule"
+                    readonly property var componentSpec: piece.modelData.component
+                    implicitWidth: componentRow.implicitWidth + 16
+                    implicitHeight: componentRow.implicitHeight + 8
+                    radius: 7
+                    color: Theme.panelRaised
+                    border.color: Theme.border
+                    Accessible.role: Accessible.Grouping
+                    Accessible.name: qsTr("Component: %1").arg(componentSpec.label || "")
+                    Row {
+                        id: componentRow
+                        anchors.centerIn: parent; spacing: 7
+                        LucideIcon {
+                            name: "puzzle"; width: 13; height: 13
+                            color: Theme.textDim
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Repeater { model: piece.modelData.pieces; delegate: pieceDelegate }
+                    }
+                }
+            }
             Component {
                 id: labelPiece
                 // Event (header) labels use the same caption style as the
@@ -957,6 +995,8 @@ Item {
                 ValueChip {
                     valueData: root.instruction ? (root.slotValue(piece.modelData) || (piece.modelData.bool ? { kind: "Bool" } : { kind: "Number", value: 0 })) : null
                     location: root.paletteMode ? null : root.fieldLocation(piece.modelData.field)
+                    leafOptions: piece.modelData.options ? BlockRegistry.choices(piece.modelData.options, root.instruction) : null
+                    leafPlaceholder: piece.modelData.placeholder || qsTr("choose")
                     pickAction: piece.modelData.pickAction || ""
                     pickOnClick: !piece.modelData.expression || !root.instruction || !root.instruction[piece.modelData.expression]
                     boxed: !!piece.modelData.bool; forceBoolean: !!piece.modelData.bool && (!valueData || valueData.kind === "Bool")
@@ -983,7 +1023,11 @@ Item {
                     implicitWidth: Math.min(190, Math.max(56, dropMetrics.advanceWidth + 36)); implicitHeight: 28; font.pixelSize: 12
                     leftPadding: 8; rightPadding: 26
                     TextMetrics { id: dropMetrics; font: pieceDrop.font; text: pieceDrop.displayText }
-                    onActivated: index => root.setPiece(piece.modelData, pieceDrop.choices[index].value)
+                    onActivated: index => {
+                        const choice = pieceDrop.choices[index];
+                        if (choice.action) choice.action(value => root.setPiece(piece.modelData, value));
+                        else root.setPiece(piece.modelData, choice.value);
+                    }
                 }
             }
             // { kind: "button", action, text, icon, image: key, palette } - with
@@ -1033,6 +1077,7 @@ Item {
                 id: addComponentPiece
                 Rectangle {
                     id: addButton
+                    objectName: "addComponentButton"
                     implicitWidth: 22; implicitHeight: 22; radius: 11
                     color: addMouse.containsMouse ? Theme.panelRaised : "transparent"
                     border.color: addMouse.containsMouse ? Theme.accent : Theme.border
@@ -1045,6 +1090,7 @@ Item {
                     }
                     BwMenu {
                         id: addMenu
+                        objectName: "addComponentMenu"
                         Instantiator {
                             model: BlockRegistry.missingComponents(root.rowSpec, root.instruction)
                             delegate: BwMenuItem {
@@ -1062,13 +1108,17 @@ Item {
             Component {
                 id: removeComponentPiece
                 Item {
-                    implicitWidth: 16; implicitHeight: 22
-                    LucideIcon { anchors.centerIn: parent; name: "x"; width: 12; height: 12; color: removeMouse.containsMouse ? Theme.danger : Theme.textDim }
+                    objectName: "removeComponentButton"
+                    implicitWidth: 24; implicitHeight: 22
+                    Rectangle {
+                        width: 1; height: parent.height; color: Theme.border
+                    }
+                    LucideIcon { anchors.centerIn: parent; anchors.horizontalCenterOffset: 3; name: "x"; width: 12; height: 12; color: removeMouse.containsMouse ? Theme.danger : Theme.textDim }
                     ToolTip.visible: removeMouse.containsMouse; ToolTip.delay: 400
                     ToolTip.text: qsTr("Remove %1").arg(piece.modelData.component.label || "")
                     MouseArea {
                         id: removeMouse
-                        anchors.fill: parent; hoverEnabled: true; enabled: !root.paletteMode; cursorShape: Qt.PointingHandCursor
+                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: root.removeComponent(piece.modelData.component)
                     }
                 }

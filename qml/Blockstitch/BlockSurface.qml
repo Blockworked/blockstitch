@@ -122,29 +122,6 @@ Shape {
         return w.text();
     }
 
-    // Back the rounded corners between nested blocks with the enclosing block's fill.
-    readonly property string mouthBackingPath: {
-        if (shape !== "wrap") return "";
-        const w = writer();
-        let y = headHeight;
-        for (let k = 0; k < mouthHeights.length; ++k) {
-            const bottom = y + mouthHeights[k];
-            w.moveTo(spine, y);
-            w.lineTo(spine + 5.6, y);
-            w.lineTo(spine + 5.6, bottom);
-            w.lineTo(spine, bottom);
-            w.closePath();
-            y = bottom + midHeight;
-        }
-        return w.text();
-    }
-
-    ShapePath {
-        strokeColor: "transparent"
-        fillColor: root.fill
-        PathSvg { path: root.mouthBackingPath }
-    }
-
     ShapePath {
         strokeColor: root.hovered ? root.hoverColor : root.outline
         strokeWidth: root.outlineWidth

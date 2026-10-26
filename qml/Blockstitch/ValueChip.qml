@@ -15,6 +15,9 @@ Item {
     property bool paletteMode: false
     // Bare Number/Text field without its own box, for a host that draws the slot.
     property bool flatLeaf: false
+    // Optional named choices for a Text leaf; reporters still fit this slot.
+    property var leafOptions: null
+    property string leafPlaceholder: qsTr("choose")
     // Renders a Text/Number leaf as keycaps; a click asks the host to capture a key combo.
     property bool keyMode: false
     property bool keyCapturing: false
@@ -105,7 +108,7 @@ Item {
     readonly property bool isRef: !!valueData && ["Op", "Var", "Param", "Call"].indexOf(valueData.kind) >= 0
     readonly property bool showBox: boxed || isRef || booleanShape
     readonly property bool customCall: !!callDef
-    // A call with branches reads as an embedded call-site: empty mouths under its head row.
+    // Calls own editable mouths; only definition previews show named branch pieces.
     readonly property var callBranches: {
         if (!callDef) return [];
         const pieces = callDef.pieces || [], out = [];
@@ -124,8 +127,7 @@ Item {
         refColor.r * .3 + Theme.border.r * .7,
         refColor.g * .3 + Theme.border.g * .7,
         refColor.b * .3 + Theme.border.b * .7, 1)
-    // The ghost carries the value while it is dragged out of its slot;
-    // what's left behind reads as the blank field it will become.
+    // Show the displaced value while the ghost carries this block.
     readonly property bool draggedOut: valueGrab.dragging
         || (BlockRegistry.settlingValueKey !== "" && !!location && BlockRegistry.settlingValueKey === BlockRegistry.locationKey(location))
     readonly property bool inSlot: !!location && (location.kind === "Field" || (location.path || []).length > 0)
@@ -191,17 +193,85 @@ Item {
         item.valueDragCanceled.connect(() => root.valueDragCanceled());
         item.valueData = data;
     }
-    implicitWidth: Math.max(booleanShape ? 48 : 36, content.implicitWidth + (booleanShape ? 22 : showBox ? 12 : 0), hasBranches ? branchCol.implicitWidth + (booleanShape ? 50 : 28) : 0)
-    implicitHeight: hasBranches ? content.implicitHeight + branchCol.implicitHeight + 24 : Math.max(27, content.implicitHeight + (showBox ? 4 : 0))
+    readonly property real branchHead: Math.max(50, content.implicitHeight + 16)
+    readonly property real branchMid: 34
+    readonly property real branchFoot: 26
+    property var branchMetrics: ({})
+    readonly property var branchCanvas: {
+        for (let owner = parent; owner; owner = owner.parent)
+            if (owner.isBlockCanvas) return owner;
+        return null;
+    }
+    function branchId(slot) { return "@reporter-branch:" + JSON.stringify({ location: root.location, slot: slot }); }
+    function branchInstructions(slot) { return valueData && valueData.branches ? valueData.branches[slot] || [] : []; }
+    function reportBranch(slot, height, width, flat) {
+        const old = branchMetrics[slot];
+        if (old && old.height === height && old.width === width && old.flat === flat) return;
+        const next = Object.assign({}, branchMetrics);
+        next[slot] = { height: height, width: width, flat: flat };
+        branchMetrics = next;
+    }
+    function branchMouthHeight(slot) {
+        let height = branchMetrics[slot] ? branchMetrics[slot].height : 26;
+        const drag = branchCanvas ? branchCanvas.branchDragState : null;
+        if (drag && drag.snapValid && drag.snapTargetId === branchId(slot) && drag.snapPath.length === 1)
+            height += drag.snapGrowAmt;
+        return height;
+    }
+    function branchTop(slot) {
+        let y = branchHead;
+        for (let i = 0; i < slot; ++i) y += branchMouthHeight(i) + branchMid;
+        return y;
+    }
+    readonly property real branchHeight: branchTop(callBranches.length) - branchMid + branchFoot
+    readonly property real branchWidth: {
+        let width = Math.max(218, content.implicitWidth + 42);
+        for (let i = 0; i < callBranches.length; ++i)
+            width = Math.max(width, (branchMetrics[i] ? branchMetrics[i].width : 0) + 44);
+        return width;
+    }
+    readonly property real branchPadX: booleanShape ? fullHeight / 2 : 22
+    readonly property real fullWidth: hasBranches ? branchWidth + 2 * branchPadX
+        : Math.max(booleanShape ? 48 : 36, content.implicitWidth + (booleanShape ? 22 : showBox ? 12 : 0))
+    readonly property real fullHeight: hasBranches ? branchHeight + 24 : Math.max(27, content.implicitHeight + (showBox ? 4 : 0))
+
+    implicitWidth: restoredValue.item ? restoredValue.item.implicitWidth : fullWidth
+    implicitHeight: restoredValue.item ? restoredValue.item.implicitHeight : fullHeight
+
+    Loader {
+        id: restoredValue
+        objectName: "restoredValue"
+        active: root.draggedOut && root.inSlot && !!root.valueData && !!root.valueData.saved
+        source: "ValueChip.qml"
+        anchors.centerIn: parent
+        width: item ? item.implicitWidth : 0
+        height: item ? item.implicitHeight : 0
+        enabled: false
+        onLoaded: {
+            item.valueData = Qt.binding(() => root.valueData ? root.valueData.saved : null);
+            item.boxed = false;
+            item.editable = false;
+            item.flatLeaf = Qt.binding(() => root.flatLeaf);
+            item.leafOptions = Qt.binding(() => root.leafOptions);
+            item.leafPlaceholder = Qt.binding(() => root.leafPlaceholder);
+            item.keyMode = Qt.binding(() => root.keyMode);
+            item.pick = Qt.binding(() => root.pick);
+            item.pickAction = Qt.binding(() => root.pickAction);
+            item.pickOnClick = Qt.binding(() => root.pickOnClick);
+            item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
+            item.originBlockId = Qt.binding(() => root.originBlockId);
+        }
+    }
+
+    Rectangle {
+        visible: root.draggedOut && root.inSlot && !restoredValue.active
+        anchors.fill: parent; radius: 5; color: Theme.field; border.color: Theme.border
+    }
 
     // The box also renders while targeted as a drop preview, so even a
     // bare Number/Text leaf (showBox false) lights up when an operator
     // hovers it. Size stays untouched so the slot never shifts mid-drag.
     // A bare leaf has no box, so it doesn't pay for one until then.
-    Rectangle {
-        visible: root.draggedOut && root.inSlot
-        anchors.fill: parent; radius: 5; color: Theme.field; border.color: Theme.border
-    }
     Loader {
         anchors.fill: parent
         visible: !root.draggedOut
@@ -218,10 +288,10 @@ Item {
                 const w = width, h = height;
                 if (w <= 0 || h <= 0) return "";
                 if (root.booleanShape) {
-                    const n = Math.min(root.hasBranches ? 24 : h * .32, w / 2);
+                    const n = Math.min(root.hasBranches ? h / 2 : h * .32, w / 2);
                     return "M" + n + " .5 L" + (w - n) + " .5 L" + (w - .5) + " " + h / 2 + " L" + (w - n) + " " + (h - .5) + " L" + n + " " + (h - .5) + " L.5 " + h / 2 + " Z";
                 }
-                const r = 5, R = w - .5, B = h - .5;
+                const r = root.hasBranches ? 24 : 5, R = w - .5, B = h - .5;
                 return "M" + (.5 + r) + " .5 L" + (R - r) + " .5 Q" + R + " .5 " + R + " " + (.5 + r) + " L" + R + " " + (B - r) + " Q" + R + " " + B + " " + (R - r) + " " + B
                     + " L" + (.5 + r) + " " + B + " Q.5 " + B + " .5 " + (B - r) + " L.5 " + (.5 + r) + " Q.5 .5 " + (.5 + r) + " .5 Z";
             }
@@ -262,7 +332,7 @@ Item {
         // `visible`, not `enabled`: a disabled area still swallows the hover
         // (and cursor) of the chip behind it. Hidden, it takes no presses.
         visible: dragEnabled
-        onDragBegan: (sx, sy, ox, oy) => root.valueDragBegan(root.location, root.valueData, sx, sy, ox, oy, root.implicitWidth, root.implicitHeight)
+        onDragBegan: (sx, sy, ox, oy) => root.valueDragBegan(root.location, root.valueData, sx, sy, ox, oy, root.fullWidth, root.fullHeight)
         onDragMoved: (sx, sy) => root.valueDragMoved(sx, sy)
         onDragEnded: (sx, sy) => root.valueDragEnded(sx, sy)
         onDragCanceled: root.valueDragCanceled()
@@ -300,9 +370,81 @@ Item {
             }
         }
     }
+    Item {
+        id: branchBody
+        visible: root.hasBranches && !root.draggedOut
+        x: root.branchPadX; y: 12
+        width: root.branchWidth; height: root.branchHeight
+        BlockSurface {
+            objectName: "reporterBranchSurface"
+            anchors.fill: parent
+            shape: "wrap"; fill: Theme.block; outline: Theme.border
+            headNotch: false; footTab: false
+            headHeight: root.branchHead; midHeight: root.branchMid; footHeight: root.branchFoot
+            mouthHeights: root.callBranches.map((b, i) => root.branchMouthHeight(i))
+            flatEnds: root.callBranches.map((b, i) => !!root.branchMetrics[i] && root.branchMetrics[i].flat)
+        }
+        Repeater {
+            model: root.callBranches
+            delegate: Item {
+                id: branchItem
+                required property var modelData
+                required property int index
+                readonly property bool isReporterBranch: !!root.location && root.editable && !root.paletteMode && !root.dragPreview
+                readonly property string branchStrandId: root.branchId(index)
+                readonly property var branchList: root.branchInstructions(index)
+                readonly property var branchSource: root
+                readonly property real mouthHeight: Math.max(26, branchColumn.implicitHeight - (capEnd || branchList.length === 0 ? 0 : 8))
+                readonly property bool capEnd: branchList.length > 0 && BlockRegistry.isCap(branchList[branchList.length - 1], root.blockDefinitions)
+                function report() { root.reportBranch(index, mouthHeight, branchColumn.implicitWidth, capEnd); }
+                onMouthHeightChanged: report()
+                onCapEndChanged: report()
+                Component.onCompleted: report()
+                x: 20; y: root.branchTop(index)
+                width: root.branchWidth - 20; height: root.branchMouthHeight(index)
+                Column {
+                    id: branchColumn
+                    spacing: -8
+                    onImplicitWidthChanged: branchItem.report()
+                    InstructionList { id: branchBlocks; instructions: branchItem.branchList }
+                    Repeater {
+                        model: branchBlocks
+                        delegate: Loader {
+                            id: branchChild
+                            required property string payload
+                            required property int index
+                            readonly property var blockData: JSON.parse(payload)
+                            source: "InstructionBlock.qml"
+                            width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
+                            onLoaded: {
+                                item.instruction = Qt.binding(() => branchChild.blockData);
+                                item.strandId = Qt.binding(() => branchItem.branchStrandId);
+                                item.path = Qt.binding(() => [{ index: branchChild.index }]);
+                                item.tailCount = Qt.binding(() => branchBlocks.count - branchChild.index);
+                                item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
+                                item.paletteMode = Qt.binding(() => root.paletteMode || root.dragPreview || !root.editable);
+                                if (root.branchCanvas) root.branchCanvas.wireBranchInstruction(item);
+                                else item.locked = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Repeater {
+            model: root.callBranches
+            delegate: Text {
+                required property var modelData
+                required property int index
+                visible: index < root.callBranches.length - 1 && modelData.sep.length > 0
+                x: 28; y: root.branchTop(index) + root.branchMouthHeight(index) + Math.round((root.branchMid - height) / 2)
+                text: modelData.sep; color: Theme.text; font.pixelSize: 12
+            }
+        }
+    }
     Row {
         id: content; anchors.centerIn: parent; spacing: 3
-        anchors.verticalCenterOffset: root.hasBranches ? 10 + content.implicitHeight / 2 - root.implicitHeight / 2 : 0
+        anchors.verticalCenterOffset: root.hasBranches ? 12 + root.branchHead / 2 - root.implicitHeight / 2 : 0
         visible: !root.draggedOut
         LucideIcon { visible: root.customCall; name: root.callDef && root.callDef.icon ? root.callDef.icon : "blocks"; color: root.refColor; width: 14; height: 14; anchors.verticalCenter: parent.verticalCenter }
         Text { visible: root.opPrefix.length > 0; text: root.opPrefix; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
@@ -331,7 +473,12 @@ Item {
                             leftPadding: 8; rightPadding: 26
                             enabled: root.editable
                             TextMetrics { id: enumMetrics; font: enumBox.font; text: enumBox.displayText }
-                            onActivated: index => { const v = enumBox.choices[index].value; root.emitLeaf([argRow.index], { kind: "Text", value: v }, v); }
+                            onActivated: index => {
+                                const choice = enumBox.choices[index];
+                                const select = v => root.emitLeaf([argRow.index], { kind: "Text", value: v }, v);
+                                if (choice.action) choice.action(select, root.childLocation(argRow.index));
+                                else select(choice.value);
+                            }
                         }
                     }
                 }
@@ -364,7 +511,27 @@ Item {
             // Explicit, or the Loader keeps the width of a leaf it no longer shows.
             width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
             anchors.verticalCenter: parent.verticalCenter
-            sourceComponent: root.keyMode ? keycapLeaf : root.activePick ? pickLeaf : textLeaf
+            sourceComponent: root.keyMode ? keycapLeaf : root.leafOptions !== null && root.valueData && root.valueData.kind === "Text" ? enumLeaf : root.activePick ? pickLeaf : textLeaf
+        }
+        Component {
+            id: enumLeaf
+            BwComboBox {
+                id: leafBox
+                readonly property var choices: root.leafOptions || []
+                readonly property string current: root.valueData ? String(root.valueData.value || "") : ""
+                readonly property int chosen: choices.findIndex(c => c.value === current)
+                model: choices; textRole: "label"; currentIndex: chosen
+                displayText: chosen >= 0 ? choices[chosen].label : (current || root.leafPlaceholder)
+                implicitWidth: Math.min(190, Math.max(56, leafMetrics.advanceWidth + 36)); implicitHeight: 28; font.pixelSize: 12
+                leftPadding: 8; rightPadding: 26; enabled: root.editable
+                TextMetrics { id: leafMetrics; font: leafBox.font; text: leafBox.displayText }
+                onActivated: index => {
+                    const choice = choices[index];
+                    const select = v => root.emitLeaf([], { kind: "Text", value: v }, v);
+                    if (choice.action) choice.action(select, root.location);
+                    else select(choice.value);
+                }
+            }
         }
         Component {
             id: keycapLeaf
@@ -491,37 +658,6 @@ Item {
                 onClicked: BlockRegistry.requestPick(parent.spec.action || "", root.location, root.valueData, parent)
             }
             ToolTip.visible: !!spec && !!spec.tip && opPickMouse.containsMouse; ToolTip.delay: 500; ToolTip.text: spec && spec.tip ? spec.tip : ""
-        }
-    }
-    Column {
-        id: branchCol
-        visible: root.hasBranches && !root.draggedOut
-        x: root.booleanShape ? 26 : 14; y: 10 + content.implicitHeight + 6
-        spacing: 4
-        Repeater {
-            model: root.callBranches
-            delegate: Column {
-                id: branchItem
-                required property var modelData
-                required property int index
-                spacing: 4
-                // The branch parameter as a block seated in its mouth, as in the definition header.
-                Rectangle {
-                    width: Math.max(110, branchRow.implicitWidth + 24); height: 32; radius: 5
-                    color: Theme.panelRaised; border.color: Theme.border
-                    Row {
-                        id: branchRow
-                        anchors.centerIn: parent; spacing: 6
-                        LucideIcon { name: "git-branch"; color: root.refColor; width: 14; height: 14; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: branchItem.modelData.name; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
-                    }
-                }
-                Text {
-                    visible: branchItem.index < root.callBranches.length - 1 && branchItem.modelData.sep.length > 0
-                    text: branchItem.modelData.sep; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold
-                    height: 20; verticalAlignment: Text.AlignVCenter; leftPadding: 4
-                }
-            }
         }
     }
     // Sample-evaluation result floating above the chip; it never takes input.

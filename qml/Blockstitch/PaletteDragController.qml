@@ -222,19 +222,25 @@ Item {
         acceptedButtons: Qt.NoButton
         cursorShape: Qt.ClosedHandCursor
     }
-    // The canvas clips its own drags, so redraw one here while it's over the trash.
+    Binding {
+        target: root.canvas
+        property: "externalDragPreview"
+        value: true
+    }
+    // Draw the whole drag above the sidebar, even before the pointer crosses it.
     Item {
         id: canvasGhost
+        objectName: "canvasDragGhost"
         enabled: false
         readonly property bool overTrash: !!root.canvas && root.canvas.dragging && root.inTrash(root.canvas.dragSceneX, root.canvas.dragSceneY)
-        visible: overTrash
-        property point pos: overTrash ? root.mapFromItem(null, root.canvas.dragGhostX, root.canvas.dragGhostY) : Qt.point(0, 0)
+        visible: !!root.canvas && root.canvas.dragging
+        property point pos: visible ? root.mapFromItem(null, root.canvas.dragGhostX, root.canvas.dragGhostY) : Qt.point(0, 0)
         x: pos.x; y: pos.y; opacity: 0.92
         Column {
             visible: !root.canvas || !root.canvas.dragIsValue
             spacing: -8; scale: root.canvas ? root.canvas.zoom : 1; transformOrigin: Item.TopLeft
             Repeater {
-                model: canvasGhost.overTrash && !root.canvas.dragIsValue ? root.canvas.dragInstructions : []
+                model: canvasGhost.visible && !root.canvas.dragIsValue ? root.canvas.dragInstructions : []
                 delegate: InstructionBlock {
                     required property var modelData
                     instruction: modelData; paletteMode: true; locked: true
@@ -243,7 +249,7 @@ Item {
             }
         }
         Loader {
-            active: canvasGhost.overTrash && root.canvas.dragIsValue
+            active: canvasGhost.visible && root.canvas.dragIsValue
             scale: root.canvas ? root.canvas.zoom : 1; transformOrigin: Item.TopLeft
             sourceComponent: ValueChip {
                 valueData: root.canvas.dragValue; boxed: true; editable: false

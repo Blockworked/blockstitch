@@ -24,7 +24,7 @@ Rectangle {
     property string standaloneKey: ""
     property bool trashActive: false  // a canvas block or value is being dragged
     property bool trashArmed: false   // ...and is currently over the panel
-    signal blockActivated(string type)
+    signal blockActivated(string type, var instruction)
     signal dragStarted(var spec, real sceneX, real sceneY, real offsetX, real offsetY)
     signal dragMoved(real sceneX, real sceneY)
     signal dragEnded(real sceneX, real sceneY)
@@ -224,7 +224,7 @@ Rectangle {
                         instruction:root.prefab(modelData); spec:({kind:"instruction",type:modelData,instruction:instruction})
                         variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                        onActivated:root.blockActivated(modelData); onKeyCaptureRequested:root.standaloneKeyCaptureRequested()
+                        onActivated:root.blockActivated(modelData,instruction); onKeyCaptureRequested:root.standaloneKeyCaptureRequested()
                         onAppPickerRequested: instruction => root.appPickerRequested(instruction)
                         onPieceActionRequested: (action, instruction) => root.pieceActionRequested(action, instruction)
                         onDetailsRequested:type=>root.detailsRequested(type,type,qsTr("See what this block does and where it can be used."))

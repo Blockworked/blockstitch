@@ -62,6 +62,8 @@ Item {
         function flick() { return all(canvas).find(o => o.contentX !== undefined && o.flickableDirection !== undefined); }
         function init() {
             scene.edits = []; scene.replies = []; scene.deferReplies = false; scene.rejectAll = false;
+            canvas.cancelDrag(); canvas.cancelValueDrag();
+            scene.floatingValues = [];
             controller.cancel(); controller.locked = false; controller.documentId = "doc-a";
             canvas.setZoom(1);
             scene.strands = JSON.parse(JSON.stringify(scene.pristine));
@@ -252,6 +254,39 @@ Item {
             const held = g.mapToItem(null, 0, 0);
             fuzzyCompare(held.x, top.x, 0.01);
             fuzzyCompare(held.y, top.y, 0.01);
+        }
+        function test_canvas_drag_above_sidebar_data() {
+            return [
+                { tag: "block", value: false, zoom: 1 },
+                { tag: "block_zoomed", value: false, zoom: 1.5 },
+                { tag: "value", value: true, zoom: 1 },
+                { tag: "value_zoomed", value: true, zoom: 0.6 }
+            ];
+        }
+        function test_canvas_drag_above_sidebar(data) {
+            canvas.setZoom(data.zoom);
+            wait(20);
+            const sx = 220, sy = 150;
+            if (data.value)
+                canvas.beginValueDrag({ kind: "Floating", floating_id: "f1", path: [] }, addSpec.value, sx, sy, 60, 12, 120, 32);
+            else
+                canvas.beginDrag("s1", [{ index: 0 }], 2, sx, sy, 60, 12, 200, 58);
+            const g = all(controller).find(o => o.objectName === "canvasDragGhost");
+            verify(g.visible);
+            verify(!controller.overTrash, "pointer is still on the canvas");
+            fuzzyCompare(g.x, sx - 60 * data.zoom, 0.01);
+            fuzzyCompare(g.y, sy - 12 * data.zoom, 0.01);
+            verify(g.x < canvas.x, "drag overlaps the sidebar");
+            if (!data.value) compare(block("w1").opacity, 0);
+            if (data.value) canvas.moveValueDrag(180, sy);
+            else canvas.moveDrag(180, sy);
+            verify(g.visible);
+            verify(controller.overTrash);
+            if (data.value) canvas.cancelValueDrag();
+            else canvas.cancelDrag();
+            verify(!g.visible);
+            compare(block("w1").opacity, 1);
+            compare(scene.edits.length, 0);
         }
         function test_trash() {
             verify(!controller.trashBlocks("s1", [{ index: 1 }], 1, 600, 300));

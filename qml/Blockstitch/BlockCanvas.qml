@@ -3,6 +3,8 @@ import QtQuick.Controls
 
 Rectangle {
     id: root
+    readonly property bool isBlockCanvas: true
+    readonly property var branchDragState: dragSession
     property var strands: []
     property string recordingTargetId: ""
     property var comments: []
@@ -314,6 +316,7 @@ Rectangle {
     // time): updatePaletteSnap writes it while dragSession.active is false.
     QtObject {
         id: dragSession
+        readonly property bool externalPreview: root.externalDragPreview
         property bool active: false
         property string strandId: ""
         property var path: []
@@ -365,6 +368,8 @@ Rectangle {
         property real settleDx: 0
         property real settleDy: 0
     }
+    // A host overlay can draw active drags outside the clipped canvas.
+    property bool externalDragPreview: false
     readonly property bool dragging: dragSession.active || valueDrag.active
     // Read access to the value-drag session (active/target/targetValid).
     // Blocks already receive dragSession the same way via dragState.
@@ -459,7 +464,53 @@ Rectangle {
         setPaletteHighlight(found.item, loc);
         return loc;
     }
-    function strandById(id) { const list = root.strands || []; for (let i = 0; i < list.length; ++i) if (list[i].id === id) return list[i]; return null; }
+    function branchContainers(node, out) {
+        if (!node || node.visible === false) return;
+        if (node.isReporterBranch) {
+            const p = node.mapToItem(workspace, 0, 0);
+            const list = node.branchList;
+            out.push({ strandId: node.branchStrandId, basePath: [], x: p.x, y: p.y,
+                list: list, heights: list.map(ins => blockHeight(ins)), owner: node.branchSource });
+        }
+        for (const child of node.children || []) branchContainers(child, out);
+    }
+    function strandById(id) {
+        for (const strand of root.strands || []) if (strand.id === id) return strand;
+        const branches = [];
+        branchContainers(workspace, branches);
+        const branch = branches.find(b => b.strandId === id);
+        return branch ? { id: id, x: branch.x - root.originOffsetX, y: branch.y - root.originOffsetY, instructions: branch.list } : null;
+    }
+    function wireBranchInstruction(item) {
+        item.variables = Qt.binding(() => root.variables);
+        item.lists = Qt.binding(() => root.lists);
+        item.keyCapture = Qt.binding(() => root.keyCapture);
+        item.locked = Qt.binding(() => root.locked);
+        item.dragState = Qt.binding(() => dragSession);
+        item.removeRequested.connect(root.instructionRemoved);
+        item.duplicateRequested.connect(root.instructionDuplicated);
+        item.commentRequested.connect(root.commentForInstructionRequested);
+        item.instructionEdited.connect(root.instructionEdited);
+        item.valueEdited.connect(root.valueEdited);
+        item.valueDragBegan.connect(root.beginValueDrag);
+        item.valueDragMoved.connect(root.moveValueDrag);
+        item.valueDragEnded.connect(root.endValueDrag);
+        item.valueDragCanceled.connect(root.cancelValueDrag);
+        item.runBranchRequested.connect(root.runBranchRequested);
+        item.keyCaptureRequested.connect(root.keyCaptureRequested);
+        item.appPickerRequested.connect(root.appPickerRequested);
+        item.detailsRequested.connect(root.detailsRequested);
+        item.menuActionRequested.connect(root.blockMenuAction);
+        item.pieceActionRequested.connect(root.pieceActionRequested);
+        item.paletteDragStarted.connect(root.paletteDragStarted);
+        item.paletteDragMoved.connect(root.paletteDragMoved);
+        item.paletteDragEnded.connect(root.paletteDragEnded);
+        item.paletteDragCanceled.connect(root.paletteDragCanceled);
+        item.dragBegan.connect(root.beginDrag);
+        item.dragMoved.connect(root.moveDrag);
+        item.dragEnded.connect(root.endDrag);
+        item.dragCanceled.connect(root.cancelDrag);
+    }
     // ---- snap geometry (mirrors InstructionBlock row/wrap metrics) ----
     readonly property real snapThreshold: 36
     readonly property real snapSticky: 8
@@ -471,6 +522,8 @@ Rectangle {
     function bodyFor(ins, slot) { return BlockRegistry.body(ins, slot); }
     function blockHeight(ins) {
         if (!ins) return 58;
+        const live = findBlockItem(workspace, ins.id);
+        if (live) return live.implicitHeight;
         if (!isWrapType(ins.type)) return isCapBlock(ins) ? 50 : 58;
         const n = slotCountFor(ins);
         let total = 0;
@@ -569,6 +622,16 @@ Rectangle {
                 top += topHeights[j] - 8;
             }
         }
+        const branches = [];
+        branchContainers(workspace, branches);
+        for (const branch of branches) {
+            out.push(branch);
+            let y = branch.y;
+            for (let i = 0; i < branch.list.length; ++i) {
+                collectChildren(branch.strandId, branch.list[i], [{ index: i }], branch.x, y, 1, out);
+                y += branch.heights[i] - 8;
+            }
+        }
         return out;
     }
     function collectChildren(strandId, ins, pathToBlock, blockX, blockY, depth, out) {
@@ -576,7 +639,8 @@ Rectangle {
         const n = slotCountFor(ins);
         const mouthHs = [];
         for (let k = 0; k < n; ++k) mouthHs.push(mouthHeightFor(bodyFor(ins, k)));
-        let mTop = 50;
+        const live = findBlockItem(workspace, ins.id);
+        let mTop = live ? live.headHeight : 50;
         for (let k = 0; k < n; ++k) {
             const cX = blockX + 20, cY = blockY + mTop;
             const body = bodyFor(ins, k);
@@ -592,7 +656,7 @@ Rectangle {
                 collectChildren(strandId, body[ci], childPath, cX, childTop, depth + 1, out);
                 childTop += heights[ci] - 8;
             }
-            mTop += mouthHs[k] + 34;
+            mTop = live && k + 1 < n ? live.mouthTop(k + 1) : mTop + mouthHs[k] + 34;
         }
     }
     function isBaseInsideTail(containerBase, srcParentBase, srcIdx) {
@@ -614,6 +678,14 @@ Rectangle {
         const srcIdx = (sourceId && sourcePath && sourcePath.length) ? sourcePath[sourcePath.length - 1].index : -1;
         for (let ci = 0; ci < containers.length; ++ci) {
             const c = containers[ci];
+            if (sourceId && c.owner) {
+                let own = false;
+                for (let owner = c.owner; owner; owner = owner.parent) {
+                    if (owner.strandId === sourceId && owner.path && sourcePath
+                        && isBaseInsideTail(owner.path, srcParentBase || [], srcIdx)) { own = true; break; }
+                }
+                if (own) continue;
+            }
             if (sourceId && isWhole && c.strandId === sourceId) continue;
             let list = c.list, heights = c.heights;
             if (sourceId && !isWhole && c.strandId === sourceId) {
@@ -725,6 +797,7 @@ Rectangle {
         const p = workspace.mapFromItem(null, sx, sy);
         dragSession.strandId = strandId; dragSession.path = path; dragSession.tailCount = tailCount;
         dragSession.startX = p.x; dragSession.startY = p.y; dragSession.originX = p.x - ox; dragSession.originY = p.y - oy;
+        dragSession.sceneX = sx; dragSession.sceneY = sy;
         dragSession.dx = 0; dragSession.dy = 0; dragSession.active = true;
         dragSession.draggedWidth = bw || 200; dragSession.draggedHeight = bh || 58;
         const si = shapeInfoFor(instructionAt(strandById(strandId), path));
@@ -1432,7 +1505,7 @@ Rectangle {
             // Ghost following the pointer while an existing value is dragged.
             Item {
                 id: valueGhost
-                visible: valueDrag.active || (valueDrag.settling && !valueDrag.settleHidden)
+                visible: (valueDrag.active && !root.externalDragPreview) || (valueDrag.settling && !valueDrag.settleHidden)
                 x: valueDrag.active ? valueDrag.originX + valueDrag.dx : valueDrag.settleX
                 y: valueDrag.active ? valueDrag.originY + valueDrag.dy : valueDrag.settleY
                 width: Math.max(40, valueDrag.draggedWidth); height: Math.max(27, valueDrag.draggedHeight)

@@ -11,6 +11,8 @@ QtObject {
     // Names the list/dict reporters and name dropdowns offer. BlockCanvas
     // keeps these in step with the document it shows.
     property var listNames: []
+    // Optional host dialog for creating and selecting a list.
+    property var listCreationHandler: null
     property var dictNames: []
     // Bump to re-evaluate option lists that read host state through a function.
     property int revision: 0
@@ -74,12 +76,13 @@ QtObject {
     // `head` may be a function(instruction) -> [piece] for a type whose row
     // depends on the instruction. Return the same piece objects each time:
     // a changed array rebuilds the row's controls.
-    // piece: {kind:"label",text} | {kind:"value",field,key,index,bool,pick}
+    // piece: {kind:"label",text} | {kind:"value",field,key,index,bool,pick,options,placeholder}
     //      | {kind:"dropdown",key,index,options,placeholder,encode,decode}
     //      | {kind:"text",key,index,placeholder}
     // A piece's `index`, when set, picks one entry of the array held under
     // `key`; without it `key` holds the value itself. A value piece's `pick`
-    // shows typed text as a picker button (see ValueChip.pick). A dropdown's
+    // shows typed text as a picker button (see ValueChip.pick); `options`
+    // gives its Text leaf a dropdown while still accepting reporters. A dropdown's
     // `encode(chosen, instruction)` turns the choice into what's stored.
     // Any piece may carry `when: function(instruction) -> bool`.
     // A row may also list `components`: optional groups of pieces the user
@@ -90,7 +93,8 @@ QtObject {
     // overrides that test. Components follow the head in declared order, or
     // stand where the head has a {kind:"components"} piece.
     // `options` is an array of {value,label}, a function(instruction), or
-    // "lists"/"dicts" for the document's names.
+    // "lists"/"dicts" for the document's names. A choice may carry
+    // `action(select)` to open a host picker and call select(value) later.
     property var rows: ({})
     // op -> { prefix, infix (one label, or a list: one per gap), suffix, result, enumArg: {index, options|source}, oneBased: [index],
     //        pickArg: {index, action, icon} (a button after that arg's text field, see pickHandler),
@@ -256,10 +260,14 @@ QtObject {
     // The {value,label} choices an enum slot offers right now.
     function choices(options, instruction) {
         revision;
-        if (options === "lists") return nameChoices(listNames, "list");
+        if (options === "lists") return listChoices(listNames);
         if (options === "dicts") return nameChoices(dictNames, "dict");
         if (typeof options === "function") return options(instruction) || [];
         return options || [];
+    }
+    function listChoices(names) {
+        const options = nameChoices(names, "list");
+        return listCreationHandler ? options.concat([{ label: qsTr("Make a List…"), action: listCreationHandler }]) : options;
     }
     function nameChoices(names, fallback) {
         const list = (names || []).map(n => ({ value: n, label: n }));
@@ -298,7 +306,7 @@ QtObject {
         const comps = spec.components || [];
         let extra = [];
         for (const c of comps) if (hasComponent(c, instruction)) extra = extra.concat(componentPieces(c));
-        if (!palette && comps.length && missingComponents(spec, instruction).length) extra.push(addComponentPiece(spec));
+        if (comps.length && missingComponents(spec, instruction).length) extra.push(addComponentPiece(spec));
         const all = [];
         let placed = false;
         for (const p of (head || [])) {
