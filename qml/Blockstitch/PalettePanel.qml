@@ -52,6 +52,7 @@ Rectangle {
     signal deleteBlockRequested(string blockId)
     signal standaloneKeyCaptureRequested()
     signal appPickerRequested(var instruction)
+    signal pieceActionRequested(string action, var instruction)
     signal detailsRequested(string name, string identifier, string explainer)
     implicitWidth: 318
     color: Theme.panel
@@ -225,6 +226,7 @@ Rectangle {
                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                         onActivated:root.blockActivated(modelData); onKeyCaptureRequested:root.standaloneKeyCaptureRequested()
                         onAppPickerRequested: instruction => root.appPickerRequested(instruction)
+                        onPieceActionRequested: (action, instruction) => root.pieceActionRequested(action, instruction)
                         onDetailsRequested:type=>root.detailsRequested(type,type,qsTr("See what this block does and where it can be used."))
                     }
                 }

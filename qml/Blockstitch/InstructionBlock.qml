@@ -986,17 +986,19 @@ Item {
                     onActivated: index => root.setPiece(piece.modelData, pieceDrop.choices[index].value)
                 }
             }
-            // { kind: "button", action, text, icon, image: key } - with `image`,
-            // shows that field's picture (a data: URI) as a thumbnail.
+            // { kind: "button", action, text, icon, image: key, palette } - with
+            // `image`, shows that field's picture (a data: URI) as a thumbnail;
+            // with `palette`, it can also be clicked in the palette.
             Component {
                 id: buttonPiece
                 Rectangle {
                     id: pieceButton
                     readonly property string picture: piece.modelData.image && root.instruction ? (root.instruction[piece.modelData.image] || "") : ""
                     readonly property string label: typeof piece.modelData.text === "function" ? piece.modelData.text(root.instruction) : (piece.modelData.text || "")
+                    readonly property bool clickable: !root.paletteMode || !!piece.modelData.palette
                     implicitWidth: buttonRow.implicitWidth + 14; implicitHeight: picture ? 34 : 28; radius: 6
-                    color: buttonMouse.containsMouse && !root.paletteMode ? Theme.panelRaised : Theme.field
-                    border.color: buttonMouse.containsMouse && !root.paletteMode ? Theme.accent : Theme.border
+                    color: buttonMouse.containsMouse && clickable ? Theme.panelRaised : Theme.field
+                    border.color: buttonMouse.containsMouse && clickable ? Theme.accent : Theme.border
                     Row {
                         id: buttonRow
                         anchors.centerIn: parent; spacing: 6
@@ -1020,7 +1022,7 @@ Item {
                     }
                     MouseArea {
                         id: buttonMouse
-                        anchors.fill: parent; hoverEnabled: true; enabled: !root.paletteMode
+                        anchors.fill: parent; hoverEnabled: true; enabled: pieceButton.clickable
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.pieceActionRequested(piece.modelData.action || "", root.strandId, root.path, root.instruction)
                     }

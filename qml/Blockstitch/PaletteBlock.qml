@@ -18,6 +18,8 @@ Item {
     signal activated()
     signal keyCaptureRequested()
     signal appPickerRequested(var instruction)
+    // A registered row's `palette` button was clicked.
+    signal pieceActionRequested(string action, var instruction)
     signal detailsRequested(string type)
     property var extraMenu: []
     signal extraMenuTriggered(string id)
@@ -33,6 +35,7 @@ Item {
         keyCapture: root.keyCapture; blockColor: root.blockColor; paletteMode: true; locked: true
         onKeyCaptureRequested: root.keyCaptureRequested()
         onAppPickerRequested: (sid, p, i) => root.appPickerRequested(i)
+        onPieceActionRequested: (a, sid, p, i) => root.pieceActionRequested(a, i)
         onDetailsRequested: type => root.detailsRequested(type)
         extraMenu: root.extraMenu
         onExtraMenuTriggered: id => root.extraMenuTriggered(id)
