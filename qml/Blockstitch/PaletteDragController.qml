@@ -103,6 +103,7 @@ Item {
         if (root.locked) { cancel(); return; }
         const snapValid = canvas.paletteSnapValid, snapTargetId = canvas.paletteSnapTargetId;
         const snapPath = copy(canvas.paletteSnapPath || []);
+        const targetY = canvas.paletteSnapTargetY;
         const valueTarget = canvas.paletteValueTarget ? copy(canvas.paletteValueTarget) : null;
         const landing = canvas.paletteDropScenePoint();
         drag = null;
@@ -123,7 +124,7 @@ Item {
         }
         if (snapValid && snapTargetId) {
             canvas.settlePaletteDrop();
-            dropped({ kind: "insert_instruction", strandId: snapTargetId, path: snapPath, instruction: entry.instruction }, landing);
+            dropped({ kind: "insert_instruction", strandId: snapTargetId, path: snapPath, instruction: entry.instruction, targetY: targetY }, landing);
             return;
         }
         canvas.clearSnap();

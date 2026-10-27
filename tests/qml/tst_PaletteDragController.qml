@@ -78,6 +78,26 @@ Item {
         function drop(spec, gx, gy) { dragTo(spec, gx, gy); controller.end(gx + 6, gy + 6); wait(20); }
         function below(id) { const b = block(id); verify(!!b, id); return b.mapToItem(null, 0, b.height); }
 
+        function test_above_keeps_lower_stack_fixed_data() {
+            return [{ tag: "above", covering: false }, { tag: "covering", covering: true }];
+        }
+        function test_above_keeps_lower_stack_fixed(data) {
+            const target = block("w1");
+            const before = target.mapToItem(null, 0, 0);
+            const height = canvas.blockHeight(waitSpec.instruction);
+            dragTo(waitSpec, before.x, data.covering ? before.y : before.y - height + 8);
+            verify(canvas.paletteSnapValid);
+            fuzzyCompare(target.mapToItem(null, 0, 0).y, before.y, 0.01);
+            controller.end(before.x + 6, (data.covering ? before.y : before.y - height + 8) + 6);
+            wait(20);
+            compare(scene.edits.length, 1);
+            const edit = scene.edits[0];
+            compare(edit.kind, "insert_instruction");
+            compare(edit.path, [{ index: 0 }]);
+            compare(edit.targetY, scene.pristine[0].y - height + 8);
+            const during = target.mapToItem(null, 0, 0);
+            fuzzyCompare(during.y, before.y, 0.01);
+        }
         function test_top_level_gap() {
             drop(waitSpec, below("if1").x + 2, below("if1").y + 4);
             compare(scene.edits.length, 1);

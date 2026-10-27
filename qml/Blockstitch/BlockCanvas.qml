@@ -11,7 +11,9 @@ Rectangle {
     property var floatingValues: []
     property var variables: []
     property var lists: []
+    property var pendingListFocus: null
     property var dicts: []
+    property var pendingDictFocus: null
     property var blockDefinitions: []
     property var keyCapture: null
     property bool locked: false
@@ -25,8 +27,8 @@ Rectangle {
     property real zoom: 1.0
     signal strandMoved(string strandId, int x, int y)
     signal instructionSplit(string strandId, var path, int x, int y)
-    signal strandsMerged(string draggedId, string targetId, var path)
-    signal tailMerged(string strandId, var path, string targetId, var targetPath)
+    signal strandsMerged(string draggedId, string targetId, var path, var targetY)
+    signal tailMerged(string strandId, var path, string targetId, var targetPath, var targetY)
     signal blockDragOutside(string strandId, var path, int tailCount, real sceneX, real sceneY)
     signal instructionRemoved(string strandId, var path)
     signal instructionDuplicated(string strandId, var path, var instruction)
@@ -66,17 +68,49 @@ Rectangle {
     signal valueDragOutside(var location, var value, real sceneX, real sceneY)
     color:Theme.canvas; clip:true
     // Reporter name dropdowns offer whatever this document declares.
-    onListsChanged: BlockRegistry.listNames = (lists || []).map(l => l.name)
-    onDictsChanged: BlockRegistry.dictNames = (dicts || []).map(d => d.name)
+    onListsChanged: {
+        BlockRegistry.listNames = (lists || []).map(l => l.name);
+        syncListEditors();
+    }
+    // Keep the popup and its pointer grab alive across daemon updates.
+    ListModel { id: listEditorModel }
+    ListModel { id: dictEditorModel }
+    function syncListEditors() { syncCollectionEditors(listEditorModel, root.lists || []); }
+    function syncDictEditors() { syncCollectionEditors(dictEditorModel, root.dicts || []); }
+    function syncCollectionEditors(model, list) {
+        for (let i = model.count - 1; i >= 0; --i) {
+            if (!list.some(entry => entry.name === model.get(i).editorName))
+                model.remove(i);
+        }
+        for (let i = 0; i < list.length; ++i) {
+            const entry = list[i];
+            const data = {editorName: entry.name, editorX: entry.editor_x ?? 36,
+                editorY: entry.editor_y ?? 36, payload: JSON.stringify(entry)};
+            let at = -1;
+            for (let j = 0; j < model.count; ++j)
+                if (model.get(j).editorName === entry.name) { at = j; break; }
+            if (at < 0) model.insert(i, data);
+            else {
+                if (at !== i) model.move(at, i, 1);
+                for (const role of ["editorX", "editorY", "payload"])
+                    if (model.get(i)[role] !== data[role])
+                        model.setProperty(i, role, data[role]);
+            }
+        }
+    }
+    onDictsChanged: {
+        BlockRegistry.dictNames = (dicts || []).map(d => d.name);
+        syncDictEditors();
+    }
     // World coordinates have their origin at the center of the workspace:
     // world (0, 0) renders at workspace-local (originOffsetX, originOffsetY).
-    // All model coordinates (strands, comments, values, lists) are world;
+    // Strands, comments and floating values use world coordinates;
     // everything rendered inside `workspace` adds the offset, and every
     // coordinate emitted back to the backend subtracts it again.
     // The world grows symmetrically to fit its content: a fixed-size world
     // clips strands placed far from the origin (and hides them from scroll),
-    // so expand it beyond the minimum whenever strands/comments/values or
-    // collection editors extend past it.
+    // so expand it beyond the minimum whenever strands/comments/values
+    // extend past it.
     readonly property real minWorldW: 2600
     readonly property real minWorldH: 1800
     // Horizontal gets extra trailing room so the canvas extends a good
@@ -128,16 +162,6 @@ Rectangle {
             var cx = (cm[k] && cm[k].x) || 0;
             hw = Math.max(hw, Math.abs(cx), Math.abs(cx + 220));
         }
-        var li = root.lists || [];
-        for (var m = 0; m < li.length; ++m) {
-            var lx = (li[m] && (li[m].editor_x || 36)) || 36;
-            hw = Math.max(hw, Math.abs(lx), Math.abs(lx + 300));
-        }
-        var di = root.dicts || [];
-        for (var n = 0; n < di.length; ++n) {
-            var dx = (di[n] && (di[n].editor_x || 36)) || 36;
-            hw = Math.max(hw, Math.abs(dx), Math.abs(dx + 360));
-        }
         return hw;
     }
     readonly property real needHalfH: {
@@ -159,18 +183,6 @@ Rectangle {
             var chh = (cm[k] && cm[k].collapsed) ? 38 : 280;
             hh = Math.max(hh, Math.abs(cy), Math.abs(cy + chh));
         }
-        var li = root.lists || [];
-        for (var m = 0; m < li.length; ++m) {
-            var ly = (li[m] && (li[m].editor_y || 36)) || 36;
-            var lh = Math.min(400, 78 + Math.max(38, ((li[m] && li[m].items) || []).length * 34));
-            hh = Math.max(hh, Math.abs(ly), Math.abs(ly + lh));
-        }
-        var di = root.dicts || [];
-        for (var n = 0; n < di.length; ++n) {
-            var dy = (di[n] && (di[n].editor_y || 36)) || 36;
-            var dh = Math.min(420, 78 + Math.max(38, ((di[n] && di[n].entries) || []).length * 34));
-            hh = Math.max(hh, Math.abs(dy), Math.abs(dy + dh));
-        }
         return hh;
     }
     readonly property real worldW: Math.max(root.minWorldW, 2 * (root.needHalfW + root.canvasPadX))
@@ -182,19 +194,65 @@ Rectangle {
     // same amount so the view stays visually still instead of jumping.
     property real _prevWorldW: 0
     property real _prevWorldH: 0
+    property var _resizeViewX: null
+    property var _resizeViewY: null
+    property real _resizeScrollX: NaN
+    property real _resizeScrollY: NaN
+    function pauseResizeScroll() {
+        if (canvasScroll.animX.running) _resizeScrollX = canvasScroll.targetX;
+        if (canvasScroll.animY.running) _resizeScrollY = canvasScroll.targetY;
+        canvasScroll.stop();
+    }
+    // Apply after Flickable updates its bounds, including automatic clamping.
+    function applyWorldResize() {
+        if (_resizeViewX !== null) {
+            flick.contentX = Math.max(0, Math.min(Math.max(0, flick.contentWidth - flick.width), _resizeViewX));
+            _resizeViewX = null;
+        }
+        if (_resizeViewY !== null) {
+            flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), _resizeViewY));
+            _resizeViewY = null;
+        }
+        const tx = _resizeScrollX, ty = _resizeScrollY;
+        _resizeScrollX = NaN; _resizeScrollY = NaN;
+        if (!isNaN(tx) || !isNaN(ty)) canvasScroll.scrollTo(tx, ty, true);
+    }
+    // Drag anchors share workspace coordinates with the moving world origin.
+    function shiftDragAnchors(dx, dy) {
+        if (dragSession.active) {
+            dragSession.startX += dx; dragSession.startY += dy;
+            dragSession.originX += dx; dragSession.originY += dy;
+        }
+        if (dragSession.snapValid) {
+            dragSession.snapX += dx; dragSession.snapY += dy;
+        }
+        if (valueDrag.active) {
+            valueDrag.startX += dx; valueDrag.startY += dy;
+            valueDrag.originX += dx; valueDrag.originY += dy;
+        }
+        if (valueDrag.settling) {
+            valueDrag.settleX += dx; valueDrag.settleY += dy;
+        }
+    }
     onWorldWChanged: {
         if (_prevWorldW > 0 && flick) {
-            canvasScroll.stop();
+            shiftDragAnchors((worldW - _prevWorldW) / 2, 0);
+            pauseResizeScroll();
+            _resizeScrollX += (worldW - _prevWorldW) * root.zoom / 2;
             root._zoomAnchorX += (worldW - _prevWorldW) / 2;
-            flick.contentX = Math.max(0, Math.min(Math.max(0, flick.contentWidth - flick.width), flick.contentX + (worldW - _prevWorldW) * root.zoom / 2));
+            _resizeViewX = (_resizeViewX ?? flick.contentX) + (worldW - _prevWorldW) * root.zoom / 2;
+            Qt.callLater(root.applyWorldResize);
         }
         _prevWorldW = worldW;
     }
     onWorldHChanged: {
         if (_prevWorldH > 0 && flick) {
-            canvasScroll.stop();
+            shiftDragAnchors(0, (worldH - _prevWorldH) / 2);
+            pauseResizeScroll();
+            _resizeScrollY += (worldH - _prevWorldH) * root.zoom / 2;
             root._zoomAnchorY += (worldH - _prevWorldH) / 2;
-            flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), flick.contentY + (worldH - _prevWorldH) * root.zoom / 2));
+            _resizeViewY = (_resizeViewY ?? flick.contentY) + (worldH - _prevWorldH) * root.zoom / 2;
+            Qt.callLater(root.applyWorldResize);
         }
         _prevWorldH = worldH;
     }
@@ -342,6 +400,7 @@ Rectangle {
         // far siblings after it move (height minus the 8px tab overlap that
         // interlocks stacked blocks); snapGrowAmt is how much a target wrap
         // mouth grows (same overlap logic, plus the empty-mouth fixed size).
+        property var snapTargetY: null
         property bool snapValid: false
         property string snapTargetId: ""
         property var snapPath: []
@@ -362,6 +421,7 @@ Rectangle {
         // Set on drop, cleared once the new strands confirm the move (or on timeout).
         // An attach keeps the snap gap open while settling; a trash hides the tail.
         property bool settling: false
+        property bool applyingDocument: false
         property bool settleHidden: false
         property string settleStrandId: ""
         property var settlePath: []
@@ -394,6 +454,7 @@ Rectangle {
     readonly property bool paletteSnapValid: dragSession.snapValid
     readonly property string paletteSnapTargetId: dragSession.snapTargetId
     readonly property var paletteSnapPath: dragSession.snapPath
+    readonly property var paletteSnapTargetY: dragSession.snapTargetY
     // ---- value (operator) drag session ----
     // Separate from the block/strand drag above: values can only land in
     // value slots (fields) or as new floating blocks, never in a strand.
@@ -671,7 +732,7 @@ Rectangle {
     // -8): a dropped block's top sits exactly on the old row top it replaces
     // (or 8px above the old bottom edge at the end / on the mouth origin when
     // empty), and everything after it moves by height-8, not height.
-    function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap) {
+    function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap) {
         const containers = collectContainers();
         let best = null, bestEff = 1e9;
         const srcParentBase = (sourceId && sourcePath && sourcePath.length) ? sourcePath.slice(0, sourcePath.length - 1) : null;
@@ -714,14 +775,23 @@ Rectangle {
                     const above = list[idx - 1];
                     if (!above || isCapBlock(above)) continue;
                 }
-                const dist = Math.abs(ghostTop - b.y);
+                if (stackEndsCap && idx < list.length) continue;
+                let dist = Math.abs(ghostTop - b.y);
+                // The bottom connector can attach above an existing block too.
+                const bottomDist = idx < list.length && !stackEndsCap && stackHeight > 0
+                    ? Math.abs(ghostTop + stackHeight - 8 - b.y) : Infinity;
+                const prepend = isTop && !c.owner && idx === 0 && list.length > 0 && stackHeight > 0;
+                dist = Math.min(dist, bottomDist);
                 if (dist > root.snapThreshold) continue;
                 const path = copyPath(c.basePath);
                 path.push({ index: idx });
                 const isCur = prevSnap && prevSnap.targetId === c.strandId && baseEqual(prevSnap.path, path);
                 const eff = isCur ? Math.max(0, dist - root.snapSticky) : dist;
                 if (best === null || eff < bestEff) {
-                    best = { targetId: c.strandId, path: path, x: c.x, y: b.y, empty: list.length === 0, atEnd: idx === list.length };
+                    const shift = prepend ? stackHeight - 8 : 0;
+                    best = { targetId: c.strandId, path: path, x: c.x, y: b.y - shift,
+                        targetY: prepend ? Math.round(c.y - root.originOffsetY - shift) : null,
+                        empty: list.length === 0, atEnd: idx === list.length };
                     bestEff = eff;
                 }
             }
@@ -731,16 +801,15 @@ Rectangle {
     function applySnap(best, w, h, droppedIsCap) {
         if (!best) { clearSnap(); return; }
         dragSession.snapTargetId = best.targetId;
+        dragSession.snapTargetY = best.targetY === undefined ? null : best.targetY;
         dragSession.snapPath = best.path;
         dragSession.snapX = best.x;
         dragSession.snapY = best.y;
         dragSession.snapWidth = w;
         dragSession.snapHeight = h;
-        // Siblings always shift by the interlocked amount; a mouth grows by
-        // the same, except an empty mouth grows from its fixed 26px shell to
-        // the single-block mouth, and appending a cap block keeps its full
-        // height (no bottom tab to tuck).
-        dragSession.snapShiftAmt = Math.max(0, h - 8);
+        // Prepending keeps the target fixed; other insertions open a gap.
+        // Empty mouths start at 26px, and cap blocks have no bottom overlap.
+        dragSession.snapShiftAmt = dragSession.snapTargetY !== null ? 0 : Math.max(0, h - 8);
         if (best.empty) dragSession.snapGrowAmt = Math.max(0, Math.max(26, h - (droppedIsCap ? 0 : 8)) - 26);
         else if (best.atEnd && droppedIsCap) dragSession.snapGrowAmt = Math.max(0, h);
         else dragSession.snapGrowAmt = Math.max(0, h - 8);
@@ -748,6 +817,7 @@ Rectangle {
     }
     function clearSnap() {
         dragSession.snapValid = false;
+        dragSession.snapTargetY = null;
         dragSession.snapTargetId = "";
         dragSession.snapPath = [];
     }
@@ -842,7 +912,9 @@ Rectangle {
         }
         const ghostLeft = dragSession.originX + dragSession.dx;
         const ghostTop = dragSession.originY + dragSession.dy;
-        const best = findSnap(ghostLeft, ghostTop, dragSession.strandId, sourcePath, isWhole, prevSnapObj());
+        const tail = listFor(srcStrand, sourcePath.slice(0, -1)).slice(sourcePath[sourcePath.length - 1].index);
+        const endsCap = tail.length > 0 && isCapBlock(tail[tail.length - 1]);
+        const best = findSnap(ghostLeft, ghostTop, dragSession.strandId, sourcePath, isWhole, prevSnapObj(), contentHeightFor(tail), endsCap);
         applySnap(best, dragSession.draggedWidth, dragSession.draggedHeight, dragSession.draggedIsCap);
     }
     // Palette (new-block) drags share the same preview: a header prefab can
@@ -855,7 +927,7 @@ Rectangle {
         dragSession.draggedShape = si.shape; dragSession.draggedMouths = si.mouths; dragSession.draggedFlat = si.flat;
         dragSession.draggedIsCap = isCapBlock(instruction);
         dragSession.draggedWidth = w || 200; dragSession.draggedHeight = blockHeight(instruction) || h || 58;
-        const best = findSnap(ghostLeft + root.originOffsetX, ghostTop + root.originOffsetY, null, [], false, prevSnapObj());
+        const best = findSnap(ghostLeft + root.originOffsetX, ghostTop + root.originOffsetY, null, [], false, prevSnapObj(), dragSession.draggedHeight, dragSession.draggedIsCap);
         applySnap(best, dragSession.draggedWidth, dragSession.draggedHeight, dragSession.draggedIsCap);
     }
     function endDrag(sx, sy) {
@@ -884,8 +956,8 @@ Rectangle {
             dragSession.settleDy = dragSession.snapY - oy;
             dragSession.settling = true;
             armSettle();
-            if (isWhole) root.strandsMerged(strandId, snapTargetId, snapPath);
-            else root.tailMerged(strandId, path, snapTargetId, snapPath);
+            if (isWhole) root.strandsMerged(strandId, snapTargetId, snapPath, dragSession.snapTargetY);
+            else root.tailMerged(strandId, path, snapTargetId, snapPath, dragSession.snapTargetY);
             return;
         }
         // Optimistic settle: keep rendering the dragged tail at the drop
@@ -1168,13 +1240,54 @@ Rectangle {
     // location on whatever canvas comes next.
     Component.onDestruction: endSettle()
     onStrandsChanged: {
-        syncStrands();
-        settleOnDocChange();
-        if (!dragSession.active && !dragSession.settling) {
-            dragSession.sourceStrandId = ""; dragSession.sourceBasePath = []; dragSession.sourceShrink = 0;
+        // The document already includes the preview gap. Do not animate it again.
+        dragSession.applyingDocument = true;
+        try {
+            syncStrands();
+            settleOnDocChange();
+            if (!dragSession.active && !dragSession.settling) {
+                dragSession.sourceStrandId = ""; dragSession.sourceBasePath = []; dragSession.sourceShrink = 0;
+            }
+        } finally {
+            dragSession.applyingDocument = false;
         }
     }
-    Component.onCompleted: { syncStrands(); tryInitialCenter(); }
+    Component.onCompleted: { syncStrands(); syncListEditors(); syncDictEditors(); tryInitialCenter(); }
+    // Prefer free space in the view, then the closest free space around it.
+    function findEmptyPosition(width, height) {
+        applyWorldResize();
+        const gap = 16 / root.zoom;
+        const left = flick.contentX / root.zoom - root.originOffsetX + gap;
+        const top = flick.contentY / root.zoom - root.originOffsetY + gap;
+        const right = left + flick.width / root.zoom - 2 * gap;
+        const bottom = top + flick.height / root.zoom - 2 * gap;
+        const preferredX = Math.round((left + right - width) / 2);
+        const preferredY = Math.round((top + bottom - height) / 2);
+        const occupied = [];
+        for (const item of workspace.children) {
+            if (!item.sid && !(item.modelData && item.modelData.id)) continue;
+            occupied.push({left: item.x - root.originOffsetX - gap,
+                top: item.y - root.originOffsetY - gap,
+                right: item.x - root.originOffsetX + item.width + gap,
+                bottom: item.y - root.originOffsetY + item.height + gap});
+        }
+        const xs = [preferredX, Math.ceil(left), Math.floor(right - width)];
+        const ys = [preferredY, Math.ceil(top), Math.floor(bottom - height)];
+        for (const rect of occupied) {
+            xs.push(Math.floor(rect.left - width), Math.ceil(rect.right));
+            ys.push(Math.floor(rect.top - height), Math.ceil(rect.bottom));
+        }
+        let best = null, bestScore = Infinity, bestInView = false;
+        for (const x of xs) for (const y of ys) {
+            const inView = x >= left && y >= top && x + width <= right && y + height <= bottom;
+            if (bestInView && !inView) continue;
+            const score = (x - preferredX) ** 2 + (y - preferredY) ** 2;
+            if (inView === bestInView && score >= bestScore) continue;
+            if (occupied.some(r => x < r.right && x + width > r.left && y < r.bottom && y + height > r.top)) continue;
+            best = {x: x, y: y}; bestScore = score; bestInView = inView;
+        }
+        return best || {x: preferredX, y: preferredY};
+    }
     // World coordinates for a scene point, or null when it is outside the canvas.
     function workspacePoint(sx, sy) {
         if (!root.contains(root.mapFromItem(null, sx, sy))) return null;
@@ -1272,6 +1385,11 @@ Rectangle {
         }
         Item {
             id:workspace; width:root.worldW;height:root.worldH; scale:root.zoom; transformOrigin:Item.TopLeft
+            // Keep new delegates in place before Flickable applies the new scroll bounds.
+            transform: Translate {
+                x: root._resizeViewX === null ? 0 : flick.contentX - root._resizeViewX
+                y: root._resizeViewY === null ? 0 : flick.contentY - root._resizeViewY
+            }
             // The dot grid lives in world space and moves with the content,
             // so scrolling and zooming never repaint it. Each 22px tile holds a
             // quarter dot in every corner, drawn at twice the size and scaled
@@ -1279,9 +1397,14 @@ Rectangle {
             Image {
                 id:grid; z:-200
                 readonly property int margin: 22 * 100
-                x:-margin; y:-margin; width:2*(root.worldW+2*margin); height:2*(root.worldH+2*margin)
+                // Keep the tile phase tied to world coordinates as the origin moves.
+                x:-margin + root.originOffsetX % 22; y:-margin + root.originOffsetY % 22
+                width:2*(root.worldW+2*margin); height:2*(root.worldH+2*margin)
                 scale:0.5; transformOrigin:Item.TopLeft
                 fillMode:Image.Tile; smooth:true
+                // Tile from the top left so resizing cannot shift the pattern.
+                horizontalAlignment: Image.AlignLeft
+                verticalAlignment: Image.AlignTop
                 sourceSize: Qt.size(44, 44)
                 source: "data:image/svg+xml;utf8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><g fill='" + Theme.grid + "'>"
                     + "<circle cx='0' cy='0' r='2.3'/><circle cx='44' cy='0' r='2.3'/><circle cx='0' cy='44' r='2.3'/><circle cx='44' cy='44' r='2.3'/></g></svg>")
@@ -1398,88 +1521,6 @@ Rectangle {
                     BwMenu { id:floatingMenu;BwMenuItem{iconName:"info";text:qsTr("Details");onTriggered:root.detailsRequested(floatingItem.modelData.value.block_id||floatingItem.modelData.value.op||floatingItem.modelData.value.kind)}BwMenuItem{iconName:"trash";danger:true;text:qsTr("Delete value");onTriggered:root.floatingValueRemoved(floatingItem.modelData.id)} }
                 }
             }
-            Repeater {
-                model:root.lists||[]
-                delegate:Rectangle {
-                    id:listCard;required property var modelData
-                    visible:modelData.editor_visible;x:(modelData.editor_x || 36) + root.originOffsetX;y:(modelData.editor_y || 36) + root.originOffsetY;z:12
-                    width:300;height:Math.min(400,78+Math.max(38,(modelData.items||[]).length*34));radius:8;color:Theme.panelRaised;border.color:Theme.border;clip:true
-                    function itemFromText(value){const trimmed=value.trim();const number=Number(value);return trimmed.length&&Number.isFinite(number)?{kind:"Number",value:number}:{kind:"Text",value:value};}
-                    function editItem(index,value){const next=JSON.parse(JSON.stringify(modelData.items||[]));next[index]=itemFromText(value);root.listItemsEdited(modelData.name,next);}
-                    function removeItem(index){const next=JSON.parse(JSON.stringify(modelData.items||[]));next.splice(index,1);root.listItemsEdited(modelData.name,next);}
-                    function addItem(){const next=JSON.parse(JSON.stringify(modelData.items||[]));next.push({kind:"Text",value:""});root.listItemsEdited(modelData.name,next);}
-                    Rectangle { id:listHead;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;height:38;color:Theme.panelRaised;border.color:Theme.borderSoft
-                        Row { anchors.fill:parent;anchors.margins:6;spacing:6
-                            LucideIcon{name:"layers";color:Theme.textDim;width:16;height:16;anchors.verticalCenter:parent.verticalCenter}
-                            Text{text:listCard.modelData.name;color:Theme.text;font.pixelSize:13;font.weight:Font.Bold;width:220;elide:Text.ElideRight;anchors.verticalCenter:parent.verticalCenter}
-                            BwButton{iconName:"x";text:"";implicitWidth:25;implicitHeight:25;onClicked:root.listEditorStateChanged(listCard.modelData.name,false,Math.round(listCard.x - root.originOffsetX),Math.round(listCard.y - root.originOffsetY))}
-                        }
-                        DragHandler{id:listDrag;enabled:!root.locked;target:listCard;onActiveChanged:if(!active)root.listEditorStateChanged(listCard.modelData.name,true,Math.round(listCard.x - root.originOffsetX),Math.round(listCard.y - root.originOffsetY))}
-                    }
-                    Flickable { anchors.left:parent.left;anchors.right:parent.right;anchors.top:listHead.bottom;anchors.bottom:listFoot.top;contentHeight:listRows.implicitHeight;clip:true
-                        Column { id:listRows;width:parent.width;spacing:2;padding:5
-                            Text{visible:!(listCard.modelData.items||[]).length;text:qsTr("This list is empty.");color:Theme.textDim;font.pixelSize:12;padding:7}
-                            Repeater{model:listCard.modelData.items||[];delegate:Row{
-                                required property var modelData;required property int index;spacing:4;width:listRows.width-10;height:32
-                                Text{text:String(index+1);color:Theme.textDim;font.pixelSize:11;font.weight:Font.Bold;width:22;horizontalAlignment:Text.AlignRight;anchors.verticalCenter:parent.verticalCenter}
-                                BwTextField{text:String(modelData.value);color:modelData.kind==="Number"?Theme.accent:Theme.text;width:226;implicitHeight:29;font.pixelSize:12;onEditingFinished:listCard.editItem(index,text)}
-                                BwButton{iconName:"x";text:"";danger:true;implicitWidth:27;implicitHeight:27;onClicked:listCard.removeItem(index)}
-                            }}
-                        }
-                    }
-                    Rectangle { id:listFoot;anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;height:40;color:Theme.panel;border.color:Theme.borderSoft
-                        Row { anchors.fill:parent;anchors.margins:5
-                            BwButton{iconName:"plus";text:qsTr("Add item");implicitHeight:29;onClicked:listCard.addItem()}
-                            Item{width:Math.max(0,listFoot.width-170);height:1}
-                            Text{text:qsTr("%n item(s)","",(listCard.modelData.items||[]).length);color:Theme.textDim;font.pixelSize:11;anchors.verticalCenter:parent.verticalCenter}
-                        }
-                    }
-                }
-            }
-            Repeater {
-                model:root.dicts||[]
-                delegate:Rectangle {
-                    id:dictCard;required property var modelData
-                    readonly property var entries: modelData.entries||[]
-                    visible:modelData.editor_visible;x:(modelData.editor_x || 36) + root.originOffsetX;y:(modelData.editor_y || 36) + root.originOffsetY;z:12
-                    width:360;height:Math.min(420,78+Math.max(38,entries.length*34));radius:8;color:Theme.panelRaised;border.color:Theme.border;clip:true
-                    // A monitor edit is a literal: finite numbers stay numeric.
-                    function itemFromText(value){const trimmed=value.trim();const number=Number(value);return trimmed.length&&Number.isFinite(number)?{kind:"Number",value:number}:{kind:"Text",value:value};}
-                    function save(next){root.dictEntriesEdited(modelData.name,next);}
-                    function copy(){return JSON.parse(JSON.stringify(entries));}
-                    function editKey(index,key){const next=copy();next[index].key=key;save(next);}
-                    function editValue(index,value){const next=copy();next[index].value=itemFromText(value);save(next);}
-                    function removeEntry(index){const next=copy();next.splice(index,1);save(next);}
-                    function addEntry(){const next=copy();next.push({key:"",value:{kind:"Text",value:""}});save(next);}
-                    Rectangle { id:dictHead;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;height:38;color:Theme.panelRaised;border.color:Theme.borderSoft
-                        Row { anchors.fill:parent;anchors.margins:6;spacing:6
-                            LucideIcon{name:"book-key";color:Theme.textDim;width:16;height:16;anchors.verticalCenter:parent.verticalCenter}
-                            Text{text:dictCard.modelData.name;color:Theme.text;font.pixelSize:13;font.weight:Font.Bold;width:280;elide:Text.ElideRight;anchors.verticalCenter:parent.verticalCenter}
-                            BwButton{iconName:"x";text:"";implicitWidth:25;implicitHeight:25;onClicked:root.dictEditorStateChanged(dictCard.modelData.name,false,Math.round(dictCard.x - root.originOffsetX),Math.round(dictCard.y - root.originOffsetY))}
-                        }
-                        DragHandler{enabled:!root.locked;target:dictCard;onActiveChanged:if(!active)root.dictEditorStateChanged(dictCard.modelData.name,true,Math.round(dictCard.x - root.originOffsetX),Math.round(dictCard.y - root.originOffsetY))}
-                    }
-                    Flickable { anchors.left:parent.left;anchors.right:parent.right;anchors.top:dictHead.bottom;anchors.bottom:dictFoot.top;contentHeight:dictRows.implicitHeight;clip:true
-                        Column { id:dictRows;width:parent.width;spacing:2;padding:5
-                            Text{visible:!dictCard.entries.length;text:qsTr("This dict is empty.");color:Theme.textDim;font.pixelSize:12;padding:7}
-                            Repeater{model:dictCard.entries;delegate:Row{
-                                required property var modelData;required property int index;spacing:4;width:dictRows.width-10;height:32
-                                BwTextField{text:modelData.key;placeholderText:qsTr("key");width:128;implicitHeight:29;font.pixelSize:12;onEditingFinished:if(text!==modelData.key)dictCard.editKey(index,text)}
-                                LucideIcon{name:"arrow-right";color:Theme.textDim;width:13;height:13;anchors.verticalCenter:parent.verticalCenter}
-                                BwTextField{text:String(modelData.value.value);placeholderText:qsTr("value");color:modelData.value.kind==="Number"?Theme.accent:Theme.text;width:162;implicitHeight:29;font.pixelSize:12;onEditingFinished:if(text!==String(modelData.value.value))dictCard.editValue(index,text)}
-                                BwButton{iconName:"x";text:"";danger:true;implicitWidth:27;implicitHeight:27;onClicked:dictCard.removeEntry(index)}
-                            }}
-                        }
-                    }
-                    Rectangle { id:dictFoot;anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;height:40;color:Theme.panel;border.color:Theme.borderSoft
-                        Row { anchors.fill:parent;anchors.margins:5
-                            BwButton{iconName:"plus";text:qsTr("Add entry");implicitHeight:29;onClicked:dictCard.addEntry()}
-                            Item{width:Math.max(0,dictFoot.width-180);height:1}
-                            Text{text:qsTr("%n entry(s)","",dictCard.entries.length);color:Theme.textDim;font.pixelSize:11;anchors.verticalCenter:parent.verticalCenter}
-                        }
-                    }
-                }
-            }
             // Attach preview: the dragged first block's own silhouette (same
             // tabs/notches/C-shape as a real block, like the webapp's
             // translucent clone) exactly where the drop will land. Siblings
@@ -1515,6 +1556,249 @@ Rectangle {
                     valueData: valueDrag.sourceValue; boxed: true; editable: false
                     originBlockId: valueDrag.sourceOrigin; dragPreview: true
                     blockDefinitions: root.blockDefinitions
+                }
+            }
+        }
+    }
+    Item {
+        id: collectionOverlay
+        anchors.fill: parent
+        z: 12
+        Repeater {
+            model: listEditorModel
+            delegate:Rectangle {
+                id:listCard
+                required property string editorName
+                required property string payload
+                required property real editorX
+                required property real editorY
+                readonly property var modelData: JSON.parse(payload)
+                objectName: "listEditor_" + modelData.name
+                readonly property real maxX: Math.max(0, collectionOverlay.width - width)
+                readonly property real maxY: Math.max(0, collectionOverlay.height - height)
+                visible:modelData.editor_visible;x:Math.max(0, Math.min(editorX, maxX));y:Math.max(0, Math.min(editorY, maxY));z:12
+                function keepInView() {
+                    if (x < 0 || x > maxX) x = Math.max(0, Math.min(x, maxX));
+                    if (y < 0 || y > maxY) y = Math.max(0, Math.min(y, maxY));
+                }
+                onMaxXChanged: keepInView()
+                onMaxYChanged: keepInView()
+                width:300;height:Math.min(400,90+Math.max(64,(modelData.items||[]).length*40+14));radius:12;color:Theme.panel;border.color:Theme.borderSoft;clip:true
+                function itemFromText(value){const trimmed=value.trim();const number=Number(value);return trimmed.length&&Number.isFinite(number)?{kind:"Number",value:number}:{kind:"Text",value:value};}
+                function editItem(index,value){const next=JSON.parse(JSON.stringify(modelData.items||[]));next[index]=itemFromText(value);root.listItemsEdited(modelData.name,next);}
+                function removeItem(index){const next=JSON.parse(JSON.stringify(modelData.items||[]));next.splice(index,1);root.listItemsEdited(modelData.name,next);}
+                function addItem(index, value) {
+                    const next = JSON.parse(JSON.stringify(modelData.items || []));
+                    for (let i = 0; i < listRepeater.count; ++i) {
+                        const row = listRepeater.itemAt(i);
+                        if (row && row.field.text !== String(next[i].value))
+                            next[i] = itemFromText(row.field.text);
+                        if (row) row.field.submitting = true;
+                    }
+                    if (index !== undefined) next[index] = itemFromText(value);
+                    root.pendingListFocus = {name: modelData.name, index: next.length};
+                    next.push({kind: "Text", value: ""});
+                    root.listItemsEdited(modelData.name, next);
+                }
+                Rectangle { id:listHead;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;height:44;color:"transparent"
+                    Rectangle { anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;height:1;color:Theme.borderSoft }
+                    // Accept the press before the canvas can start panning.
+                    MouseArea {
+                        id: listHeaderDrag
+                        objectName: "listHeaderDrag"
+                        anchors.fill: parent
+                        enabled: !root.locked
+                        acceptedButtons: Qt.LeftButton
+                        preventStealing: true
+                        drag.target: listCard
+                        drag.minimumX: 0
+                        drag.maximumX: listCard.maxX
+                        drag.minimumY: 0
+                        drag.maximumY: listCard.maxY
+                        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                        onReleased: if (drag.active)
+                            root.listEditorStateChanged(listCard.modelData.name, true, Math.round(listCard.x), Math.round(listCard.y))
+                    }
+                    Row { anchors.fill:parent;anchors.margins:10;spacing:8
+                        LucideIcon{name:"layers";color:Theme.textDim;width:16;height:16;anchors.verticalCenter:parent.verticalCenter}
+                        Text{text:listCard.modelData.name;color:Theme.text;font.pixelSize:13;font.weight:Font.DemiBold;width:parent.width-16-28-16;elide:Text.ElideRight;anchors.verticalCenter:parent.verticalCenter}
+                        BwButton{iconName:"x";text:"";flat:true;implicitWidth:28;implicitHeight:28;anchors.verticalCenter:parent.verticalCenter;onClicked:root.listEditorStateChanged(listCard.modelData.name,false,Math.round(listCard.x),Math.round(listCard.y))}
+                    }
+
+                }
+                Flickable { id:listScroll;anchors.left:parent.left;anchors.right:parent.right;anchors.top:listHead.bottom;anchors.bottom:listFoot.top;contentHeight:listRows.implicitHeight;clip:true
+                    Column { id:listRows;width:parent.width;spacing:6;padding:10
+                        Text{visible:!(listCard.modelData.items||[]).length;text:qsTr("This list is empty.");color:Theme.textDim;font.pixelSize:12;width:parent.width-20;height:44;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
+                        Repeater{id:listRepeater;model:listCard.modelData.items||[];delegate:Row{
+                            property alias field: itemField
+                            required property var modelData;required property int index;spacing:6;width:listRows.width-20;height:34
+                            Text{text:String(index+1);color:Theme.textDim;font.pixelSize:11;width:18;horizontalAlignment:Text.AlignRight;anchors.verticalCenter:parent.verticalCenter}
+                            BwTextField {
+                                id: itemField
+                                objectName: "listItem_" + index
+                                property bool submitting: false
+                                text:String(modelData.value);color:modelData.kind==="Number"?Theme.accent:Theme.text;width:parent.width-18-28-12;implicitHeight:34;font.pixelSize:13
+                                function appendItem(event) {
+                                    event.accepted = true;
+                                    submitting = true;
+                                    listCard.addItem(index, text);
+                                }
+                                Keys.onReturnPressed: event => appendItem(event)
+                                Keys.onEnterPressed: event => appendItem(event)
+                                onEditingFinished: if (!submitting && text !== String(modelData.value)) listCard.editItem(index, text)
+                                Component.onCompleted: Qt.callLater(function() {
+                                    const pending = root.pendingListFocus;
+                                    if (!pending || pending.name !== listCard.modelData.name || pending.index !== index) return;
+                                    root.pendingListFocus = null;
+                                    itemField.forceActiveFocus();
+                                    itemField.selectAll();
+                                    listRows.forceLayout();
+                                    const position = itemField.mapToItem(listRows, 0, 0);
+                                    listScroll.contentY = Math.max(0, Math.min(position.y, listScroll.contentHeight - listScroll.height));
+                                })
+                            }
+                            BwButton{iconName:"trash-2";text:"";flat:true;danger:hovered;implicitWidth:28;implicitHeight:28;anchors.verticalCenter:parent.verticalCenter;onClicked:listCard.removeItem(index)}
+                        }}
+                    }
+                }
+                Rectangle {
+                    id:listFoot
+                    anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom
+                    height:46;color:"transparent"
+                    Rectangle { anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;height:1;color:Theme.borderSoft }
+                    BwButton {
+                        objectName:"addListItem";iconName:"plus";text:qsTr("Add item");implicitHeight:30
+                        anchors.left:parent.left;anchors.leftMargin:10;anchors.verticalCenter:parent.verticalCenter
+                        onClicked:listCard.addItem()
+                    }
+                    Text {
+                        text:qsTr("%n item(s)","",(listCard.modelData.items||[]).length)
+                        color:Theme.textDim;font.pixelSize:11
+                        anchors.right:parent.right;anchors.rightMargin:12;anchors.verticalCenter:parent.verticalCenter
+                    }
+                }
+            }
+        }
+        Repeater {
+            model:dictEditorModel
+            delegate:Rectangle {
+                id:dictCard
+                required property string editorName
+                required property string payload
+                required property real editorX
+                required property real editorY
+                readonly property var modelData: JSON.parse(payload)
+                objectName: "dictEditor_" + modelData.name
+                readonly property real maxX: Math.max(0, collectionOverlay.width - width)
+                readonly property real maxY: Math.max(0, collectionOverlay.height - height)
+                function keepInView() {
+                    if (x < 0 || x > maxX) x = Math.max(0, Math.min(x, maxX));
+                    if (y < 0 || y > maxY) y = Math.max(0, Math.min(y, maxY));
+                }
+                onMaxXChanged: keepInView()
+                onMaxYChanged: keepInView()
+                readonly property var entries: modelData.entries||[]
+                visible:modelData.editor_visible;x:Math.max(0, Math.min(editorX, maxX));y:Math.max(0, Math.min(editorY, maxY));z:12
+                width:360;height:Math.min(420,90+Math.max(64,entries.length*40+14));radius:12;color:Theme.panel;border.color:Theme.borderSoft;clip:true
+                // A monitor edit is a literal: finite numbers stay numeric.
+                function itemFromText(value){const trimmed=value.trim();const number=Number(value);return trimmed.length&&Number.isFinite(number)?{kind:"Number",value:number}:{kind:"Text",value:value};}
+                function save(next){root.dictEntriesEdited(modelData.name,next);}
+                function copy(){return JSON.parse(JSON.stringify(entries));}
+                function editKey(index,key){const next=copy();next[index].key=key;save(next);}
+                function editValue(index,value){const next=copy();next[index].value=itemFromText(value);save(next);}
+                function removeEntry(index){const next=copy();next.splice(index,1);save(next);}
+                function addEntry() {
+                    const next = copy();
+                    for (let i = 0; i < dictRepeater.count; ++i) {
+                        const row = dictRepeater.itemAt(i);
+                        if (!row) continue;
+                        next[i].key = row.keyField.text;
+                        if (row.valueField.text !== String(next[i].value.value))
+                            next[i].value = itemFromText(row.valueField.text);
+                        row.submitting = true;
+                    }
+                    root.pendingDictFocus = {name: modelData.name, index: next.length};
+                    next.push({key: "", value: {kind: "Text", value: ""}});
+                    save(next);
+                }
+                Rectangle { id:dictHead;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;height:44;color:"transparent"
+                    Rectangle { anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;height:1;color:Theme.borderSoft }
+                    // Accept the press before the canvas can start panning.
+                    MouseArea {
+                        id: dictHeaderDrag
+                        objectName: "dictHeaderDrag"
+                        anchors.fill: parent
+                        enabled: !root.locked
+                        acceptedButtons: Qt.LeftButton
+                        preventStealing: true
+                        drag.target: dictCard
+                        drag.minimumX: 0
+                        drag.maximumX: dictCard.maxX
+                        drag.minimumY: 0
+                        drag.maximumY: dictCard.maxY
+                        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                        onReleased: if (drag.active)
+                            root.dictEditorStateChanged(dictCard.modelData.name, true, Math.round(dictCard.x), Math.round(dictCard.y))
+                    }
+                    Row { anchors.fill:parent;anchors.margins:10;spacing:8
+                        LucideIcon{name:"book-key";color:Theme.textDim;width:16;height:16;anchors.verticalCenter:parent.verticalCenter}
+                        Text{text:dictCard.modelData.name;color:Theme.text;font.pixelSize:13;font.weight:Font.DemiBold;width:parent.width-16-28-16;elide:Text.ElideRight;anchors.verticalCenter:parent.verticalCenter}
+                        BwButton{iconName:"x";text:"";flat:true;implicitWidth:28;implicitHeight:28;anchors.verticalCenter:parent.verticalCenter;onClicked:root.dictEditorStateChanged(dictCard.modelData.name,false,Math.round(dictCard.x),Math.round(dictCard.y))}
+                    }
+
+                }
+                Flickable { id:dictScroll;anchors.left:parent.left;anchors.right:parent.right;anchors.top:dictHead.bottom;anchors.bottom:dictFoot.top;contentHeight:dictRows.implicitHeight;clip:true
+                    Column { id:dictRows;width:parent.width;spacing:6;padding:10
+                        Text{visible:!dictCard.entries.length;text:qsTr("This dict is empty.");color:Theme.textDim;font.pixelSize:12;width:parent.width-20;height:44;horizontalAlignment:Text.AlignHCenter;verticalAlignment:Text.AlignVCenter}
+                        Repeater{id:dictRepeater;model:dictCard.entries;delegate:Row{
+                            id: entryRow
+                            property alias keyField: dictKey
+                            property alias valueField: dictValue
+                            property bool submitting: false
+                            function appendEntry(event) { event.accepted = true; dictCard.addEntry(); }
+                            required property var modelData;required property int index;spacing:6;width:dictRows.width-20;height:34
+                            BwTextField{
+                                id: dictKey
+                                objectName: "dictKey_" + index
+                                Keys.onReturnPressed: event => entryRow.appendEntry(event)
+                                Keys.onEnterPressed: event => entryRow.appendEntry(event)
+                                Component.onCompleted: Qt.callLater(function() {
+                                    const pending = root.pendingDictFocus;
+                                    if (!pending || pending.name !== dictCard.modelData.name || pending.index !== index) return;
+                                    root.pendingDictFocus = null;
+                                    dictKey.forceActiveFocus();
+                                    dictKey.selectAll();
+                                    dictRows.forceLayout();
+                                    const position = dictKey.mapToItem(dictRows, 0, 0);
+                                    dictScroll.contentY = Math.max(0, Math.min(position.y, dictScroll.contentHeight - dictScroll.height));
+                                })
+                                text:modelData.key;placeholderText:qsTr("key");width:128;implicitHeight:34;font.pixelSize:13;onEditingFinished:if(!entryRow.submitting && text!==modelData.key)dictCard.editKey(index,text)}
+                            LucideIcon{name:"arrow-right";color:Theme.textDim;width:13;height:13;anchors.verticalCenter:parent.verticalCenter}
+                            BwTextField{
+                                id: dictValue
+                                objectName: "dictValue_" + index
+                                Keys.onReturnPressed: event => entryRow.appendEntry(event)
+                                Keys.onEnterPressed: event => entryRow.appendEntry(event)
+                                text:String(modelData.value.value);placeholderText:qsTr("value");color:modelData.value.kind==="Number"?Theme.accent:Theme.text;width:parent.width-128-13-28-18;implicitHeight:34;font.pixelSize:13;onEditingFinished:if(!entryRow.submitting && text!==String(modelData.value.value))dictCard.editValue(index,text)}
+                            BwButton{iconName:"trash-2";text:"";flat:true;danger:hovered;implicitWidth:28;implicitHeight:28;anchors.verticalCenter:parent.verticalCenter;onClicked:dictCard.removeEntry(index)}
+                        }}
+                    }
+                }
+                Rectangle {
+                    id:dictFoot
+                    anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom
+                    height:46;color:"transparent"
+                    Rectangle { anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;height:1;color:Theme.borderSoft }
+                    BwButton {
+                        objectName:"addDictEntry";iconName:"plus";text:qsTr("Add entry");implicitHeight:30
+                        anchors.left:parent.left;anchors.leftMargin:10;anchors.verticalCenter:parent.verticalCenter
+                        onClicked:dictCard.addEntry()
+                    }
+                    Text {
+                        text:qsTr("%n entry(s)","",dictCard.entries.length)
+                        color:Theme.textDim;font.pixelSize:11
+                        anchors.right:parent.right;anchors.rightMargin:12;anchors.verticalCenter:parent.verticalCenter
+                    }
                 }
             }
         }

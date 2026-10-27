@@ -167,9 +167,16 @@ Item {
             if (a !== b) return 0;
         }
         if (path[path.length - 1].index < sp[sp.length - 1].index) return 0;
-        return d.snapShiftAmt || Math.max(0, (d.snapHeight || 58) - 8);
+        return d.snapShiftAmt;
     }
-    transform: Translate { x: root.dragOffsetX; y: root.dragOffsetY + root.snapShift }
+    // Ease layout gaps without delaying the block under the pointer.
+    readonly property bool animateLayout: !!dragState && !dragState.settling && !dragState.applyingDocument && dragRole !== 1
+    property real displayedSnapShift: snapShift
+    Behavior on displayedSnapShift {
+        enabled: root.animateLayout
+        NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+    }
+    transform: Translate { x: root.dragOffsetX; y: root.dragOffsetY + root.displayedSnapShift }
 
     // Heights/widths of each mouth's nested content, reported by the mouth delegates.
     property var mouthHeights: []
@@ -215,12 +222,18 @@ Item {
         const mouthSlot = (sp[path.length - 1].slot === undefined || sp[path.length - 1].slot === null) ? null : sp[path.length - 1].slot;
         return mouthSlot === k;
     }
+    function mouthAdjustment(k) {
+        const grow = (dragState && dragState.snapGrowAmt !== undefined) ? dragState.snapGrowAmt : Math.max(0, ((dragState ? (dragState.snapHeight || 58) : 58) - 8));
+        const shrink = (dragState && (dragState.active || dragState.settling) && typeof dragState.sourceShrink === "number") ? dragState.sourceShrink : 0;
+        return (isSnapMouth(k) ? grow : 0) - (isSourceMouth(k) ? shrink : 0);
+    }
     readonly property var effMouthHeights: {
         const n = slotCount();
         const out = [];
-        const grow = (dragState && dragState.snapGrowAmt !== undefined) ? dragState.snapGrowAmt : Math.max(0, ((dragState ? (dragState.snapHeight || 58) : 58) - 8));
-        const shrink = (dragState && (dragState.active || dragState.settling) && typeof dragState.sourceShrink === "number") ? dragState.sourceShrink : 0;
-        for (let k = 0; k < n; ++k) out.push(Math.max(emptyMouth, (mouthHeights[k] || emptyMouth) + (isSnapMouth(k) ? grow : 0) - (isSourceMouth(k) ? shrink : 0)));
+        for (let k = 0; k < n; ++k) {
+            const slot = mouthSlots.itemAt(k);
+            out.push(Math.max(emptyMouth, (mouthHeights[k] || emptyMouth) + (slot ? slot.adjustment : mouthAdjustment(k))));
+        }
         return out;
     }
     readonly property real mouthTotal: { let sum = 0; const e = effMouthHeights; for (let k = 0; k < slotCount(); ++k) sum += e[k] || emptyMouth; return sum; }
@@ -877,9 +890,15 @@ Item {
     }
 
     Repeater {
+        id: mouthSlots
         model: root.isWrap ? root.slotCount() : 0
         delegate: Item {
             id: slotDelegate; required property int index
+            property real adjustment: root.mouthAdjustment(index)
+            Behavior on adjustment {
+                enabled: root.animateLayout
+                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+            }
             readonly property real contentHeight: slotBody.implicitHeight
             readonly property bool capEnd: root.lastIsCap(index)
             // the block sitting last in a mouth overlaps the bar below by its connector tab
@@ -1127,7 +1146,7 @@ Item {
                 id: textPiece
                 BwTextField {
                     text: root.pieceValue(piece.modelData); placeholderText: piece.modelData.placeholder || ""
-                    implicitWidth: Math.min(200, Math.max(64, contentWidth + 20)); implicitHeight: 28; font.pixelSize: 12
+                    implicitWidth: Math.min(piece.modelData.maxWidth || 200, Math.max(piece.modelData.minWidth || 64, contentWidth + 20)); implicitHeight: 28; font.pixelSize: 12
                     leftPadding: 7; rightPadding: 7; topPadding: 2; bottomPadding: 2
                     onEditingFinished: if (text !== root.pieceValue(piece.modelData)) root.setPieceField(piece.modelData, text)
                 }
