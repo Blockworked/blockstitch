@@ -86,6 +86,12 @@ Item {
             const before = target.mapToItem(null, 0, 0);
             const height = canvas.blockHeight(waitSpec.instruction);
             dragTo(waitSpec, before.x, data.covering ? before.y : before.y - height + 8);
+            if (data.covering) {
+                verify(!canvas.paletteSnapValid || canvas.paletteSnapPath[0].index !== 0);
+                controller.cancel();
+                compare(scene.edits.length, 0);
+                return;
+            }
             verify(canvas.paletteSnapValid);
             fuzzyCompare(target.mapToItem(null, 0, 0).y, before.y, 0.01);
             controller.end(before.x + 6, (data.covering ? before.y : before.y - height + 8) + 6);

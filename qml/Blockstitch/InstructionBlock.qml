@@ -153,8 +153,11 @@ Item {
     // Attach preview gap: stationary rows at/after the snap insertion point
     // shift down by exactly the dragged height, opening real room. Dragged
     // rows (dragRole 1) are excluded - they already follow the pointer.
+    function snapLayout() {
+        return dragState && dragState.snapLayout !== undefined ? dragState.snapLayout : dragState;
+    }
     readonly property real snapShift: {
-        const d = dragState;
+        const d = snapLayout();
         if (!d || !d.snapValid) return 0;
         if (d.snapTargetId !== strandId) return 0;
         if (dragRole === 1) return 0;
@@ -183,7 +186,7 @@ Item {
     property var mouthWidths: []
     property var flatEnds: []
     function isSnapMouth(k) {
-        const d = dragState;
+        const d = snapLayout();
         if (!d || !d.snapValid) return false;
         if (d.snapTargetId !== strandId) return false;
         const sp = d.snapPath || [];
@@ -223,7 +226,8 @@ Item {
         return mouthSlot === k;
     }
     function mouthAdjustment(k) {
-        const grow = (dragState && dragState.snapGrowAmt !== undefined) ? dragState.snapGrowAmt : Math.max(0, ((dragState ? (dragState.snapHeight || 58) : 58) - 8));
+        const preview = snapLayout();
+        const grow = (preview && preview.snapGrowAmt !== undefined) ? preview.snapGrowAmt : Math.max(0, ((dragState ? (dragState.snapHeight || 58) : 58) - 8));
         const shrink = (dragState && (dragState.active || dragState.settling) && typeof dragState.sourceShrink === "number") ? dragState.sourceShrink : 0;
         return (isSnapMouth(k) ? grow : 0) - (isSourceMouth(k) ? shrink : 0);
     }
@@ -961,7 +965,7 @@ Item {
             // separator bar below this mouth (not for the last: that is the foot bar)
             Text {
                 visible: slotDelegate.index < root.slotCount() - 1
-                x: root.spine + 8; y: slotDelegate.mouthHeight + Math.round((root.midHeight - height) / 2)
+                x: root.spine + 8; y: root.effMouthHeights[slotDelegate.index] + Math.round((root.midHeight - height) / 2)
                 text: root.type === "BranchCallBlock" ? root.branchSeparator(slotDelegate.index) : BlockRegistry.separator(root.type, slotDelegate.index)
                 color: Theme.text; font.pixelSize: 12
             }

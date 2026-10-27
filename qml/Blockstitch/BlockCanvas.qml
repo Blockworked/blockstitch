@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Shapes
 
 Rectangle {
     id: root
@@ -8,6 +9,7 @@ Rectangle {
     property var strands: []
     property string recordingTargetId: ""
     property var comments: []
+    property Component textMenu: null
     property var floatingValues: []
     property var variables: []
     property var lists: []
@@ -346,6 +348,23 @@ Rectangle {
         }
         return null;
     }
+    function commentAnchor(item) {
+        if (!item) return Qt.point(0, 0);
+        // Track ancestor moves and drag transforms, including nested blocks.
+        let node = item;
+        let x = item.width / 2;
+        let y = Math.min(item.height, item.headHeight) / 2;
+        while (node && node !== workspace) {
+            x += node.x;
+            y += node.y;
+            if (node.dragOffsetX !== undefined) {
+                x += node.dragOffsetX;
+                y += node.dragOffsetY + node.displayedSnapShift;
+            }
+            node = node.parent;
+        }
+        return Qt.point(x, y);
+    }
     // Scrolls the block with this instruction id into view and outlines it.
     function revealInstruction(id) {
         const item = findBlockItem(workspace, id);
@@ -410,6 +429,8 @@ Rectangle {
         property real snapHeight: 58
         property real snapShiftAmt: 50
         property real snapGrowAmt: 50
+        // Publish animation inputs together so a new mouth never uses the old gap size.
+        property var snapLayout: null
         // Source collapse: the mouth the dragged tail is being pulled out of
         // renders as if the tail were already gone (the webapp splits the
         // strand on pickup; here the model only changes on drop). Shrink is
@@ -777,11 +798,14 @@ Rectangle {
                 }
                 if (stackEndsCap && idx < list.length) continue;
                 let dist = Math.abs(ghostTop - b.y);
-                // The bottom connector can attach above an existing block too.
-                const bottomDist = idx < list.length && !stackEndsCap && stackHeight > 0
+                // Match the bottom connector only at the start of a body or stack.
+                // Interior insertions follow the dragged top to avoid jumping ahead.
+                const bottomDist = idx === 0 && list.length > 0 && !stackEndsCap && stackHeight > 0
                     ? Math.abs(ghostTop + stackHeight - 8 - b.y) : Infinity;
                 const prepend = isTop && !c.owner && idx === 0 && list.length > 0 && stackHeight > 0;
-                dist = Math.min(dist, bottomDist);
+                // Prepending keeps the target fixed, so only its top connector
+                // may meet the dragged stack's bottom connector.
+                dist = prepend ? bottomDist : Math.min(dist, bottomDist);
                 if (dist > root.snapThreshold) continue;
                 const path = copyPath(c.basePath);
                 path.push({ index: idx });
@@ -814,8 +838,13 @@ Rectangle {
         else if (best.atEnd && droppedIsCap) dragSession.snapGrowAmt = Math.max(0, h);
         else dragSession.snapGrowAmt = Math.max(0, h - 8);
         dragSession.snapValid = true;
+        dragSession.snapLayout = {
+            snapValid: true, snapTargetId: best.targetId, snapPath: best.path,
+            snapShiftAmt: dragSession.snapShiftAmt, snapGrowAmt: dragSession.snapGrowAmt
+        };
     }
     function clearSnap() {
+        dragSession.snapLayout = null;
         dragSession.snapValid = false;
         dragSession.snapTargetY = null;
         dragSession.snapTargetId = "";
@@ -1486,6 +1515,27 @@ Rectangle {
                 model:root.comments||[]
                 delegate:Rectangle {
                     id:commentCard; required property var modelData
+                    objectName: "commentCard_" + modelData.id
+                    readonly property var attachedBlock: modelData.attached_to ? root.findBlockItem(workspace, modelData.attached_to) : null
+                    readonly property point blockAnchor: root.commentAnchor(attachedBlock)
+                    Shape {
+                        parent: workspace
+                        objectName: "commentConnector_" + commentCard.modelData.id
+                        z: -2
+                        visible: !!commentCard.attachedBlock
+                        ShapePath {
+                            strokeColor: Theme.textDim
+                            strokeWidth: 1.5
+                            fillColor: "transparent"
+                            startX: commentCard.blockAnchor.x
+                            startY: commentCard.blockAnchor.y
+                            PathLine {
+                                // End inside the card so its rounded surface masks the line.
+                                x: commentCard.x + commentCard.width / 2
+                                y: commentCard.y + commentCard.height / 2
+                            }
+                        }
+                    }
                     readonly property real headerH: 38
                     readonly property real bodyMinH: 74
                     readonly property real bodyMaxH: 240
@@ -1495,21 +1545,42 @@ Rectangle {
                     Row {
                         id:headerRow;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;anchors.leftMargin:8;anchors.rightMargin:4;height:commentCard.headerH;spacing:7
                         LucideIcon { name:"message-square";color:Theme.textDim;width:14;height:14;anchors.verticalCenter:parent.verticalCenter }
-                        Text { id:noteLabel;text:qsTr("NOTE");color:Theme.textDim;font.pixelSize:10;font.weight:Font.Bold;anchors.verticalCenter:parent.verticalCenter }
-                        Item { width:Math.max(0,parent.width-14-noteLabel.width-collapseBtn.width-parent.spacing*3);height:1 }
+                        Text { id:commentLabel;text:qsTr("COMMENT");color:Theme.textDim;font.pixelSize:10;font.weight:Font.Bold;anchors.verticalCenter:parent.verticalCenter }
+                        Item { width:Math.max(0,parent.width-14-commentLabel.width-collapseBtn.width-parent.spacing*3);height:1 }
                         BwButton { id:collapseBtn;iconName:commentCard.modelData.collapsed?"chevron-down":"chevron-up";text:"";flat:true;implicitWidth:24;implicitHeight:24;anchors.verticalCenter:parent.verticalCenter;onClicked:root.commentCollapseChanged(commentCard.modelData.id,!commentCard.modelData.collapsed) }
                     }
-                    Rectangle { id:noteDivider;visible:!commentCard.modelData.collapsed;anchors.left:parent.left;anchors.right:parent.right;anchors.top:headerRow.bottom;height:1;color:Theme.borderSoft }
-                    TextArea {
-                        id:bodyArea;visible:!commentCard.modelData.collapsed
-                        anchors.left:parent.left;anchors.right:parent.right;anchors.top:noteDivider.bottom;anchors.bottom:parent.bottom
-                        anchors.leftMargin:7;anchors.rightMargin:7;anchors.topMargin:7;anchors.bottomMargin:7
-                        text:commentCard.modelData.text;color:Theme.text;wrapMode:TextEdit.Wrap;background:null
-                        onActiveFocusChanged:if(!activeFocus&&text!==commentCard.modelData.text)root.commentEdited(commentCard.modelData.id,text)
+                    Rectangle { id:commentDivider;visible:!commentCard.modelData.collapsed;anchors.left:parent.left;anchors.right:parent.right;anchors.top:headerRow.bottom;height:1;color:Theme.borderSoft }
+                    ScrollView {
+                        id: bodyScroll
+                        objectName: "commentScroll_" + commentCard.modelData.id
+                        visible: !commentCard.modelData.collapsed
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.top: commentDivider.bottom; anchors.bottom: parent.bottom
+                        contentWidth: availableWidth
+                        clip: true
+                        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                        TextArea {
+                            id: bodyArea
+                            objectName: "commentText_" + commentCard.modelData.id
+                            ContextMenu.menu: root.textMenu ? root.textMenu.createObject(bodyArea, { editor: bodyArea }) : null
+                            text: commentCard.modelData.text
+                            color: Theme.text
+                            wrapMode: TextEdit.Wrap
+                            padding: 7
+                            background: null
+                            onActiveFocusChanged: if (!activeFocus && text !== commentCard.modelData.text)
+                                root.commentEdited(commentCard.modelData.id, text)
+                        }
                     }
-                    DragHandler { enabled:!root.locked;target:commentCard;onActiveChanged:if(!active)root.commentMoved(commentCard.modelData.id,Math.round(commentCard.x - root.originOffsetX),Math.round(commentCard.y - root.originOffsetY)) }
+                    DragHandler {
+                        parent: headerRow
+                        enabled: !root.locked
+                        target: commentCard
+                        onActiveChanged: if (!active)
+                            root.commentMoved(commentCard.modelData.id, Math.round(commentCard.x - root.originOffsetX), Math.round(commentCard.y - root.originOffsetY))
+                    }
                     TapHandler { acceptedButtons:Qt.RightButton;gesturePolicy:TapHandler.ReleaseWithinBounds;onTapped:commentMenu.popup() }
-                    BwMenu { id:commentMenu;BwMenuItem{iconName:"trash";danger:true;text:qsTr("Delete note");onTriggered:root.commentRemoved(commentCard.modelData.id)} }
+                    BwMenu { id:commentMenu;BwMenuItem{iconName:"trash";danger:true;text:qsTr("Delete comment");onTriggered:root.commentRemoved(commentCard.modelData.id)} }
                 }
             }
             Repeater {

@@ -42,17 +42,23 @@ Item {
             const target = canvas.findBlockItem(canvas, "target-block");
             compare(target.snapShift, 0);
         }
-        function test_covering_wrap_keeps_target_fixed() {
+        function test_covering_wrap_does_not_prepend() {
             const c = container("target");
             const height = canvas.blockHeight(block("dragged"));
             const result = snap(c, c.y, height);
-            verify(!!result);
-            compare(result.path, [{ index: 0 }]);
-            canvas.applySnap(result, 200, height, false);
-            compare(canvas.branchDragState.snapY, c.y - height + 8);
-            compare(canvas.branchDragState.snapShiftAmt, 0);
-            compare(canvas.branchDragState.snapTargetY, 240 - height + 8);
-            compare(canvas.findBlockItem(canvas, "target-block").snapShift, 0);
+            verify(!result || result.path[0].index !== 0);
+            canvas.updatePaletteSnap(c.x - canvas.originOffsetX, c.y - canvas.originOffsetY,
+                block("palette"), 200, height);
+            verify(!canvas.paletteSnapValid || canvas.paletteSnapPath[0].index !== 0);
+        }
+        function test_prepend_preview_stays_near_dragged_stack() {
+            const c = container("target");
+            const height = canvas.blockHeight(block("dragged"));
+            for (let top = c.y - height; top <= c.y + height; top += 2) {
+                const result = snap(c, top, height);
+                if (result && result.path.length === 1 && result.path[0].index === 0)
+                    verify(Math.abs(result.y - top) <= canvas.snapThreshold);
+            }
         }
         function test_below_still_snaps() {
             const c = container("target");
@@ -67,6 +73,28 @@ Item {
             const result = snap(c, c.y - 102, 110);
             verify(!!result);
             compare(result.path, [{ index: 0, slot: 0 }, { index: 0 }]);
+        }
+        function test_drag_up_through_stack_data() {
+            return [{ tag: "plain", header: false }, { tag: "with-header", header: true }];
+        }
+        function test_drag_up_through_stack(data) {
+            const instructions = [];
+            for (let i = 0; i < 8; ++i)
+                instructions.push(block("row-" + i, i === 0 && data.header ? "WhenStarted" : "Key"));
+            canvas.strands = [strand("target", 40, 240, instructions)];
+            wait(20);
+            const c = container("target");
+            const step = c.heights[1] - 8;
+            const height = step * 2.5 + 8;
+            let previous = null;
+            // Carry the sticky candidate through small upward pointer moves.
+            for (let top = c.y + step * 5; top >= c.y + step; top -= 2) {
+                const result = canvas.findSnap(c.x, top, null, [], false, previous, height, false);
+                verify(!!result);
+                verify(Math.abs(result.y - top) <= canvas.snapThreshold,
+                    "Preview jumped below the pointer at " + top + " to " + result.y);
+                previous = result;
+            }
         }
         function test_header_rejects_above() {
             canvas.strands = [strand("target", 40, 240, [block("header", "WhenStarted")])];
