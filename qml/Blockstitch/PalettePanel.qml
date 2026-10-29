@@ -182,7 +182,7 @@ Rectangle {
     readonly property var categories: [
         {id:"all",name:qsTr("All"),icon:"layout-grid"},{id:"events",name:qsTr("Events"),icon:"zap"},{id:"input",name:qsTr("Input"),icon:"keyboard"},
         {id:"control",name:qsTr("Flow"),icon:"git-branch"},{id:"data",name:qsTr("Data"),icon:"variable"},{id:"operators",name:qsTr("Operators"),icon:"equal"},
-        {id:"system",name:qsTr("System"),icon:"monitor"}
+        {id:"system",name:qsTr("System"),icon:"settings"}
     ].concat(Array.from(appCategories || [])).concat([{id:"custom",name:qsTr("Custom"),icon:"blocks"}]).concat(root.blockLibraryEnabled?[{id:"community",name:qsTr("Community"),icon:"package"}]:[])
     readonly property var systemOperators: ["CurrentTime"]
     function instructionCategory(type) {

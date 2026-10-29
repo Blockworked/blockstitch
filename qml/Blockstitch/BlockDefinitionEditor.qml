@@ -352,6 +352,7 @@ Item {
         id: pieces
     }
     // One entry per branch piece: its model index, name and the separator label shown below it.
+    property var previewGroups: []
     property var branchInfo: []
     function refreshBranches() {
         const out = [];
@@ -373,6 +374,18 @@ Item {
             });
         }
         branchInfo = out;
+        const groups = [];
+        let current = null;
+        for (let i = 0; i < pieces.count; ++i) {
+            const p = pieces.get(i);
+            if (p.pieceKind === "Branch") { current = null; continue; }
+            if (p.component) {
+                current = {component: true, indices: [i]};
+                groups.push(current);
+            } else if (current) current.indices.push(i);
+            else groups.push({component: false, indices: [i]});
+        }
+        previewGroups = groups;
     }
     function commitSeparator(branchOrdinal, label) {
         const branch = branchInfo[branchOrdinal];
@@ -429,6 +442,7 @@ Item {
         pieces.clear();
         for (const p of def.pieces || []) {
             pieces.append({
+                component: !!p.component,
                 pieceKind: p.kind,
                 pieceName: (p.kind === "Label" ? p.text : p.name) || "",
                 valueType: p.kind === "Input" ? (p.value_type || "Any") : "Any",
@@ -451,6 +465,7 @@ Item {
         validationError = "";
         customPickerOpen = false;
         closePopups();
+        Qt.callLater(previewViewport.centerPreview);
     }
     // Starts a new block.
     function reset() {
@@ -469,9 +484,10 @@ Item {
         validationError = "";
         customPickerOpen = false;
         closePopups();
+        Qt.callLater(previewViewport.centerPreview);
     }
     function blankPiece(kind, name, valueType) {
-        return { pieceKind: kind, pieceName: name, valueType: valueType || "Any", pieceId: "", defaultKind: "", defaultText: "", pieceJson: "" };
+        return { component: false, pieceKind: kind, pieceName: name, valueType: valueType || "Any", pieceId: "", defaultKind: "", defaultText: "", pieceJson: "" };
     }
     // Puts the keyboard in the first piece; the host calls it once shown.
     function focusFirst() {
@@ -481,6 +497,7 @@ Item {
         iconPopup.close();
         detailsPopup.close();
         defaultsPopup.close();
+        appearancePopup.close();
     }
     // Shows a refusal from the host, e.g. the backend's validation error.
     function fail(message) {
@@ -517,6 +534,13 @@ Item {
                 return candidate;
             n++;
         }
+    }
+    function addComponent() {
+        addPiece("Input", "Bool");
+        pieces.setProperty(selectedPiece, "component", true);
+        pieces.setProperty(selectedPiece, "pieceName", nextName(qsTr("component")));
+        pieces.setProperty(selectedPiece, "defaultKind", "Bool");
+        pieces.setProperty(selectedPiece, "defaultText", "false");
     }
     function addPiece(kind, valueType) {
         commitPiece();
@@ -591,7 +615,7 @@ Item {
             return;
         const from = branchInfo[ordinal].index;
         const to = branchInfo[targetOrdinal].index;
-        const roles = ["pieceKind", "pieceName", "valueType", "pieceId", "defaultKind", "defaultText", "pieceJson"];
+        const roles = ["component", "pieceKind", "pieceName", "valueType", "pieceId", "defaultKind", "defaultText", "pieceJson"];
         const copy = item => {
             const out = {};
             for (const role of roles)
@@ -672,6 +696,8 @@ Item {
                 piece.name = name;
                 if (p.pieceKind === "Input") {
                     piece.value_type = p.valueType;
+                    if (p.component) piece.component = true;
+                    else delete piece.component;
                     // A host without defaults passes the stored one through.
                     if (root.allowDefaults) {
                         const value = root.inputDefaultForPiece(p);
@@ -700,11 +726,13 @@ Item {
     function validate() {
         if (allowDefaults && !defaultsValid())
             return qsTr("Enter a finite number for each numeric default");
-        let hasLabel = false;
+        let hasLabel = false, afterBranch = false;
         const names = ({});
         for (let i = 0; i < pieces.count; ++i) {
             const p = pieces.get(i);
             const text = p.pieceName.trim();
+            if (p.pieceKind === "Branch") afterBranch = true;
+            if (p.component && afterBranch) return qsTr("Components must come before branches");
             if (p.pieceKind === "Label") {
                 if (text.length)
                     hasLabel = true;
@@ -737,6 +765,273 @@ Item {
         return true;
     }
 
+    Popup {
+        id: appearancePopup
+        objectName: "appearancePopup"
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(500, parent.width - 32)
+        padding: 20
+        modal: true
+        focus: true
+        background: Rectangle { color: Theme.panel; radius: Theme.radius; border.color: Theme.border }
+        contentItem: ColumnLayout {
+            spacing: 16
+            Label { text: qsTr("Appearance"); color: Theme.text; font.pixelSize: 18; font.bold: true }
+            Grid {
+                Layout.alignment: Qt.AlignHCenter
+                columns: 12
+                spacing: 7
+                Repeater {
+                    model: root.colorPresets
+                    delegate: Rectangle {
+                        required property string modelData
+                        width: 30
+                        height: 30
+                        radius: 15
+                        color: modelData
+                        border.width: root.blockColor === modelData ? 3 : 1
+                        border.color: root.blockColor === modelData ? Theme.text : Theme.border
+                        HoverHandler {
+                            cursorShape: Qt.PointingHandCursor
+                        }
+                        TapHandler {
+                            onTapped: {
+                                root.blockColor = modelData;
+                                root.customPickerOpen = false;
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    visible: root.allowCustomColor
+                    width: 30
+                    height: 30
+                    radius: 15
+                    color: "#ff6680"
+                    border.width: root.customPickerOpen || root.colorPresets.indexOf(root.blockColor) < 0 ? 3 : 1
+                    border.color: root.customPickerOpen || root.colorPresets.indexOf(root.blockColor) < 0 ? Theme.text : Theme.border
+                    LucideIcon {
+                        anchors.centerIn: parent
+                        width: 15
+                        height: 15
+                        name: "pipette"
+                        color: Theme.text
+                    }
+                    HoverHandler {
+                        cursorShape: Qt.PointingHandCursor
+                    }
+                    TapHandler {
+                        onTapped: root.toggleCustomPicker()
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: 10
+                Text {
+                    text: qsTr("Icon")
+                    color: Theme.textDim
+                    font.pixelSize: 12
+                    Layout.alignment: Qt.AlignVCenter
+                }
+                BwButton {
+                    text: root.blockIcon ? root.blockIcon : qsTr("Default")
+                    iconName: root.blockIcon || "blocks"
+                    implicitHeight: 32
+                    onClicked: {
+                        root.iconSearch = "";
+                        iconPopup.open();
+                        iconGrid.positionViewAtBeginning();
+                        iconSearchField.forceActiveFocus();
+                    }
+                }
+                BwButton {
+                    visible: root.blockIcon.length > 0
+                    text: qsTr("Reset")
+                    implicitHeight: 32
+                    onClicked: root.blockIcon = ""
+                }
+            }
+
+            Rectangle {
+                id: picker
+                visible: root.customPickerOpen
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: 430
+                Layout.preferredHeight: 196
+                radius: Theme.radius
+                color: Theme.panelRaised
+                border.color: Theme.border
+                readonly property color pure: Qt.hsva(root.customHue / 360, 1, 1, 1)
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 10
+
+                    // Saturation across, value down: the usual picker square.
+                    Rectangle {
+                        id: field
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        radius: 4
+                        clip: true
+                        border.color: Theme.border
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0; color: "#ffffff" }
+                            GradientStop { position: 1; color: picker.pure }
+                        }
+                        Rectangle {
+                            anchors.fill: parent
+                            gradient: Gradient {
+                                GradientStop { position: 0; color: "#00000000" }
+                                GradientStop { position: 1; color: "#ff000000" }
+                            }
+                        }
+                        Rectangle {
+                            x: root.customSaturation * field.width - width / 2
+                            y: (1 - root.customValue) * field.height - height / 2
+                            width: 14
+                            height: 14
+                            radius: 7
+                            color: "transparent"
+                            border.width: 2
+                            border.color: root.customValue > 0.6 && root.customSaturation < 0.5 ? "#000000" : "#ffffff"
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.CrossCursor
+                            preventStealing: true
+                            function pick(mouse) {
+                                root.customSaturation = Math.max(0, Math.min(1, mouse.x / width));
+                                root.customValue = 1 - Math.max(0, Math.min(1, mouse.y / height));
+                                root.updateCustomColor();
+                            }
+                            onPressed: mouse => pick(mouse)
+                            onPositionChanged: mouse => { if (pressed) pick(mouse); }
+                        }
+                    }
+
+                    Rectangle {
+                        id: hueStrip
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 14
+                        radius: 7
+                        border.color: Theme.border
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0 / 6; color: "#ff0000" }
+                            GradientStop { position: 1 / 6; color: "#ffff00" }
+                            GradientStop { position: 2 / 6; color: "#00ff00" }
+                            GradientStop { position: 3 / 6; color: "#00ffff" }
+                            GradientStop { position: 4 / 6; color: "#0000ff" }
+                            GradientStop { position: 5 / 6; color: "#ff00ff" }
+                            GradientStop { position: 6 / 6; color: "#ff0000" }
+                        }
+                        Rectangle {
+                            x: root.customHue / 360 * (hueStrip.width - width)
+                            y: -2
+                            width: 10
+                            height: parent.height + 4
+                            radius: 5
+                            color: picker.pure
+                            border.width: 2
+                            border.color: "#ffffff"
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            preventStealing: true
+                            function pick(mouse) {
+                                root.customHue = Math.max(0, Math.min(359.99, mouse.x / width * 360));
+                                root.updateCustomColor();
+                            }
+                            onPressed: mouse => pick(mouse)
+                            onPositionChanged: mouse => { if (pressed) pick(mouse); }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Rectangle {
+                            Layout.preferredWidth: 28
+                            Layout.preferredHeight: 28
+                            radius: 14
+                            color: root.blockColor
+                            border.color: Theme.border
+                        }
+                        BwTextField {
+                            id: hexField
+                            Layout.preferredWidth: 100
+                            font.family: "monospace"
+                            text: root.blockColor
+                            onEditingFinished: {
+                                const typed = text.trim().toUpperCase();
+                                const hex = typed.startsWith("#") ? typed : "#" + typed;
+                                if (root.hexToHsv(hex)) {
+                                    root.blockColor = hex;
+                                    root.loadCustomColor(hex);
+                                }
+                                text = Qt.binding(() => root.blockColor);
+                            }
+                        }
+                        Item {
+                            Layout.fillWidth: true
+                        }
+                        BwButton {
+                            text: qsTr("Done")
+                            primary: true
+                            implicitWidth: 60
+                            onClicked: root.customPickerOpen = false
+                        }
+                    }
+                }
+            }
+
+            BwButton { text: qsTr("Done"); Layout.alignment: Qt.AlignRight; onClicked: appearancePopup.close() }
+        }
+    }
+
+    component PrototypePieces: Row {
+        spacing: 8
+        Repeater {
+            model: root.previewGroups
+            delegate: Rectangle {
+                id: group
+                required property var modelData
+                objectName: modelData.component ? "prototypeComponentGroup" : "prototypeBasePiece"
+                width: groupRow.implicitWidth + (modelData.component ? 16 : 0)
+                height: modelData.component ? 41 : 29
+                anchors.verticalCenter: parent.verticalCenter
+                radius: 7
+                color: modelData.component ? Theme.panelRaised : "transparent"
+                border.width: modelData.component ? 1 : 0
+                border.color: Theme.border
+                Row {
+                    id: groupRow
+                    anchors.centerIn: parent
+                    spacing: 5
+                    Repeater {
+                        model: group.modelData.indices
+                        delegate: PreviewPiece {
+                            required property int modelData
+                            index: modelData
+                            pieceIndex: modelData
+                            pieceKind: pieces.get(modelData).pieceKind
+                            pieceName: pieces.get(modelData).pieceName
+                            valueType: pieces.get(modelData).valueType
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     component PreviewPiece: Item {
         id: piece
         required property int index
@@ -744,9 +1039,10 @@ Item {
         required property string pieceKind
         required property string pieceName
         required property string valueType
+        readonly property bool isComponent: pieceIndex >= 0 && pieceIndex < pieces.count && !!pieces.get(pieceIndex).component
         readonly property bool isInput: pieceKind === "Input"
         readonly property bool isBranch: pieceKind === "Branch"
-        readonly property bool isBool: isInput && valueType === "Bool"
+        readonly property bool isBool: isInput && valueType === "Bool" && !isComponent
         readonly property bool selected: root.selectedPiece === pieceIndex
         readonly property bool editing: root.editingPiece === pieceIndex
         implicitWidth: Math.max(isInput ? 48 : isBranch ? 42 : 30, measure.implicitWidth + (isBool ? 24 : isInput || isBranch ? 20 : 12))
@@ -904,7 +1200,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.preferredHeight: 260
+            Layout.preferredHeight: 300
             Layout.minimumHeight: 170
             radius: Theme.radius
             color: Theme.canvas
@@ -918,8 +1214,8 @@ Item {
                     const c = getContext("2d");
                     c.reset();
                     c.fillStyle = Theme.border;
-                    for (let x = 11; x < width; x += 22)
-                        for (let y = 11; y < height; y += 22) {
+                    for (let x = 11 - previewViewport.contentX % 22; x < width; x += 22)
+                        for (let y = 11 - previewViewport.contentY % 22; y < height; y += 22) {
                             c.beginPath();
                             c.arc(x, y, 1.1, 0, Math.PI * 2);
                             c.fill();
@@ -927,15 +1223,59 @@ Item {
                 }
             }
 
+            Flickable {
+                id: previewViewport
+                objectName: "definitionPreviewViewport"
+                anchors.fill: parent
+                contentWidth: Math.max(width, previewPane.implicitWidth + 48) + 192
+                contentHeight: Math.max(height, previewPane.implicitHeight + 80) + 192
+                boundsBehavior: Flickable.StopAtBounds
+                flickableDirection: Flickable.HorizontalAndVerticalFlick
+                interactive: !previewWheel.active
+                SmoothScroll { id: previewScroll; flickable: previewViewport }
+                WheelHandler {
+                    id: previewWheel
+                    target: null
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    orientation: Qt.Horizontal | Qt.Vertical
+                    onWheel: event => {
+                        const touchpad = previewScroll.isTouchpad(event);
+                        // Match the main canvas's wheel steps and touchpad acceleration.
+                        const pan = (ad, pd) => {
+                            if (!touchpad) return ad / 120 * Qt.styleHints.wheelScrollLines * 24;
+                            const d = ad !== 0 ? ad / 12 : pd;
+                            return d * Math.min(24, 6 + 1.5 * Math.abs(d));
+                        };
+                        const px = pan(event.angleDelta.x, event.pixelDelta.x);
+                        const py = pan(event.angleDelta.y, event.pixelDelta.y);
+                        if (touchpad) previewScroll.follow(px, py);
+                        else previewScroll.scrollBy(px, py, true);
+                        event.accepted = true;
+                    }
+                }
+                onContentXChanged: previewGrid.requestPaint()
+                onContentYChanged: previewGrid.requestPaint()
+                onContentWidthChanged: centerPreview()
+                onContentHeightChanged: centerPreview()
+                onWidthChanged: centerPreview()
+                onHeightChanged: centerPreview()
+                function centerPreview() {
+                    previewScroll.stop();
+                    cancelFlick();
+                    contentX = (contentWidth - width) / 2;
+                    contentY = (contentHeight - height) / 2;
+                }
+
             Column {
                 id: previewPane
-                anchors.centerIn: parent
+                objectName: "definitionPreviewBlock"
+                x: (previewViewport.contentWidth - width) / 2
+                y: (previewViewport.contentHeight - height) / 2
                 spacing: 8
-                scale: Math.min(1, (parent.height - 16) / implicitHeight)
                 Item {
                     visible: !root.hasBranches
                     width: Math.max(root.returnsValue ? 90 : 132, previewRow.implicitWidth + (root.returnsValue ? 36 : 28))
-                    height: visible ? (root.returnsValue ? 43 : root.blockShape === "Ending" ? 54 : 62) : 0
+                    height: visible ? (root.returnsValue ? Math.max(55, previewRow.implicitHeight + 14) : Math.max(50, previewRow.implicitHeight + 20) + (root.blockShape === "Ending" ? 0 : 8)) : 0
                     BlockSurface {
                         anchors.fill: parent
                         visible: !root.returnsValue
@@ -963,7 +1303,7 @@ Item {
                     Row {
                         id: previewRow
                         x: root.returnsValue ? 18 : 14
-                        y: root.returnsValue ? 7 : 15
+                        y: Math.round((parent.height - (root.returnsValue || root.blockShape === "Ending" ? 0 : 8) - height) / 2)
                         spacing: 4
                         LucideIcon {
                             name: root.blockIcon || "blocks"
@@ -972,14 +1312,7 @@ Item {
                             height: 16
                             anchors.verticalCenter: parent.verticalCenter
                         }
-                        Repeater {
-                            model: pieces
-                            delegate: PreviewPiece {
-                                pieceIndex: index
-                                visible: pieceKind !== "Branch"
-                                width: visible ? implicitWidth : 0
-                            }
-                        }
+                        PrototypePieces {}
                     }
                 }
 
@@ -1021,9 +1354,10 @@ Item {
                     y: wrapShell.padY
                     visible: root.hasBranches
                     readonly property real mouthHeight: 50
+                    readonly property real headerHeight: root.previewGroups.some(g => g.component) ? 66 : 50
                     readonly property bool noTab: root.returnsValue || root.blockShape === "Ending"
                     width: Math.max(270, branchHead.implicitWidth + 70, root.branchPreviewWidth())
-                    height: visible ? 50 + root.branchInfo.length * mouthHeight + Math.max(0, root.branchInfo.length - 1) * 34 + 26 + (noTab ? 0 : 8) : 0
+                    height: visible ? headerHeight + root.branchInfo.length * mouthHeight + Math.max(0, root.branchInfo.length - 1) * 34 + 26 + (noTab ? 0 : 8) : 0
                     BlockSurface {
                         anchors.fill: parent
                         shape: "wrap"
@@ -1032,7 +1366,7 @@ Item {
                         fill: Theme.block
                         outline: Theme.border
                         hoverColor: root.blockColor
-                        headHeight: 50
+                        headHeight: wrapPreview.headerHeight
                         midHeight: 34
                         footHeight: 26
                         spine: 20
@@ -1050,14 +1384,7 @@ Item {
                             height: 16
                             anchors.verticalCenter: parent.verticalCenter
                         }
-                        Repeater {
-                            model: pieces
-                            delegate: PreviewPiece {
-                                pieceIndex: index
-                                visible: index < root.firstBranchIndex() || pieceKind === "Input"
-                                width: visible ? implicitWidth : 0
-                            }
-                        }
+                        PrototypePieces {}
                     }
                     Repeater {
                         id: branchRows
@@ -1066,7 +1393,7 @@ Item {
                             id: branchRow
                             required property var modelData
                             required property int index
-                            readonly property real rowTop: 50 + index * (wrapPreview.mouthHeight + 34)
+                            readonly property real rowTop: wrapPreview.headerHeight + index * (wrapPreview.mouthHeight + 34)
                             readonly property string separatorDraft: separatorField.text
                             // A branch parameter is a real stack-shaped header, seated in
                             // the mouth with its connectors aligned to the enclosing wrap.
@@ -1182,85 +1509,17 @@ Item {
             }
         }
 
-        Grid {
-            Layout.alignment: Qt.AlignHCenter
-            columns: 12
-            spacing: 7
-            Repeater {
-                model: root.colorPresets
-                delegate: Rectangle {
-                    required property string modelData
-                    width: 30
-                    height: 30
-                    radius: 15
-                    color: modelData
-                    border.width: root.blockColor === modelData ? 3 : 1
-                    border.color: root.blockColor === modelData ? Theme.text : Theme.border
-                    HoverHandler {
-                        cursorShape: Qt.PointingHandCursor
-                    }
-                    TapHandler {
-                        onTapped: {
-                            root.blockColor = modelData;
-                            root.customPickerOpen = false;
-                        }
-                    }
-                }
-            }
-            Rectangle {
-                visible: root.allowCustomColor
-                width: 30
-                height: 30
-                radius: 15
-                color: "#ff6680"
-                border.width: root.customPickerOpen || root.colorPresets.indexOf(root.blockColor) < 0 ? 3 : 1
-                border.color: root.customPickerOpen || root.colorPresets.indexOf(root.blockColor) < 0 ? Theme.text : Theme.border
-                LucideIcon {
-                    anchors.centerIn: parent
-                    width: 15
-                    height: 15
-                    name: "pipette"
-                    color: Theme.text
-                }
-                HoverHandler {
-                    cursorShape: Qt.PointingHandCursor
-                }
-                TapHandler {
-                    onTapped: root.toggleCustomPicker()
-                }
-            }
-        }
-
-        RowLayout {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: 10
-            Text {
-                text: qsTr("Icon")
-                color: Theme.textDim
-                font.pixelSize: 12
-                Layout.alignment: Qt.AlignVCenter
-            }
-            BwButton {
-                text: root.blockIcon ? root.blockIcon : qsTr("Default")
-                iconName: root.blockIcon || "blocks"
-                implicitHeight: 32
-                onClicked: {
-                    root.iconSearch = "";
-                    iconPopup.open();
-                    iconGrid.positionViewAtBeginning();
-                    iconSearchField.forceActiveFocus();
-                }
-            }
-            BwButton {
-                visible: root.blockIcon.length > 0
-                text: qsTr("Reset")
-                implicitHeight: 32
-                onClicked: root.blockIcon = ""
-            }
         }
 
         RowLayout {
             Layout.fillWidth: true
+            BwButton {
+                objectName: "appearanceButton"
+                Layout.fillWidth: true
+                text: qsTr("Appearance")
+                iconName: root.blockIcon || "palette"
+                onClicked: appearancePopup.open()
+            }
             BwButton {
                 objectName: "defaultParametersButton"
                 visible: root.allowDefaults
@@ -1281,172 +1540,42 @@ Item {
             }
         }
 
-        Rectangle {
-            id: picker
-            visible: root.customPickerOpen
-            Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: 430
-            Layout.preferredHeight: 196
-            radius: Theme.radius
-            color: Theme.panelRaised
-            border.color: Theme.border
-            readonly property color pure: Qt.hsva(root.customHue / 360, 1, 1, 1)
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 10
-
-                // Saturation across, value down: the usual picker square.
-                Rectangle {
-                    id: field
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    radius: 4
-                    clip: true
-                    border.color: Theme.border
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0; color: "#ffffff" }
-                        GradientStop { position: 1; color: picker.pure }
-                    }
-                    Rectangle {
-                        anchors.fill: parent
-                        gradient: Gradient {
-                            GradientStop { position: 0; color: "#00000000" }
-                            GradientStop { position: 1; color: "#ff000000" }
-                        }
-                    }
-                    Rectangle {
-                        x: root.customSaturation * field.width - width / 2
-                        y: (1 - root.customValue) * field.height - height / 2
-                        width: 14
-                        height: 14
-                        radius: 7
-                        color: "transparent"
-                        border.width: 2
-                        border.color: root.customValue > 0.6 && root.customSaturation < 0.5 ? "#000000" : "#ffffff"
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.CrossCursor
-                        preventStealing: true
-                        function pick(mouse) {
-                            root.customSaturation = Math.max(0, Math.min(1, mouse.x / width));
-                            root.customValue = 1 - Math.max(0, Math.min(1, mouse.y / height));
-                            root.updateCustomColor();
-                        }
-                        onPressed: mouse => pick(mouse)
-                        onPositionChanged: mouse => { if (pressed) pick(mouse); }
-                    }
-                }
-
-                Rectangle {
-                    id: hueStrip
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 14
-                    radius: 7
-                    border.color: Theme.border
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0 / 6; color: "#ff0000" }
-                        GradientStop { position: 1 / 6; color: "#ffff00" }
-                        GradientStop { position: 2 / 6; color: "#00ff00" }
-                        GradientStop { position: 3 / 6; color: "#00ffff" }
-                        GradientStop { position: 4 / 6; color: "#0000ff" }
-                        GradientStop { position: 5 / 6; color: "#ff00ff" }
-                        GradientStop { position: 6 / 6; color: "#ff0000" }
-                    }
-                    Rectangle {
-                        x: root.customHue / 360 * (hueStrip.width - width)
-                        y: -2
-                        width: 10
-                        height: parent.height + 4
-                        radius: 5
-                        color: picker.pure
-                        border.width: 2
-                        border.color: "#ffffff"
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        preventStealing: true
-                        function pick(mouse) {
-                            root.customHue = Math.max(0, Math.min(359.99, mouse.x / width * 360));
-                            root.updateCustomColor();
-                        }
-                        onPressed: mouse => pick(mouse)
-                        onPositionChanged: mouse => { if (pressed) pick(mouse); }
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 10
-                    Rectangle {
-                        Layout.preferredWidth: 28
-                        Layout.preferredHeight: 28
-                        radius: 14
-                        color: root.blockColor
-                        border.color: Theme.border
-                    }
-                    BwTextField {
-                        id: hexField
-                        Layout.preferredWidth: 100
-                        font.family: "monospace"
-                        text: root.blockColor
-                        onEditingFinished: {
-                            const typed = text.trim().toUpperCase();
-                            const hex = typed.startsWith("#") ? typed : "#" + typed;
-                            if (root.hexToHsv(hex)) {
-                                root.blockColor = hex;
-                                root.loadCustomColor(hex);
-                            }
-                            text = Qt.binding(() => root.blockColor);
-                        }
-                    }
-                    Item {
-                        Layout.fillWidth: true
-                    }
-                    BwButton {
-                        text: qsTr("Done")
-                        primary: true
-                        implicitWidth: 60
-                        onClicked: root.customPickerOpen = false
-                    }
-                }
-            }
-        }
-
         GridLayout {
             Layout.fillWidth: true
-            columns: root.allowBranches ? 4 : 3
+            columns: root.width < 560 ? 3 : root.allowBranches ? 5 : 4
             columnSpacing: 8
             Repeater {
                 model: [
                     {
-                        title: qsTr("Add an input"),
-                        subtitle: qsTr("number or text"),
+                        title: qsTr("Component"),
+                        subtitle: qsTr("optional group"),
+                        sample: "+",
+                        kind: "Component",
+                        valueType: "Bool"
+                    },
+                    {
+                        title: qsTr("Input"),
+                        subtitle: qsTr("text or number"),
                         sample: "123",
                         kind: "Input",
                         valueType: "Any"
                     },
                     {
-                        title: qsTr("Add an input"),
-                        subtitle: qsTr("boolean"),
+                        title: qsTr("Boolean"),
+                        subtitle: qsTr("true or false"),
                         sample: "◇",
                         kind: "Input",
                         valueType: "Bool"
                     },
                     {
-                        title: qsTr("Add an input"),
-                        subtitle: qsTr("branch"),
+                        title: qsTr("Branch"),
+                        subtitle: qsTr("nested blocks"),
                         sample: "⌞",
                         kind: "Branch",
                         valueType: "Any"
                     },
                     {
-                        title: qsTr("Add a label"),
+                        title: qsTr("Label"),
                         subtitle: "",
                         sample: "Abc",
                         kind: "Label",
@@ -1457,20 +1586,20 @@ Item {
                     required property var modelData
                     visible: modelData.kind !== "Branch" || root.allowBranches
                     Layout.fillWidth: true
-                    implicitHeight: 58
-                    onClicked: root.addPiece(modelData.kind, modelData.valueType)
+                    implicitHeight: 52
+                    onClicked: modelData.kind === "Component" ? root.addComponent() : root.addPiece(modelData.kind, modelData.valueType)
                     HoverHandler {
                         cursorShape: Qt.PointingHandCursor
                     }
                     contentItem: Row {
                         spacing: 8
                         Item {
-                            width: 32
+                            width: 22
                             height: 30
                             anchors.verticalCenter: parent.verticalCenter
                             Text {
                                 anchors.centerIn: parent
-                                visible: modelData.valueType !== "Bool"
+                                visible: modelData.valueType !== "Bool" || modelData.kind === "Component"
                                 text: modelData.sample
                                 color: modelData.kind === "Input" || modelData.kind === "Branch" ? Theme.accent : Theme.text
                                 font.pixelSize: modelData.kind === "Branch" ? 26 : 13
@@ -1478,7 +1607,7 @@ Item {
                             }
                             Canvas {
                                 anchors.centerIn: parent; width: 30; height: 20
-                                visible: modelData.valueType === "Bool"; antialiasing: true
+                                visible: modelData.valueType === "Bool" && modelData.kind !== "Component"; antialiasing: true
                                 onPaint: {
                                     const c = getContext("2d"); c.reset(); c.beginPath();
                                     const n = Math.min(height * .32, width / 2);

@@ -539,3 +539,32 @@ fn custom_block_details_load_when_absent_and_normalize_when_set() {
     assert_eq!(g.block_def(&id).unwrap().icon, "arrow-up");
     assert!(g.set_block_details("nope", "", "", "").is_err());
 }
+
+#[test]
+fn empty_boolean_slots_cannot_be_extracted_or_moved() {
+    let (mut g, strand) = graph();
+    let location = field(&strand, 1, "Say", vec![]);
+    assert!(g.put_value(&location, Value::Bool));
+    let before = snapshot(&g);
+    assert_eq!(g.take_value(&location), None);
+    assert!(g
+        .prepare_edit(
+            move_to(location.clone(), field(&strand, 2, "Wait", vec![])),
+            &ctx(),
+        )
+        .is_err());
+    assert_eq!(snapshot(&g), before);
+
+    let reporter = Value::Op {
+        op: Op::Not,
+        args: vec![Value::Bool],
+        saved: Box::new(Value::Bool),
+    };
+    assert!(g.put_value(&location, reporter.clone()));
+    let nested = field(&strand, 1, "Say", vec![0]);
+    let before = snapshot(&g);
+    assert_eq!(g.take_value(&nested), None);
+    assert_eq!(snapshot(&g), before);
+    assert_eq!(g.take_value(&location), Some(reporter));
+    assert_eq!(g.value_at(&location), Some(Value::Bool));
+}

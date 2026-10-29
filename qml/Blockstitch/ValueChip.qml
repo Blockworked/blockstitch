@@ -46,11 +46,12 @@ Item {
         return "";
     }
     property bool dragPreview: false
+    readonly property var parameterDefinition: valueData && valueData.kind === "Param" && originBlockId !== ""
+        ? defFor(originBlockId) : null
+    readonly property bool booleanParameter: !!parameterDefinition && (parameterDefinition.pieces || []).some(p =>
+        p.kind === "Input" && p.name === valueData.name && (p.value_type === "Bool" || p.component === true))
     // Parameters use their definition colour; ordinary variables keep the accent.
-    property color referenceColor: {
-        const def = valueData && valueData.kind === "Param" && originBlockId !== "" ? defFor(originBlockId) : null;
-        return def && def.color ? def.color : Theme.accent;
-    }
+    property color referenceColor: parameterDefinition && parameterDefinition.color ? parameterDefinition.color : Theme.accent
     function keyPartLabel(k) {
         const named = {
             Control: "Ctrl", LeftControl: "Ctrl", RightControl: "Ctrl", Shift: "Shift", LeftShift: "Shift", RightShift: "Shift", Meta: "Super", Escape: "Esc", Return: "Enter", Space: "Space", Delete: "Del", Insert: "Ins",
@@ -99,7 +100,8 @@ Item {
     readonly property var opSpec: valueData && valueData.kind === "Op" ? BlockRegistry.operator(valueData.op) : null
     function defFor(id) { for (let i = 0; i < (blockDefinitions || []).length; ++i) if (blockDefinitions[i].id === id) return blockDefinitions[i]; return null; }
     readonly property var callDef: valueData && valueData.kind === "Call" ? defFor(valueData.block_id) : null
-    readonly property bool booleanShape: forceBoolean || (!!valueData && (valueData.kind === "Bool"
+    readonly property bool emptyBoolean: !!valueData && valueData.kind === "Bool"
+    readonly property bool booleanShape: forceBoolean || booleanParameter || (!!valueData && (valueData.kind === "Bool"
         || (valueData.kind === "Op" && BlockRegistry.isBoolOp(valueData.op, valueData))
         || (valueData.kind === "Call" && !!callDef && callDef.shape === "ReturnsBool")))
     // An operator / variable / param / call reference is always its own
@@ -136,7 +138,7 @@ Item {
     // need the grab cursor + accent outline that blocks get from
     // InstructionBlock. A top HoverHandler does not consume presses, so the
     // palette's own drag surface behind it still receives them.
-    HoverHandler { id: paletteHover; enabled: root.paletteMode; cursorShape: Qt.OpenHandCursor }
+    HoverHandler { id: paletteHover; enabled: root.paletteMode && !root.emptyBoolean; cursorShape: Qt.OpenHandCursor }
     readonly property string opPrefix: opSpec && opSpec.prefix ? opSpec.prefix : ""
     // `infix` goes between every pair of args; a list gives one per gap.
     readonly property var opInfixes: opSpec && Array.isArray(opSpec.infix) ? opSpec.infix : null
@@ -154,9 +156,19 @@ Item {
         return typeof opSpec.layout === "function" ? opSpec.layout(valueData) : opSpec.layout;
     }
     // What a Call renders: its definition's labels, and one slot per input.
+    readonly property var customRow: BlockRegistry.customCallRow(callDef)
+    function toggleComponent(component, enabled) {
+        const value = BlockRegistry.componentValue(enabled);
+        if (location) BlockRegistry.replaceValue(childLocation(component.index), value);
+        else leafEdited([component.index], value);
+    }
     readonly property var callPieces: {
         if (opLayout) return opLayout;
         if (!callDef) return [];
+        if (customRow) return BlockRegistry.rowPieces(customRow, valueData, paletteMode).map(p => {
+            if (p.kind === "value") return {label: "", arg: p.index, bool: p.bool};
+            return {label: p.text || "", arg: -1, bool: false, kind: p.kind, component: p.component};
+        });
         const out = []; let arg = 0;
         for (const p of (callDef.pieces || [])) {
             if (p.kind === "Label") out.push({ label: p.text, arg: -1, bool: false });
@@ -268,6 +280,12 @@ Item {
         anchors.fill: parent; radius: 5; color: Theme.field; border.color: Theme.border
     }
 
+    BooleanSlot {
+        anchors.fill: parent
+        visible: root.emptyBoolean && !root.draggedOut
+        dropHighlighted: root.dropHighlighted
+    }
+
     // The box also renders while targeted as a drop preview, so even a
     // bare Number/Text leaf (showBox false) lights up when an operator
     // hovers it. Size stays untouched so the slot never shifts mid-drag.
@@ -275,7 +293,7 @@ Item {
     Loader {
         anchors.fill: parent
         visible: !root.draggedOut
-        active: root.showBox || root.dropHighlighted
+        active: !root.emptyBoolean && (root.showBox || root.dropHighlighted)
         sourceComponent: chipBox
     }
     Component {
@@ -321,7 +339,7 @@ Item {
     BlockDragArea {
         id: valueGrab
         anchors.fill: parent
-        dragEnabled: !!root.location && root.showBox
+        dragEnabled: !!root.location && root.showBox && !root.emptyBoolean
         // When this chip itself isn't draggable (sidebar prefab, or a bare
         // Number/Text leaf), stay fully out of press delivery so the press
         // falls through to the drag surface underneath: the palette
@@ -346,6 +364,7 @@ Item {
         // Built on first use, like a block's menu.
         property var menu: null
         TapHandler {
+            enabled: !root.emptyBoolean
             acceptedButtons: Qt.RightButton
             onTapped: eventPoint => {
                 if (!menuArea.menu) menuArea.menu = valueMenu.createObject(menuArea);
@@ -566,7 +585,15 @@ Item {
                     }
                 }
                 HoverHandler { id: capHover; enabled: root.editable; cursorShape: Qt.PointingHandCursor }
-                TapHandler { enabled: root.editable; onTapped: root.keyCaptureRequested() }
+                // Hold the press so dragging a key input cannot pan a surrounding view.
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: root.editable
+                    acceptedButtons: Qt.LeftButton
+                    preventStealing: true
+                    cursorShape: Qt.PointingHandCursor
+                    TapHandler { onTapped: root.keyCaptureRequested() }
+                }
                 ToolTip.visible: capHover.hovered && !root.keyCapturing; ToolTip.delay: 500; ToolTip.text: qsTr("Click to set key, or drop a variable here")
             }
         }
@@ -624,10 +651,47 @@ Item {
             delegate: Item {
                 id: callPiece
                 required property var modelData; required property int index
-                width: modelData.arg < 0 ? callText.implicitWidth : (callArg.item ? callArg.item.implicitWidth : 0)
-                height: modelData.arg < 0 ? callText.implicitHeight : (callArg.item ? callArg.item.implicitHeight : 0)
+                readonly property bool componentControl: modelData.kind === "addComponent" || modelData.kind === "removeComponent"
+                width: componentControl ? 24 : modelData.arg < 0 ? callText.implicitWidth : (callArg.item ? callArg.item.implicitWidth : 0)
+                height: componentControl ? 24 : modelData.arg < 0 ? callText.implicitHeight : (callArg.item ? callArg.item.implicitHeight : 0)
                 anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                Text { id: callText; visible: callPiece.modelData.arg < 0; text: callPiece.modelData.label; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold }
+                Text { id: callText; visible: callPiece.modelData.arg < 0 && !callPiece.componentControl; text: callPiece.modelData.label; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold }
+                Rectangle {
+                    anchors.fill: parent
+                    visible: callPiece.componentControl
+                    radius: 6
+                    color: componentMouse.containsMouse ? Theme.hover : "transparent"
+                    border.color: Theme.border
+                    objectName: callPiece.modelData.kind === "addComponent" ? "addCustomComponentButton" : "removeCustomComponentButton"
+                    LucideIcon { anchors.centerIn: parent; width: 13; height: 13; name: callPiece.modelData.kind === "addComponent" ? "plus" : "x"; color: Theme.textDim }
+                    ToolTip.visible: componentMouse.containsMouse
+                    ToolTip.text: callPiece.modelData.kind === "addComponent" ? qsTr("Add a component") : qsTr("Remove %1").arg(callPiece.modelData.component ? callPiece.modelData.component.label : "")
+                    MouseArea {
+                        id: componentMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        enabled: root.editable
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (callPiece.modelData.kind === "addComponent") customComponentMenu.popup();
+                            else root.toggleComponent(callPiece.modelData.component, false);
+                        }
+                    }
+                    BwMenu {
+                        id: customComponentMenu
+                        objectName: "customComponentMenu"
+                        Instantiator {
+                            model: BlockRegistry.missingComponents(root.customRow, root.valueData)
+                            delegate: BwMenuItem {
+                                required property var modelData
+                                text: modelData.label
+                                onTriggered: root.toggleComponent(modelData, true)
+                            }
+                            onObjectAdded: (index, object) => customComponentMenu.insertItem(index, object)
+                            onObjectRemoved: (index, object) => customComponentMenu.removeItem(object)
+                        }
+                    }
+                }
                 Loader {
                     id: callArg
                     active: callPiece.modelData.arg >= 0
@@ -639,7 +703,6 @@ Item {
                 }
             }
         }
-        Item { visible: !!root.valueData && root.valueData.kind === "Bool"; width: 24; height: 17 }
         Text { visible: !!root.valueData && root.valueData.kind === "Op" && !root.opLayout && root.opPrefix.length===0 && root.opSuffix.length===0 && (root.valueData.args||[]).length===0; text: root.valueData && root.valueData.op ? root.valueData.op.toLowerCase() : ""; color: Theme.text; font.pixelSize: 12 }
         Text { visible: root.opSuffix.length>0; text:root.opSuffix; color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
         // The host's picker for the whole operator, which may rewrite every arg.

@@ -83,6 +83,7 @@ fn label(id: &str, text: &str) -> BlockPiece {
 }
 fn input(id: &str, name: &str) -> BlockPiece {
     BlockPiece::Input {
+        component: false,
         id: id.into(),
         name: name.into(),
         value_type: InputValueType::Any,
@@ -198,12 +199,14 @@ fn a_new_input_takes_its_default_at_existing_calls() {
     let id = make(&mut g, vec![label("l", "go")], BlockShape::Normal);
     g.add_strand(0, 0, vec![call(&id, vec![], vec![])]);
     let with_default = BlockPiece::Input {
+        component: false,
         id: "n".into(),
         name: "speed".into(),
         value_type: InputValueType::Any,
         default_value: Some(Evaluated::Number(4.0)),
     };
     let flag = BlockPiece::Input {
+        component: false,
         id: "f".into(),
         name: "fast".into(),
         value_type: InputValueType::Bool,
@@ -351,6 +354,7 @@ fn reporter_shapes_and_bad_definitions() {
         vec![
             label("l", "go"),
             BlockPiece::Input {
+                component: false,
                 id: "a".into(),
                 name: "x".into(),
                 value_type: InputValueType::Bool,
@@ -360,6 +364,7 @@ fn reporter_shapes_and_bad_definitions() {
         vec![
             label("l", "go"),
             BlockPiece::Input {
+                component: false,
                 id: "a".into(),
                 name: "x".into(),
                 value_type: InputValueType::Any,
@@ -405,4 +410,31 @@ fn details_are_kept_by_a_prototype_edit() {
     );
     g.set_block_details(&id, "", "", "Not An Icon").unwrap();
     assert_eq!(g.block_def(&id).unwrap().icon, "");
+}
+
+#[test]
+fn adding_a_component_reconciles_calls_and_undo_restores_the_definition() {
+    use blockstitch_core::editor::History;
+    let mut graph = BlockGraph::<Block>::default();
+    let id = make(&mut graph, vec![label("name", "example")], BlockShape::Normal);
+    graph.add_strand(0, 0, vec![call(&id, vec![], vec![])]);
+    let before = graph.clone();
+    let mut history = History::new(8);
+    history.checkpoint(graph.clone(), None);
+    let pieces = serde_json::from_value(serde_json::json!([
+        {"kind":"Label","id":"name","text":"example"},
+        {"kind":"Input","id":"enabled","name":"timeout","value_type":"Bool","component":true},
+        {"kind":"Input","id":"duration","name":"duration","default_value":{"kind":"Number","value":100}}
+    ])).unwrap();
+    graph.update_block(&id, pieces, BlockShape::Normal, "#4C97FF").unwrap();
+    let Block::Call { args, .. } = &graph.strands.last().unwrap().instructions[0].kind else { panic!("call") };
+    assert_eq!(args[0].eval(), Ok(Evaluated::Bool(false)));
+    assert_eq!(args[1], Value::number(100.0));
+    let after = graph.clone();
+    graph = history.undo(graph).unwrap();
+    assert_eq!(graph, before);
+    graph = history.redo(graph).unwrap();
+    assert_eq!(graph, after);
+    let saved = serde_json::to_value(&graph).unwrap();
+    assert_eq!(serde_json::from_value::<BlockGraph<Block>>(saved).unwrap(), after);
 }

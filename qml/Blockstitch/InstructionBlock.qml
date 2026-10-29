@@ -65,7 +65,8 @@ Item {
     readonly property bool pausedHere: !paletteMode && !!instruction && BlockRegistry.pausedIds.indexOf(instruction.id) >= 0
     readonly property bool isCap: BlockRegistry.isCap(instruction, blockDefinitions)
     // The host's declarative row for this type, if it registered one.
-    readonly property var rowSpec: BlockRegistry.row(type)
+    readonly property var rowSpec: (type === "CallBlock" || type === "BranchCallBlock")
+        ? BlockRegistry.customCallRow(defFor(instruction.block_id)) || BlockRegistry.row(type) : BlockRegistry.row(type)
     // A new pieces array rebuilds every control on the row, so it only
     // changes when a different set of pieces shows.
     property var headPieces: []
@@ -338,6 +339,19 @@ Item {
     function listNames(){return (lists||[]).map(l=>l.name);}
     function branchSeparator(slot){const d=instruction?defFor(instruction.block_id):null;if(!d)return "";let seen=-1;for(let i=0;i<(d.pieces||[]).length;i++){const p=d.pieces[i];if(p.kind!=="Branch")continue;seen++;if(seen===slot){for(let j=i+1;j<d.pieces.length;j++){if(d.pieces[j].kind==="Branch")break;if(d.pieces[j].kind==="Label")return d.pieces[j].text;}}}return "";}
     function headerPieces(){const d=instruction?defFor(instruction.block_id):null;if(!d)return [{kind:"Label",text:qsTr("(deleted block)")}];return (d.pieces||[]).filter(p=>p.kind!=="Branch");}
+    function headerGroups() {
+        const groups = [];
+        let current = null;
+        const d = instruction ? defFor(instruction.block_id) : null;
+        if (!d) return [{component: false, pieces: [{kind: "Label", text: qsTr("(deleted block)")}]}];
+        for (const p of d.pieces || []) {
+            if (p.kind === "Branch") { current = null; continue; }
+            if (p.component) { current = {component: true, pieces: [p]}; groups.push(current); }
+            else if (current) current.pieces.push(p);
+            else groups.push({component: false, pieces: [p]});
+        }
+        return groups;
+    }
     function headerBranches(){const d=instruction?defFor(instruction.block_id):null;return d?(d.pieces||[]).filter(p=>p.kind==="Branch"):[];}
     // A definition header with branches embeds a call-site preview: a C-block whose mouths
     // hold one draggable "run branch" piece each. Keyed by a string so edits elsewhere don't rebuild it.
@@ -855,13 +869,36 @@ Item {
                     Text{id:callPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;anchors.centerIn:parent}
                     ValueChip{id:callPieceValue;visible:modelData.kind==="Input";valueData:instruction&&(instruction.args||[])[modelData.argIndex]?(instruction.args||[])[modelData.argIndex]:(modelData.bool?{kind:"Bool"}:{kind:"Number",value:0});location:root.fieldLocation("CallArg:"+modelData.argIndex);boxed:!!modelData.bool;anchors.centerIn:parent;onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled()}
                 }}
-                Repeater { model:root.type==="BlockHeader"?root.headerPieces():[];delegate:Item {
-                    required property var modelData;width:modelData.kind==="Label"?headerText.implicitWidth:headerParam.implicitWidth;height:30
-                    Text{id:headerText;visible:modelData.kind==="Label";text:modelData.text||"";color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;anchors.centerIn:parent}
-                    PaletteValue{id:headerParam;visible:modelData.kind==="Input";anchors.centerIn:parent;editable:false;valueData:({kind:"Param",name:modelData.name||""});forceBoolean:modelData.value_type==="Bool";referenceColor:root.customColor;blockDefinitions:root.blockDefinitions
-                        spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,color:root.customColor,originBlockId:root.instruction?root.instruction.block_id:null})
-                        onDragStarted:(sp,sx,sy,ox,oy)=>root.paletteDragStarted(sp,sx,sy,ox,oy);onDragMoved:(sx,sy)=>root.paletteDragMoved(sx,sy);onDragEnded:(sx,sy)=>root.paletteDragEnded(sx,sy);onDragCanceled:root.paletteDragCanceled()}
-                }}
+                Repeater {
+                    model: root.type === "BlockHeader" ? root.headerGroups() : []
+                    delegate: Rectangle {
+                        id: headerGroup
+                        required property var modelData
+                        objectName: modelData.component ? "definitionComponentGroup" : "definitionBasePiece"
+                        width: headerGroupRow.implicitWidth + (modelData.component ? 16 : 0)
+                        height: modelData.component ? 40 : 30
+                        anchors.verticalCenter: parent.verticalCenter
+                        radius: 7
+                        color: modelData.component ? Theme.panelRaised : "transparent"
+                        border.width: modelData.component ? 1 : 0
+                        border.color: Theme.border
+                        Row {
+                            id: headerGroupRow
+                            anchors.centerIn: parent
+                            spacing: 7
+                            Repeater {
+                                model: headerGroup.modelData.pieces
+                                delegate: Item {
+                                    required property var modelData;width:modelData.kind==="Label"?headerText.implicitWidth:headerParam.implicitWidth;height:30
+                                    Text{id:headerText;visible:modelData.kind==="Label";text:modelData.text||"";color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;anchors.centerIn:parent}
+                                    PaletteValue{id:headerParam;visible:modelData.kind==="Input";anchors.centerIn:parent;editable:false;valueData:({kind:"Param",name:modelData.name||""});forceBoolean:modelData.value_type==="Bool";referenceColor:root.customColor;blockDefinitions:root.blockDefinitions
+                                        spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,color:root.customColor,originBlockId:root.instruction?root.instruction.block_id:null})
+                                        onDragStarted:(sp,sx,sy,ox,oy)=>root.paletteDragStarted(sp,sx,sy,ox,oy);onDragMoved:(sx,sy)=>root.paletteDragMoved(sx,sy);onDragEnded:(sx,sy)=>root.paletteDragEnded(sx,sy);onDragCanceled:root.paletteDragCanceled()}
+                                }
+                            }
+                        }
+                    }
+                }
                 Text { visible:root.type==="RunBranch"; text:qsTr("run branch %1").arg(instruction?instruction.name:""); color:Theme.text; font.pixelSize:12; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
             }
         }
@@ -886,7 +923,7 @@ Item {
             }
         }
         Repeater { model: root.isWrap ? root.headGroups : []; delegate: pieceDelegate }
-        Repeater { model:root.type==="BranchCallBlock"?root.callHeadPieces():[];delegate:Item {
+        Repeater { model:root.type==="BranchCallBlock" && !root.rowSpec ?root.callHeadPieces():[];delegate:Item {
             required property var modelData;width:modelData.kind==="Label"?branchPieceText.implicitWidth:branchPieceValue.implicitWidth;height:30
             Text{id:branchPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;anchors.centerIn:parent}
             ValueChip{id:branchPieceValue;visible:modelData.kind==="Input";valueData:instruction&&(instruction.args||[])[modelData.argIndex]?(instruction.args||[])[modelData.argIndex]:(modelData.bool?{kind:"Bool"}:{kind:"Number",value:0});location:root.fieldLocation("CallArg:"+modelData.argIndex);boxed:!!modelData.bool;anchors.centerIn:parent;onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled()}
@@ -998,11 +1035,6 @@ Item {
                     Row {
                         id: componentRow
                         anchors.centerIn: parent; spacing: 7
-                        LucideIcon {
-                            name: "puzzle"; width: 13; height: 13
-                            color: Theme.textDim
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
                         Repeater { model: piece.modelData.pieces; delegate: pieceDelegate }
                     }
                 }

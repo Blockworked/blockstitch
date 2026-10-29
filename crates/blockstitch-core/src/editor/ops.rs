@@ -540,6 +540,10 @@ impl<K: BlockKind> BlockGraph<K> {
     /// Removes the value at `location`, leaving whatever it shadowed (or the
     /// field's blank); a parked block addressed at its root is deleted.
     pub fn take_value(&mut self, location: &ValueLocation) -> Option<Value> {
+        // An empty boolean socket has no block to extract.
+        if matches!(self.value_at(location), Some(Value::Bool)) {
+            return None;
+        }
         if let ValueLocation::Floating { floating_id, path } = location
             && path.is_empty()
         {

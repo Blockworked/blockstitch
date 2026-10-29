@@ -286,6 +286,7 @@ Item {
             active: ghost.visible && !!ghost.spec && ghost.spec.kind === "value"
             sourceComponent: ValueChip {
                 valueData: ghost.spec.value; boxed: true; editable: false; dragPreview: true
+                originBlockId: ghost.spec.originBlockId || ""
                 referenceColor: ghost.spec.color || Theme.accent
                 forceBoolean: !!ghost.spec.forceBoolean; callDisplayLabel: ghost.spec.label || qsTr("custom block")
                 blockDefinitions: root.blockDefinitions

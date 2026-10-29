@@ -30,6 +30,9 @@ pub enum BlockPiece {
         name: String,
         #[serde(default)]
         value_type: InputValueType,
+        /// Starts an optional group, ending at the next component or branch.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        component: bool,
         /// Literal used for new calls. Expressions are deliberately not accepted.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         default_value: Option<Evaluated>,
@@ -212,9 +215,19 @@ impl BlockDef {
         })
     }
 
-    /// Checks only new default metadata, preserving legacy pack compatibility.
+    /// Checks input defaults and component metadata without rejecting legacy names.
     pub fn validate_input_defaults(pieces: &[BlockPiece]) -> Result<(), String> {
+        let mut after_branch = false;
         for piece in pieces {
+            after_branch |= matches!(piece, BlockPiece::Branch { .. });
+            if let BlockPiece::Input { component: true, value_type, .. } = piece {
+                if *value_type != InputValueType::Bool {
+                    return Err("A component must have a boolean enabled parameter".to_string());
+                }
+                if after_branch {
+                    return Err("Components must come before branches".to_string());
+                }
+            }
             if let BlockPiece::Input {
                 name,
                 value_type,
@@ -293,6 +306,30 @@ mod tests {
     use super::*;
 
     #[test]
+    fn component_metadata_round_trips_and_requires_a_boolean_before_branches() {
+        let mut pieces: Vec<BlockPiece> = serde_json::from_value(serde_json::json!([
+            {"kind":"Label","id":"name","text":"example"},
+            {"kind":"Input","id":"enabled","name":"timeout","value_type":"Bool","component":true},
+            {"kind":"Input","id":"duration","name":"duration"}
+        ])).unwrap();
+        BlockDef::validate_pieces(&pieces).unwrap();
+        assert_eq!(pieces[1].input_default().unwrap().eval(), Ok(Evaluated::Bool(false)));
+        let encoded = serde_json::to_value(&pieces).unwrap();
+        assert_eq!(encoded[1]["component"], true);
+        assert!(encoded[2].get("component").is_none());
+        assert_eq!(serde_json::from_value::<Vec<BlockPiece>>(encoded).unwrap(), pieces);
+        if let BlockPiece::Input { value_type, .. } = &mut pieces[1] {
+            *value_type = InputValueType::Any;
+        }
+        assert!(BlockDef::validate_input_defaults(&pieces).is_err());
+        if let BlockPiece::Input { value_type, .. } = &mut pieces[1] {
+            *value_type = InputValueType::Bool;
+        }
+        pieces.insert(1, BlockPiece::Branch { id: "branch".into(), name: "body".into() });
+        assert!(BlockDef::validate_input_defaults(&pieces).is_err());
+    }
+
+    #[test]
     fn input_defaults_are_literals_with_legacy_fallbacks() {
         let mut pieces: Vec<BlockPiece> = serde_json::from_value(serde_json::json!([
             {"kind":"Label","id":"l","text":"example"},
@@ -360,6 +397,7 @@ mod tests {
             text: text.to_string(),
         };
         let input = |id: &str, name: &str| BlockPiece::Input {
+            component: false,
             id: id.to_string(),
             name: name.to_string(),
             value_type: InputValueType::Any,
@@ -417,6 +455,7 @@ mod tests {
                 label("run"),
                 branch("b1", "x"),
                 BlockPiece::Input {
+                    component: false,
                     id: "i".to_string(),
                     name: "x".to_string(),
                     value_type: InputValueType::Any,

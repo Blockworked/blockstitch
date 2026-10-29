@@ -23,6 +23,7 @@
     "BwSlider.qml",
     "BwTimePicker.qml",
     "SmoothScroll.qml",
+    "BooleanSlot.qml",
     "ValueChip.qml",
     "InstructionBlock.qml",
     "InstructionList.qml",

@@ -356,7 +356,7 @@ impl<K: BlockKind> BlockGraph<K> {
         from: ValueLocation,
         to: ValueDestination,
     ) -> Result<PreparedEdit<K>, EditError> {
-        if self.value_at(&from).is_none() {
+        if matches!(self.value_at(&from), None | Some(Value::Bool)) {
             return Err(EditError::Missing("Nothing to take at that location"));
         }
         match to {

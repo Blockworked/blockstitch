@@ -189,6 +189,38 @@ QtObject {
     }
     // A fresh call's arguments for a custom block definition: each input's
     // default, else its typed blank. A boolean default becomes True/False.
+    // Optional custom groups use ordinary boolean arguments, visible to the body.
+    function componentEnabled(value) {
+        return !!value && ((value.kind === "Op" && value.op === "True")
+            || (value.kind === "Number" && value.value !== 0));
+    }
+    function componentValue(enabled) {
+        return {kind: "Op", op: enabled ? "True" : "False", args: [], saved: {kind: "Bool"}};
+    }
+    property var valueReplacementHandler: null
+    function replaceValue(location, value) {
+        if (valueReplacementHandler) valueReplacementHandler(location, value);
+    }
+    function customCallRow(definition) {
+        if (!definition || !(definition.pieces || []).some(p => p.component)) return null;
+        const spec = {head: [], components: []};
+        let group = null, arg = 0, branched = false;
+        for (const p of definition.pieces || []) {
+            if (p.kind === "Branch") { group = null; branched = true; continue; }
+            if (p.kind === "Input" && p.component) {
+                const index = arg++;
+                group = {key: p.id, index: index, label: p.name, pieces: [{kind: "label", text: p.name}],
+                    present: instruction => registry.componentEnabled((instruction.args || [])[index])};
+                spec.components.push(group);
+                continue;
+            }
+            const piece = p.kind === "Input"
+                ? {kind: "value", key: "args", index: arg, field: "CallArg:" + arg++, bool: p.value_type === "Bool"}
+                : p.kind === "Label" && !branched ? {kind: "label", text: p.text} : null;
+            if (piece) (group ? group.pieces : spec.head).push(piece);
+        }
+        return spec;
+    }
     function freshCallArgs(definition) {
         return ((definition && definition.pieces) || []).filter(p => p.kind === "Input").map(p => {
             const d = p.default_value, bool = p.value_type === "Bool";
@@ -289,7 +321,8 @@ QtObject {
         return v !== undefined && v !== null;
     }
     function missingComponents(spec, instruction) {
-        return ((spec && spec.components) || []).filter(c => !hasComponent(c, instruction));
+        return ((spec && spec.components) || []).filter(c => !hasComponent(c, instruction)
+            && !(c.conflicts || []).some(key => instruction && instruction[key] !== undefined && instruction[key] !== null));
     }
     function componentPieces(component) {
         if (!component._pieces) component._pieces = (component.pieces || []).concat([{ kind: "removeComponent", component: component }]);
@@ -319,12 +352,18 @@ QtObject {
     // The instruction with a component added or taken off.
     function withComponent(component, instruction) {
         const n = JSON.parse(JSON.stringify(instruction));
+        if (component.index !== undefined) {
+            n.args[component.index] = componentValue(true);
+            return n;
+        }
+        for (const key of (component.conflicts || [])) delete n[key];
         n[component.key] = typeof component.fresh === "function" ? component.fresh(instruction) : JSON.parse(JSON.stringify(component.fresh === undefined ? "" : component.fresh));
         return n;
     }
     function withoutComponent(component, instruction) {
         const n = JSON.parse(JSON.stringify(instruction));
-        delete n[component.key];
+        if (component.index !== undefined) n.args[component.index] = componentValue(false);
+        else delete n[component.key];
         return n;
     }
     // type -> Lucide icon for a type drawn without a registered row.
