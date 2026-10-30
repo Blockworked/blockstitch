@@ -30,6 +30,9 @@ Item {
     property string detailsTitle: qsTr("Details")
     property string detailsIcon: "info"
     property string detailsNote: qsTr("A public identifier and a description for this block.")
+    // What the identifier field accepts and suggests; a host may narrow it.
+    property var identifierValidator: null
+    property string identifierPlaceholder: qsTr("AUTHOR_BLOCKNAME")
     // Extra host fields shown under the description.
     property Component detailsPanel: null
     property string submitText: qsTr("OK")
@@ -217,7 +220,8 @@ Item {
                 id: detailId
                 objectName: "detailsIdentifier"
                 Layout.fillWidth: true
-                placeholderText: qsTr("AUTHOR_BLOCKNAME")
+                validator: root.identifierValidator
+                placeholderText: root.identifierPlaceholder
             }
             Label { text: qsTr("Description"); color: Theme.text }
             BwTextField {
