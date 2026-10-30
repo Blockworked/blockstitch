@@ -166,12 +166,26 @@ Rectangle {
         }
         return hw;
     }
+    // Use measured strand heights so layout changes do not search every control.
+    property var _strandHeights: ({})
+    function noteStrandHeight(sid, h) {
+        if (!sid || !(h >= 0) || _strandHeights[sid] === h) return;
+        const heights = Object.assign({}, _strandHeights);
+        heights[sid] = h;
+        _strandHeights = heights;
+    }
+    function clearStrandHeight(sid) {
+        if (!(sid in _strandHeights)) return;
+        const heights = Object.assign({}, _strandHeights);
+        delete heights[sid];
+        _strandHeights = heights;
+    }
     readonly property real needHalfH: {
         var hh = 0;
         var sl = root.strands || [];
         for (var i = 0; i < sl.length; ++i) {
             var sy = (sl[i] && sl[i].y) || 0;
-            var sh = contentHeightFor((sl[i] && sl[i].instructions) || []);
+            var sh = root._strandHeights[sl[i].id] ?? 58;
             hh = Math.max(hh, Math.abs(sy), Math.abs(sy + sh));
         }
         var fv = root.floatingValues || [];
@@ -557,7 +571,10 @@ Rectangle {
         for (const child of node.children || []) branchContainers(child, out);
     }
     function strandById(id) {
+        if (!id) return null;
         for (const strand of root.strands || []) if (strand.id === id) return strand;
+        // Only reporter branch addresses can resolve outside the strand list.
+        if (!id.startsWith("@reporter-branch:")) return null;
         const branches = [];
         branchContainers(workspace, branches);
         const branch = branches.find(b => b.strandId === id);
@@ -800,7 +817,9 @@ Rectangle {
                 let dist = Math.abs(ghostTop - b.y);
                 // Match the bottom connector only at the start of a body or stack.
                 // Interior insertions follow the dragged top to avoid jumping ahead.
-                const bottomDist = idx === 0 && list.length > 0 && !stackEndsCap && stackHeight > 0
+                // Bottom matches stay within half the mouth's 20px indentation.
+                const alignedBottom = (isTop && !c.owner) || Math.abs(ghostLeft - c.x) < 10;
+                const bottomDist = alignedBottom && idx === 0 && list.length > 0 && !stackEndsCap && stackHeight > 0
                     ? Math.abs(ghostTop + stackHeight - 8 - b.y) : Infinity;
                 const prepend = isTop && !c.owner && idx === 0 && list.length > 0 && stackHeight > 0;
                 // Prepending keeps the target fixed, so only its top connector
@@ -810,7 +829,8 @@ Rectangle {
                 const path = copyPath(c.basePath);
                 path.push({ index: idx });
                 const isCur = prevSnap && prevSnap.targetId === c.strandId && baseEqual(prevSnap.path, path);
-                const eff = isCur ? Math.max(0, dist - root.snapSticky) : dist;
+                const distance = Math.hypot(ghostLeft - c.x, dist);
+                const eff = isCur ? Math.max(0, distance - root.snapSticky) : distance;
                 if (best === null || eff < bestEff) {
                     const shift = prepend ? stackHeight - 8 : 0;
                     best = { targetId: c.strandId, path: path, x: c.x, y: b.y - shift,
@@ -822,7 +842,7 @@ Rectangle {
         }
         return best;
     }
-    function applySnap(best, w, h, droppedIsCap) {
+    function applySnap(best, w, h, droppedIsCap, stackHeight) {
         if (!best) { clearSnap(); return; }
         dragSession.snapTargetId = best.targetId;
         dragSession.snapTargetY = best.targetY === undefined ? null : best.targetY;
@@ -831,16 +851,17 @@ Rectangle {
         dragSession.snapY = best.y;
         dragSession.snapWidth = w;
         dragSession.snapHeight = h;
+        const gapHeight = stackHeight === undefined ? h : stackHeight;
         // Prepending keeps the target fixed; other insertions open a gap.
         // Empty mouths start at 26px, and cap blocks have no bottom overlap.
-        dragSession.snapShiftAmt = dragSession.snapTargetY !== null ? 0 : Math.max(0, h - 8);
-        if (best.empty) dragSession.snapGrowAmt = Math.max(0, Math.max(26, h - (droppedIsCap ? 0 : 8)) - 26);
-        else if (best.atEnd && droppedIsCap) dragSession.snapGrowAmt = Math.max(0, h);
-        else dragSession.snapGrowAmt = Math.max(0, h - 8);
+        dragSession.snapShiftAmt = dragSession.snapTargetY !== null ? 0 : Math.max(0, gapHeight - 8);
+        if (best.empty) dragSession.snapGrowAmt = Math.max(0, Math.max(26, gapHeight - (droppedIsCap ? 0 : 8)) - 26);
+        else if (best.atEnd && droppedIsCap) dragSession.snapGrowAmt = Math.max(0, gapHeight);
+        else dragSession.snapGrowAmt = Math.max(0, gapHeight - 8);
         dragSession.snapValid = true;
         dragSession.snapLayout = {
             snapValid: true, snapTargetId: best.targetId, snapPath: best.path,
-            snapShiftAmt: dragSession.snapShiftAmt, snapGrowAmt: dragSession.snapGrowAmt
+            snapShiftAmt: dragSession.snapShiftAmt, snapGrowAmt: dragSession.snapGrowAmt, snapWidth: w
         };
     }
     function clearSnap() {
@@ -943,8 +964,14 @@ Rectangle {
         const ghostTop = dragSession.originY + dragSession.dy;
         const tail = listFor(srcStrand, sourcePath.slice(0, -1)).slice(sourcePath[sourcePath.length - 1].index);
         const endsCap = tail.length > 0 && isCapBlock(tail[tail.length - 1]);
-        const best = findSnap(ghostLeft, ghostTop, dragSession.strandId, sourcePath, isWhole, prevSnapObj(), contentHeightFor(tail), endsCap);
-        applySnap(best, dragSession.draggedWidth, dragSession.draggedHeight, dragSession.draggedIsCap);
+        const stackHeight = contentHeightFor(tail);
+        const best = findSnap(ghostLeft, ghostTop, dragSession.strandId, sourcePath, isWhole, prevSnapObj(), stackHeight, endsCap);
+        let stackWidth = dragSession.draggedWidth;
+        for (const instruction of tail) {
+            const item = findBlockItem(workspace, instruction.id);
+            if (item) stackWidth = Math.max(stackWidth, item.implicitWidth);
+        }
+        applySnap(best, stackWidth, dragSession.draggedHeight, endsCap, stackHeight);
     }
     // Palette (new-block) drags share the same preview: a header prefab can
     // never snap into an existing strand, anything else uses the same
@@ -1175,6 +1202,14 @@ Rectangle {
     }
     function setPaletteValueTarget(loc) { paletteValueTarget = loc ? JSON.parse(JSON.stringify(loc)) : null; }
     // Fields use the definition heading their strand, including nested expressions.
+    function branchColorForStrand(strandId) {
+        const strand = strandById(strandId);
+        const header = strand && (strand.instructions || [])[0];
+        const definition = header && header.type === "BlockHeader"
+            ? blockDefinitions.find(d => d.id === header.block_id) : null;
+        return definition && definition.color ? definition.color : Theme.accent;
+    }
+    readonly property color dragBranchColor: branchColorForStrand(dragSession.strandId)
     function parameterOrigin(location) {
         if (!location) return "";
         if (location.kind === "Floating") {
@@ -1474,8 +1509,15 @@ Rectangle {
                     // (InstructionList below is a non-visual ListModel, so the
                     // Column's implicitWidth is still the widest block.)
                     onImplicitWidthChanged: root.noteStrandWidth(sid, implicitWidth)
-                    Component.onCompleted: root.noteStrandWidth(sid, implicitWidth)
-                    Component.onDestruction: root.clearStrandWidth(sid)
+                    onImplicitHeightChanged: root.noteStrandHeight(sid, implicitHeight)
+                    Component.onCompleted: {
+                        root.noteStrandWidth(sid, implicitWidth);
+                        root.noteStrandHeight(sid, implicitHeight);
+                    }
+                    Component.onDestruction: {
+                        root.clearStrandWidth(sid);
+                        root.clearStrandHeight(sid);
+                    }
                     InstructionList { id:strandBlocks; instructions:strand.blockList }
                     Repeater {
                         model:strandBlocks
@@ -1483,6 +1525,7 @@ Rectangle {
                             id:block; required property string payload; required property int index
                             instruction:JSON.parse(payload); strandId:strand.sid; path:[{index:index}]; tailCount:strandBlocks.count-index; recordingTarget:index===0&&root.recordingTargetId===strand.sid; dragState:dragSession
                             variables:root.variables; lists:root.lists; blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; locked:root.locked
+                            branchColor: root.branchColorForStrand(strand.sid)
                             onRemoveRequested:(sid,p)=>root.instructionRemoved(sid,p)
                             onDuplicateRequested:(sid,p,i)=>root.instructionDuplicated(sid,p,i)
                             onCommentRequested:i=>root.commentForInstructionRequested(i)

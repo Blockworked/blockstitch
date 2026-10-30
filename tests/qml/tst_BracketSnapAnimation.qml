@@ -29,6 +29,49 @@ Item {
             ];
             wait(30);
         }
+        function test_stackIntoWhile_data() {
+            return [
+                { tag: "empty", occupied: false, nested: false, cap: false },
+                { tag: "occupied", occupied: true, nested: false, cap: false },
+                { tag: "nested-source", occupied: false, nested: true, cap: false },
+                { tag: "cap-tail", occupied: false, nested: false, cap: true },
+                { tag: "quick-drop", occupied: false, nested: false, cap: false, quick: true }
+            ];
+        }
+        function test_stackIntoWhile(data) {
+            const tail = [
+                { id: "detect", type: "Wait" },
+                { id: "condition", type: "If", body: [{ id: "aim", type: "Wait" }] }
+            ];
+            if (data.cap) tail.push({ id: "stop", type: "Return" });
+            const prefix = data.occupied ? [{ id: "prefix", type: "Wait" }] : [];
+            canvas.strands = [
+                { id: "target", x: 40, y: 240, instructions: [{ id: "outer", type: "While", body: prefix }] },
+                { id: "source", x: 600, y: 240, instructions: data.nested ? [{ id: "home", type: "If", body: tail }] : tail }
+            ];
+            wait(30);
+            const outer = canvas.findBlockItem(canvas, "outer");
+            const first = canvas.findBlockItem(canvas, "detect");
+            const initial = outer.effMouthHeights[0];
+            const expected = canvas.mouthHeightFor(prefix.concat(tail));
+            const start = first.mapToItem(null, 4, 4);
+            const path = data.nested ? [{ index: 0, slot: 0 }, { index: 0 }] : [{ index: 0 }];
+            canvas.beginDrag("source", path, tail.length, start.x, start.y, 4, 4, first.width, first.height);
+            const end = outer.mapToItem(null, 24, outer.headHeight + (prefix.length ? canvas.contentHeightFor(prefix) - 8 : 0) + 4);
+            canvas.moveDrag(end.x, end.y);
+            compare(canvas.branchDragState.snapPath, [{ index: 0, slot: 0 }, { index: prefix.length }]);
+            compare(outer.mouthAdjustment(0), expected - initial);
+            if (!data.quick) {
+                wait(180);
+                compare(outer.effMouthHeights[0], expected);
+            }
+            canvas.endDrag(end.x, end.y);
+            wait(200);
+            compare(outer.effMouthHeights[0], expected);
+            canvas.strands = [{ id: "target", x: 40, y: 240, instructions: [{ id: "outer", type: "While", body: prefix.concat(tail) }] }];
+            wait(30);
+            compare(canvas.findBlockItem(canvas, "outer").effMouthHeights[0], expected);
+        }
         function test_enterEmptyBranch_data() {
             return [
                 { tag: "canvas-then", palette: false, slot: 0 },

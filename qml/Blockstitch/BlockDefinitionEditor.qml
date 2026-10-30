@@ -1504,6 +1504,12 @@ Item {
                                     border.color: separatorField.activeFocus ? Theme.accent
                                         : separatorField.hovered ? Theme.border : "transparent"
                                 }
+                                onActiveFocusChanged: {
+                                    if (activeFocus) {
+                                        root.commitPiece();
+                                        root.selectedPiece = -1;
+                                    }
+                                }
                                 onEditingFinished: root.commitSeparator(index, text)
                             }
                         }

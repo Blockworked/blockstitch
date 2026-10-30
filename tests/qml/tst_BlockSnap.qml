@@ -96,6 +96,56 @@ Item {
                 previous = result;
             }
         }
+        function test_definition_before_loop_data() {
+            return [
+                { tag: "palette", palette: true },
+                { tag: "canvas", palette: false },
+                { tag: "nested-tail", palette: false, nested: true }
+            ];
+        }
+        function test_definition_before_loop(data) {
+            const body = [block("child", "Wait")];
+            if (data.nested) body.push({ id: "condition", type: "If", body: [block("dragged", "Wait")] });
+            const strands = [strand("target", 40, 240, [
+                { id: "header", type: "BlockHeader", block_id: "custom" },
+                { id: "loop", type: "While", body: body }
+            ])];
+            if (!data.nested) strands.push(strand("source", 600, 240, [block("dragged", "Wait")]));
+            canvas.strands = strands;
+            wait(30);
+            const c = container("target");
+            const top = c.y + c.heights[0] - 8 + 12;
+            const first = canvas.findBlockItem(canvas, "dragged");
+            if (!data.palette) {
+                const start = first.mapToItem(null, 4, 4);
+                const path = data.nested ? [{ index: 1, slot: 0 }, { index: 1, slot: 0 }, { index: 0 }] : [{ index: 0 }];
+                canvas.beginDrag(data.nested ? "target" : "source", path, 1,
+                    start.x, start.y, 4, 4, first.width, first.height);
+            }
+            // Start inside the loop so the previous candidate has snap hysteresis.
+            const mouth = container("target", true);
+            if (data.palette) canvas.updatePaletteSnap(mouth.x - canvas.originOffsetX,
+                mouth.y - canvas.originOffsetY, block("palette", "Wait"), first.width, first.height);
+            else {
+                const at = canvas.findBlockItem(canvas, "loop").mapToItem(null, 24, 54);
+                canvas.moveDrag(at.x, at.y);
+            }
+            compare(canvas.branchDragState.snapPath, [{ index: 1, slot: 0 }, { index: 0 }]);
+            for (let x = 0; x < 10; ++x) {
+                if (data.palette) canvas.updatePaletteSnap(c.x + x - canvas.originOffsetX,
+                    top - canvas.originOffsetY, block("palette", "Wait"), first.width, first.height);
+                else {
+                    const target = canvas.findBlockItem(canvas, "header").mapToItem(null, x + 4, c.heights[0] - 8 + 16);
+                    canvas.moveDrag(target.x, target.y);
+                }
+                compare(canvas.branchDragState.snapTargetId, "target");
+                compare(canvas.branchDragState.snapPath, [{ index: 1 }]);
+            }
+            // Moving into the mouth's lane still allows prepending to its body.
+            const nested = container("target", true);
+            const result = snap(nested, nested.y - first.height + 8, first.height);
+            compare(result.path, [{ index: 1, slot: 0 }, { index: 0 }]);
+        }
         function test_header_rejects_above() {
             canvas.strands = [strand("target", 40, 240, [block("header", "WhenStarted")])];
             const c = container("target");

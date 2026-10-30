@@ -245,6 +245,7 @@ Item {
                 delegate: InstructionBlock {
                     required property var modelData
                     instruction: modelData; paletteMode: true; locked: true
+                    branchColor: root.canvas ? root.canvas.dragBranchColor : Theme.accent
                     variables: root.variables; lists: root.lists; blockDefinitions: root.blockDefinitions
                 }
             }
@@ -278,6 +279,7 @@ Item {
             sourceComponent: InstructionBlock {
                 instruction: ghost.instruction; paletteMode: true; locked: true
                 blockColor: ghost.spec.color || Theme.block
+                branchColor: ghost.spec.color || Theme.accent
                 variables: root.variables; lists: root.lists; blockDefinitions: root.blockDefinitions
             }
         }

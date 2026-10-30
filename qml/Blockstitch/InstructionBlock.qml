@@ -16,6 +16,7 @@ Item {
     // The first block of the strand new recordings are appended to.
     property bool recordingTarget: false
     property color blockColor: Theme.block
+    property color branchColor: Theme.accent
     // shared drag session owned by BlockCanvas (null for palette/preview blocks)
     property var dragState: null
     // number of instructions from this one to the end of its list (inclusive)
@@ -133,8 +134,8 @@ Item {
     }
     // Match the web canvas: the chosen color marks a custom block's icon and
     // hover outline, while the block body stays in the neutral canvas palette.
-    readonly property color displayColor: isCustomBlock ? Theme.block : blockColor
-    implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 28), hasBranchHeader ? pvOuterWidth + 28 : 0)
+    readonly property color displayColor: type === "RunBranch" ? Theme.panelRaised : isCustomBlock ? Theme.block : blockColor
+    implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(type === "RunBranch" ? 150 : isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 28), hasBranchHeader ? pvOuterWidth + 28 : 0)
     implicitHeight: isWrap ? headHeight + mouthTotal + Math.max(0, slotCount() - 1) * midHeight + footHeight + (isCap ? 0 : tabDepth) : hasBranchHeader ? pvTop + pvOuterHeight + 8 + tabDepth : isCap ? rowHeight - tabDepth : rowHeight
     z: dragRole > 0 ? 50 : hovered ? 2 : 1
     // The overlay draws active tails; trashed tails wait for their removal.
@@ -174,11 +175,15 @@ Item {
         return d.snapShiftAmt;
     }
     // Ease layout gaps without delaying the block under the pointer.
-    readonly property bool animateLayout: !!dragState && !dragState.settling && !dragState.applyingDocument && dragRole !== 1
+    readonly property bool animateLayout: Motion.enabled && !!dragState && !dragState.settling && !dragState.applyingDocument && dragRole !== 1
+    Behavior on implicitWidth {
+        enabled: root.isWrap && root.animateLayout
+        NumberAnimation { duration: Motion.dur(140); easing.type: Easing.OutCubic }
+    }
     property real displayedSnapShift: snapShift
     Behavior on displayedSnapShift {
         enabled: root.animateLayout
-        NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+        NumberAnimation { duration: Motion.dur(140); easing.type: Easing.OutCubic }
     }
     transform: Translate { x: root.dragOffsetX; y: root.dragOffsetY + root.displayedSnapShift }
 
@@ -386,18 +391,18 @@ Item {
         anchors.fill: parent
         shape: root.isWrap ? "wrap" : root.isHeader ? "header" : root.isCap ? "cap" : "stack"
         fill: root.displayColor; hovered: root.hovered || root.dragRole === 1 || root.flashing || root.running || root.pausedHere
-        hoverColor: root.pausedHere ? Theme.warning : root.running ? Theme.running : root.flashing && root.markText ? Theme.danger : root.isCustomBlock ? root.customColor : Theme.accent
+        hoverColor: root.pausedHere ? Theme.warning : root.running ? Theme.running : root.flashing && root.markText ? Theme.danger : root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : Theme.accent
         outlineWidth: root.running || root.pausedHere ? 2.6 : 1.3
         headHeight: root.headHeight; midHeight: root.midHeight; footHeight: root.footHeight; spine: root.spine
         mouthHeights: root.isWrap ? root.effMouthHeights : []
         footTab: !(root.isWrap && root.isCap)
         flatEnds: root.flatEnds
     }
-    // Keep the enclosing outline above the blocks in its mouths.
+    // Raise highlighted outlines without covering a nested block's hover outline.
     Shape {
         anchors.fill: parent
         z: 1
-        visible: root.isWrap
+        visible: root.isWrap && surface.hovered
         preferredRendererType: Shape.CurveRenderer
         ShapePath {
             strokeColor: surface.hovered ? surface.hoverColor : surface.outline
@@ -842,7 +847,7 @@ Item {
                 BlockDragArea {
                     id: pvDrag
                     anchors.fill: parent
-                    onDragBegan: (sx, sy, ox, oy) => root.paletteDragStarted({ kind: "branch", instruction: { id: "palette-branch", type: "RunBranch", name: pv.modelData.n } }, sx, sy, ox, oy)
+                    onDragBegan: (sx, sy, ox, oy) => root.paletteDragStarted({ kind: "branch", color: root.customColor, instruction: { id: "palette-branch", type: "RunBranch", name: pv.modelData.n } }, sx, sy, ox, oy)
                     onDragMoved: (sx, sy) => root.paletteDragMoved(sx, sy)
                     onDragEnded: (sx, sy) => root.paletteDragEnded(sx, sy)
                     onDragCanceled: root.paletteDragCanceled()
@@ -853,8 +858,8 @@ Item {
         }
     }
     Row {
-        id: fields; visible: !root.isWrap; x: root.hasBranchHeader ? 32 + root.pvPadX : 14; y: (root.hasBranchHeader ? root.pvTop + root.pvPadY : 0) + Math.round((root.rowHeight-height-8)/2); spacing: 7
-        LucideIcon { visible: !root.isWrap; name: root.isWrap ? "" : root.iconFor(root.type); color: root.isCustomBlock ? root.customColor : root.isHeader ? Theme.accent : Theme.text; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
+        id: fields; visible: !root.isWrap; x: root.hasBranchHeader ? 32 + root.pvPadX : 14; y: (root.hasBranchHeader ? root.pvTop + root.pvPadY : 0) + Math.round((root.rowHeight-height-8)/2); spacing: root.type === "RunBranch" ? 6 : 7
+        LucideIcon { visible: !root.isWrap; name: root.isWrap ? "" : root.iconFor(root.type); color: root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : root.isHeader ? Theme.accent : Theme.text; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
         Loader {
             active: !!root.type && !root.isWrap && !root.rowSpec && !root.isCustomBlock && root.type !== "RunBranch"; visible: active; anchors.verticalCenter: parent.verticalCenter
             sourceComponent: root.fieldsComponent(root.type)
@@ -899,7 +904,7 @@ Item {
                         }
                     }
                 }
-                Text { visible:root.type==="RunBranch"; text:qsTr("run branch %1").arg(instruction?instruction.name:""); color:Theme.text; font.pixelSize:12; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                Text { visible:root.type==="RunBranch"; text:instruction?(instruction.name||""):""; color:Theme.text; font.pixelSize:12; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
             }
         }
         Repeater { model: root.isWrap ? [] : root.headGroups; delegate: pieceDelegate }
@@ -938,13 +943,25 @@ Item {
             property real adjustment: root.mouthAdjustment(index)
             Behavior on adjustment {
                 enabled: root.animateLayout
-                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+                NumberAnimation { duration: Motion.dur(140); easing.type: Easing.OutCubic }
             }
             readonly property real contentHeight: slotBody.implicitHeight
             readonly property bool capEnd: root.lastIsCap(index)
             // the block sitting last in a mouth overlaps the bar below by its connector tab
             readonly property real mouthHeight: Math.max(root.emptyMouth, contentHeight - (capEnd || contentHeight === 0 ? 0 : root.tabDepth))
-            readonly property real contentWidth: slotBody.implicitWidth
+            // Measure the remaining children and the incoming snap preview live.
+            readonly property real contentWidth: {
+                let widest = 0;
+                for (let i = 0; i < childBlocks.count; ++i) {
+                    const child = childBlocks.itemAt(i);
+                    if (child && child.item && child.item.dragRole !== 1)
+                        widest = Math.max(widest, child.item.implicitWidth);
+                }
+                const preview = root.snapLayout();
+                if (root.isSnapMouth(index) && preview)
+                    widest = Math.max(widest, preview.snapWidth || 0);
+                return widest;
+            }
             function report() { root.setMouth(index, mouthHeight, contentWidth, capEnd); }
             onMouthHeightChanged: report()
             onContentWidthChanged: report()
@@ -955,24 +972,28 @@ Item {
                 id: slotBody; x: root.spine; spacing: -8
                 InstructionList { id: slotBlocks; instructions: root.body(slotDelegate.index) }
                 Repeater {
+                    id: childBlocks
                     model: slotBlocks
                     delegate: Loader {
                         id: child
                         required property string payload; required property int index
                         readonly property var blockData: JSON.parse(payload)
-                        source: "InstructionBlock.qml"; width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
+                        width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
+                        // Supply bindings at creation to avoid rebuilding controls for each property.
+                        Component.onCompleted: setSource("InstructionBlock.qml", {
+                            instruction: Qt.binding(() => child.blockData),
+                            strandId: Qt.binding(() => root.strandId),
+                            path: Qt.binding(() => root.childPath(slotDelegate.index, child.index)),
+                            tailCount: Qt.binding(() => slotBlocks.count - child.index),
+                            variables: Qt.binding(() => root.variables),
+                            lists: Qt.binding(() => root.lists),
+                            blockDefinitions: Qt.binding(() => root.blockDefinitions),
+                            branchColor: Qt.binding(() => root.branchColor),
+                            keyCapture: Qt.binding(() => root.keyCapture),
+                            locked: Qt.binding(() => root.locked),
+                            dragState: Qt.binding(() => root.dragState)
+                        })
                         onLoaded: {
-                            // Bindings, not copies: the block outlives edits to itself and its neighbours.
-                            item.instruction = Qt.binding(() => child.blockData);
-                            item.strandId = Qt.binding(() => root.strandId);
-                            item.path = Qt.binding(() => root.childPath(slotDelegate.index, child.index));
-                            item.tailCount = Qt.binding(() => slotBlocks.count - child.index);
-                            item.variables = Qt.binding(() => root.variables);
-                            item.lists = Qt.binding(() => root.lists);
-                            item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
-                            item.keyCapture = Qt.binding(() => root.keyCapture);
-                            item.locked = Qt.binding(() => root.locked);
-                            item.dragState = Qt.binding(() => root.dragState);
                             item.removeRequested.connect((s, p) => root.removeRequested(s, p));
                             item.duplicateRequested.connect((s, p, i) => root.duplicateRequested(s, p, i));
                             item.commentRequested.connect(i => root.commentRequested(i));
