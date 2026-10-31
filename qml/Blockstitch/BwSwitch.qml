@@ -31,6 +31,15 @@ Control {
             border.color: root.checked ? Theme.accentHover : Theme.border
             Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.normal } }
             Behavior on border.color { enabled: Motion.enabled; ColorAnimation { duration: Motion.normal } }
+            // Keyboard focus ring; the checked track is already accent-colored.
+            Rectangle {
+                objectName: "focusRing"
+                anchors.fill: parent; anchors.margins: -3
+                radius: height / 2
+                color: "transparent"
+                border.color: Theme.accent; border.width: 2
+                visible: root.visualFocus
+            }
             Rectangle {
                 x: root.checked ? 19 : 2; y: 2
                 width: 17; height: 17; radius: 9
