@@ -48,6 +48,8 @@ Item {
         }
 
         function test_paletteComponentsCanBeAddedRemovedAndInserted() {
+            // Palette blocks past the first sections build over a few frames.
+            tryCompare(palette, "pendingEntries", 0);
             const entry = descendants(palette).find(o => o.spec && o.spec.kind === "instruction");
             verify(!!entry);
             entry.instruction = { id: "palette-TestFind", type: "TestFind" };
