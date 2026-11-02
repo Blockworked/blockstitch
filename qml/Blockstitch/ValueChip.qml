@@ -435,7 +435,8 @@ Item {
                 function report() { root.reportBranch(index, mouthHeight, branchColumn.implicitWidth, capEnd); }
                 onMouthHeightChanged: report()
                 onCapEndChanged: report()
-                Component.onCompleted: report()
+                Component.onCompleted: { report(); BlockRegistry.indexBranch(branchItem); }
+                Component.onDestruction: BlockRegistry.unindexBranch(branchItem)
                 x: 20; y: root.branchTop(index)
                 width: root.branchWidth - 20; height: root.branchMouthHeight(index)
                 Column {

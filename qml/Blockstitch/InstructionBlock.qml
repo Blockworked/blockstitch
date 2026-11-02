@@ -23,6 +23,20 @@ Item {
     property color branchColor: Theme.accent
     // shared drag session owned by BlockCanvas (null for palette/preview blocks)
     property var dragState: null
+    // Keeps BlockRegistry's id -> block index current, so a canvas finds a
+    // block without walking its whole tree.
+    property string _indexedId: ""
+    function _reindex() {
+        const id = !paletteMode && instruction && instruction.id ? String(instruction.id) : "";
+        if (id === _indexedId) return;
+        if (_indexedId) BlockRegistry.unindexBlock(_indexedId, root);
+        _indexedId = id;
+        if (id) BlockRegistry.indexBlock(id, root);
+    }
+    onInstructionChanged: _reindex()
+    onPaletteModeChanged: _reindex()
+    Component.onCompleted: _reindex()
+    Component.onDestruction: if (_indexedId) BlockRegistry.unindexBlock(_indexedId, root)
     // number of instructions from this one to the end of its list (inclusive)
     property int tailCount: 1
     signal dragBegan(string strandId, var path, int tailCount, real sceneX, real sceneY, real offsetX, real offsetY, real blockW, real blockH)

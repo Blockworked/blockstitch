@@ -107,6 +107,29 @@ QtObject {
     // type -> instruction fields a fresh palette block starts with
     property var prefabs: ({})
 
+    // id -> live non-palette InstructionBlocks showing it (they keep it
+    // current themselves). Plain JS, not notifying: nothing binds to it.
+    property var blockItems: ({})
+    function indexBlock(id, item) {
+        const list = blockItems[id];
+        if (!list) blockItems[id] = [item];
+        else if (list.indexOf(item) < 0) list.push(item);
+    }
+    function unindexBlock(id, item) {
+        const list = blockItems[id];
+        if (!list) return;
+        const at = list.indexOf(item);
+        if (at >= 0) list.splice(at, 1);
+        if (!list.length) delete blockItems[id];
+    }
+    // Every live reporter-branch mouth (ValueChip's branchItem), so a canvas
+    // can list its branches without walking its tree.
+    property var branchItems: []
+    function indexBranch(item) { if (branchItems.indexOf(item) < 0) branchItems.push(item); }
+    function unindexBranch(item) {
+        const at = branchItems.indexOf(item);
+        if (at >= 0) branchItems.splice(at, 1);
+    }
     function registerRows(map) { rows = Object.assign({}, rows, map); }
     function registerOperators(map) { operators = Object.assign({}, operators, map); }
     // Back to the built-in operators, labelled in the current language; a

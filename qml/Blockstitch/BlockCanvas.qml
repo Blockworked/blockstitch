@@ -354,12 +354,33 @@ Rectangle {
     function resetView() {
         _zoomTo(root.worldW / 2, root.worldH / 2, flick.width / 2, flick.height / 2, 1, true);
     }
+    // The block showing instruction `id` under `item`. Every non-palette
+    // InstructionBlock indexes itself in BlockRegistry, so this checks a few
+    // candidates' ancestry instead of walking the whole tree.
     function findBlockItem(item, id) {
+        const indexed = BlockRegistry.blockItems[id];
+        if (indexed) {
+            let match = null, matches = 0;
+            for (const k of indexed) {
+                if (k.paletteMode !== false || !k.instruction || k.instruction.id !== id) continue;
+                let node = k.parent;
+                while (node && node !== item) node = node.parent;
+                if (!node) continue;
+                match = k;
+                if (++matches > 1) break;
+            }
+            // Two live blocks with one id: the walk's tree order decides.
+            if (matches === 1) return match;
+            if (matches > 1) return walkBlockItem(item, id);
+        }
+        return null;
+    }
+    function walkBlockItem(item, id) {
         const kids = item.children || [];
         for (let i = 0; i < kids.length; ++i) {
             const k = kids[i];
             if (k.instruction && k.paletteMode === false && k.instruction.id === id) return k;
-            const deep = findBlockItem(k, id);
+            const deep = walkBlockItem(k, id);
             if (deep) return deep;
         }
         return null;
@@ -562,15 +583,31 @@ Rectangle {
         setPaletteHighlight(found.item, loc);
         return loc;
     }
+    // Reporter branches under `node`, in tree order. They index themselves in
+    // BlockRegistry, so only two or more need the walk to order them.
     function branchContainers(node, out) {
         if (!node || node.visible === false) return;
-        if (node.isReporterBranch) {
-            const p = node.mapToItem(workspace, 0, 0);
-            const list = node.branchList;
-            out.push({ strandId: node.branchStrandId, basePath: [], x: p.x, y: p.y,
-                list: list, heights: list.map(ins => blockHeight(ins)), owner: node.branchSource });
+        const live = [];
+        for (const b of BlockRegistry.branchItems) {
+            if (!b.isReporterBranch || !b.visible) continue;
+            let up = b.parent;
+            while (up && up !== node) up = up.parent;
+            if (up) live.push(b);
+            if (live.length > 1) break;
         }
-        for (const child of node.children || []) branchContainers(child, out);
+        if (live.length === 1) pushBranch(live[0], out);
+        else if (live.length > 1) walkBranchContainers(node, out);
+    }
+    function pushBranch(node, out) {
+        const p = node.mapToItem(workspace, 0, 0);
+        const list = node.branchList;
+        out.push({ strandId: node.branchStrandId, basePath: [], x: p.x, y: p.y,
+            list: list, heights: list.map(ins => blockHeight(ins)), owner: node.branchSource });
+    }
+    function walkBranchContainers(node, out) {
+        if (!node || node.visible === false) return;
+        if (node.isReporterBranch) pushBranch(node, out);
+        for (const child of node.children || []) walkBranchContainers(child, out);
     }
     function strandById(id) {
         if (!id) return null;
