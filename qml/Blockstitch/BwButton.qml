@@ -14,7 +14,7 @@ Button {
     // chooser buttons. Takes precedence over the LucideIcon glyph.
     property url iconSource: ""
     property real radius: Theme.radius
-    implicitHeight: 38
+    implicitHeight: Math.max(38, Theme.minimumTarget)
     implicitWidth: Math.max(40, contentRow.implicitWidth + 24)
     leftPadding: 12
     rightPadding: 12

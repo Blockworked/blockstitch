@@ -9,6 +9,30 @@ Dialog {
     parent: Overlay.overlay
     anchors.centerIn: parent
     modal: true
+    width: Theme.touchMode && parent ? Math.min(implicitWidth, Math.max(0, parent.width - 24)) : implicitWidth
+    height: Theme.touchMode && parent ? Math.min(implicitHeight, Math.max(0, parent.height - 24)) : implicitHeight
+    // Hosts can still supply their own contentItem. Default dialog content can
+    // scroll in both directions when a phone or its keyboard bounds the popup.
+    contentItem: Flickable {
+        id: defaultContent
+        function adoptContent() {
+            // Popup contentData parents items directly to its contentItem;
+            // move those items into the Flickable's scrolling content item.
+            for (const child of children) {
+                if (child !== contentItem && child !== verticalScroll && child !== horizontalScroll)
+                    child.parent = contentItem;
+            }
+        }
+        onChildrenChanged: Qt.callLater(adoptContent)
+        Component.onCompleted: adoptContent()
+        implicitWidth: contentItem.childrenRect.width
+        implicitHeight: contentItem.childrenRect.height
+        contentWidth: Math.max(width, contentItem.childrenRect.width)
+        contentHeight: Math.max(height, contentItem.childrenRect.height)
+        clip: true; boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar { id: verticalScroll; policy: ScrollBar.AsNeeded }
+        ScrollBar.horizontal: ScrollBar { id: horizontalScroll; policy: ScrollBar.AsNeeded }
+    }
     padding: 22
     topInset: 0; bottomInset: 0; leftInset: 0; rightInset: 0
     topPadding: 4
@@ -41,7 +65,7 @@ Dialog {
         BwButton {
             visible: control.showClose
             anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter
-            iconName: "x"; text: ""; flat: true; radius: 15; implicitWidth: 30; implicitHeight: 30
+            iconName: "x"; text: ""; flat: true; radius: 15; implicitWidth: Math.max(30, Theme.minimumTarget); implicitHeight: Math.max(30, Theme.minimumTarget)
             onClicked: control.reject()
         }
     }

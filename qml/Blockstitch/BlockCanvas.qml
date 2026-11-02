@@ -20,6 +20,10 @@ Rectangle {
     property var pendingDictFocus: null
     property var blockDefinitions: []
     property var keyCapture: null
+    readonly property bool touchNavigationActive: screenPinch.active || twoFingerPan.active
+    signal touchNavigationStarted()
+    property var insertionPoint: null
+    property string _insertionDocument: ""
     property bool locked: false
     // Whether the canvas menu offers "Delete all blocks".
     property bool offerClear: true
@@ -354,6 +358,24 @@ Rectangle {
     function resetView() {
         _zoomTo(root.worldW / 2, root.worldH / 2, flick.width / 2, flick.height / 2, 1, true);
     }
+    function ensureFieldVisible(item) {
+        if (!Theme.touchMode || !item) return;
+        let ancestor = item;
+        while (ancestor && ancestor !== workspace) ancestor = ancestor.parent;
+        if (!ancestor) return;
+        const p = item.mapToItem(flick, 0, 0);
+        const bottom = p.y + item.height * root.zoom;
+        const right = p.x + item.width * root.zoom;
+        const dy = p.y < 16 ? p.y - 16 : Math.max(0, bottom - flick.height + 16);
+        const dx = p.x < 16 ? p.x - 16 : Math.max(0, right - flick.width + 16);
+        flick.contentX = Math.max(0, Math.min(Math.max(0, flick.contentWidth-flick.width), flick.contentX + dx));
+        flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight-flick.height), flick.contentY + dy));
+    }
+    Connections {
+        target: root.Window.window
+        function onActiveFocusItemChanged() { root.ensureFieldVisible(root.Window.window.activeFocusItem); }
+    }
+    onHeightChanged: Qt.callLater(() => { if (root.Window.window) root.ensureFieldVisible(root.Window.window.activeFocusItem); })
     function findBlockItem(item, id) {
         const kids = item.children || [];
         for (let i = 0; i < kids.length; ++i) {
@@ -582,6 +604,14 @@ Rectangle {
         const branch = branches.find(b => b.strandId === id);
         return branch ? { id: id, x: branch.x - root.originOffsetX, y: branch.y - root.originOffsetY, instructions: branch.list } : null;
     }
+    function selectInsertion(strandId, path) {
+        const next = copyPath(path);
+        if (!next.length) return;
+        next[next.length - 1].index++;
+        _insertionDocument = JSON.stringify(root.strands);
+        const instruction = instructionAt(strandById(strandId), path);
+        insertionPoint = { strandId: strandId, path: next, blockId: instruction ? instruction.id : "" };
+    }
     function wireBranchInstruction(item) {
         item.variables = Qt.binding(() => root.variables);
         item.lists = Qt.binding(() => root.lists);
@@ -607,6 +637,7 @@ Rectangle {
         item.paletteDragMoved.connect(root.paletteDragMoved);
         item.paletteDragEnded.connect(root.paletteDragEnded);
         item.paletteDragCanceled.connect(root.paletteDragCanceled);
+        item.insertionRequested.connect(root.selectInsertion);
         item.dragBegan.connect(root.beginDrag);
         item.dragMoved.connect(root.moveDrag);
         item.dragEnded.connect(root.endDrag);
@@ -1306,6 +1337,7 @@ Rectangle {
     // location on whatever canvas comes next.
     Component.onDestruction: endSettle()
     onStrandsChanged: {
+        if (_insertionDocument !== JSON.stringify(root.strands)) insertionPoint = null;
         // The document already includes the preview gap. Do not animate it again.
         dragSession.applyingDocument = true;
         try {
@@ -1361,6 +1393,55 @@ Rectangle {
         return { x: p.x - root.originOffsetX, y: p.y - root.originOffsetY };
     }
 
+    property real _touchAnchorX: 0
+    property real _touchAnchorY: 0
+    property real _touchStartZoom: 1
+    property bool _touchNavigating: false
+    function beginTouchNavigation(point) {
+        if (_touchNavigating) return;
+        _touchNavigating = true;
+        root.cancelDrag(); root.cancelValueDrag(); root.touchNavigationStarted();
+        flick.cancelFlick(); zoomGlide.stop(); canvasScroll.stop();
+        const p = root.mapFromItem(null, point.x, point.y);
+        _touchAnchorX = (flick.contentX + p.x) / root.zoom;
+        _touchAnchorY = (flick.contentY + p.y) / root.zoom;
+        _touchStartZoom = root.zoom;
+    }
+    function updateTouchNavigation(point, scale) {
+        if (!_touchNavigating || !touchNavigationActive) return;
+        const p = root.mapFromItem(null, point.x, point.y);
+        root._zoomTo(_touchAnchorX, _touchAnchorY, p.x, p.y,
+            Math.max(0.5, Math.min(1.8, _touchStartZoom * scale)), false);
+    }
+    // Both handlers observe the contacts before any exclusive grab. Translation
+    // also activates for parallel fingers, when a pinch has no scale change.
+    DragHandler {
+        id: twoFingerPan
+        target: null
+        acceptedDevices: PointerDevice.TouchScreen
+        minimumPointCount: 2; maximumPointCount: 2
+        dragThreshold: 0
+        grabPermissions: PointerHandler.CanTakeOverFromAnything | PointerHandler.ApprovesTakeOverByAnything
+        onActiveChanged: {
+            if (active) root.beginTouchNavigation(centroid.scenePosition);
+            else if (!screenPinch.active) root._touchNavigating = false;
+        }
+        onCentroidChanged: if (active) root.updateTouchNavigation(centroid.scenePosition, screenPinch.active ? screenPinch.activeScale : root.zoom / root._touchStartZoom)
+    }
+    PinchHandler {
+        id: screenPinch
+        target: null
+        acceptedDevices: PointerDevice.TouchScreen
+        minimumPointCount: 2; maximumPointCount: 2
+        dragThreshold: 0
+        grabPermissions: PointerHandler.CanTakeOverFromAnything | PointerHandler.ApprovesTakeOverByAnything
+        onActiveChanged: {
+            if (active) root.beginTouchNavigation(centroid.scenePosition);
+            else if (!twoFingerPan.active) root._touchNavigating = false;
+        }
+        onActiveScaleChanged: if (active) root.updateTouchNavigation(centroid.scenePosition, activeScale)
+        onCentroidChanged: if (active) root.updateTouchNavigation(centroid.scenePosition, activeScale)
+    }
     Flickable {
         id:flick; anchors.fill:parent; contentWidth:root.worldW*root.zoom; contentHeight:root.worldH*root.zoom; boundsBehavior:Flickable.StopAtBounds
         ScrollBar.horizontal:ScrollBar{}
@@ -1373,7 +1454,7 @@ Rectangle {
         // momentum flicks, which read as straight-line priming before
         // diagonal kicked in - and slow diagonals died out entirely. The
         // WheelHandler below is then the single owner and pans 1:1.
-        interactive: !wheelPan.active
+        interactive: !wheelPan.active && !root.touchNavigationActive && !emptyPan.active
         SmoothScroll { id: canvasScroll; flickable: flick }
         // A drag or flick takes over from a zoom glide in progress.
         onMovementStarted: zoomGlide.stop()
@@ -1477,7 +1558,35 @@ Rectangle {
             }
             MouseArea {
                 anchors.fill:parent; z:-100; acceptedButtons:Qt.LeftButton|Qt.RightButton
-                onClicked: mouse => { if (mouse.button === Qt.RightButton) { canvasMenu.canvasX = Math.round(mouse.x - root.originOffsetX); canvasMenu.canvasY = Math.round(mouse.y - root.originOffsetY); canvasMenu.popup(mouse.x, mouse.y); } else flick.forceActiveFocus(); }
+                containmentMask: QtObject {
+                    function contains(point: point): bool {
+                        for (const item of workspace.children) {
+                            if (!item.sid && !(item.modelData && item.modelData.id)) continue;
+                            if (item.contains(item.mapFromItem(workspace, point.x, point.y))) return false;
+                        }
+                        return true;
+                    }
+                }
+                onPressAndHold: mouse => { canvasMenu.canvasX = Math.round(mouse.x - root.originOffsetX); canvasMenu.canvasY = Math.round(mouse.y - root.originOffsetY); canvasMenu.popup(mouse.x, mouse.y); }
+                onClicked: mouse => { root.insertionPoint = null; if (mouse.button === Qt.RightButton) { canvasMenu.canvasX = Math.round(mouse.x - root.originOffsetX); canvasMenu.canvasY = Math.round(mouse.y - root.originOffsetY); canvasMenu.popup(mouse.x, mouse.y); } else flick.forceActiveFocus(); }
+                DragHandler {
+                    id: emptyPan
+                    target: null
+                    acceptedDevices: PointerDevice.TouchScreen
+                    enabled: !root.touchNavigationActive && !root.dragging
+                    grabPermissions: PointerHandler.CanTakeOverFromItems | PointerHandler.ApprovesTakeOverByAnything
+                    property real viewX: 0
+                    property real viewY: 0
+                    property point start
+                    onActiveChanged: if (active) {
+                        flick.cancelFlick(); zoomGlide.stop(); canvasScroll.stop();
+                        viewX = flick.contentX; viewY = flick.contentY; start = centroid.scenePosition;
+                    }
+                    onCentroidChanged: if (active) {
+                        flick.contentX = Math.max(0, Math.min(flick.contentWidth-flick.width, viewX-(centroid.scenePosition.x-start.x)));
+                        flick.contentY = Math.max(0, Math.min(flick.contentHeight-flick.height, viewY-(centroid.scenePosition.y-start.y)));
+                    }
+                }
                 BwMenu { id:canvasMenu;property int canvasX:0;property int canvasY:0
                     BwMenuItem{visible:root.offerClear;iconName:root.clearIcon;danger:true;text:root.clearText;onTriggered:root.clearRequested()}
                     BwMenuItem{iconName:"clipboard-paste";enabled:root.canPaste;text:qsTr("Paste");onTriggered:root.canvasMenuAction("paste",canvasMenu.canvasX,canvasMenu.canvasY)}
@@ -1554,6 +1663,7 @@ Rectangle {
                             onDragMoved:(sx,sy)=>root.moveDrag(sx,sy)
                             onDragEnded:(sx,sy)=>root.endDrag(sx,sy)
                             onDragCanceled:root.cancelDrag()
+                            onInsertionRequested:(sid,p)=>root.selectInsertion(sid,p)
                         }
                     }
                 }
@@ -1638,6 +1748,13 @@ Rectangle {
                     TapHandler { acceptedButtons:Qt.RightButton;gesturePolicy:TapHandler.ReleaseWithinBounds;onTapped:floatingMenu.popup() }
                     BwMenu { id:floatingMenu;BwMenuItem{iconName:"info";text:qsTr("Details");onTriggered:root.detailsRequested(floatingItem.modelData.value.block_id||floatingItem.modelData.value.op||floatingItem.modelData.value.kind)}BwMenuItem{iconName:"trash";danger:true;text:qsTr("Delete value");onTriggered:root.floatingValueRemoved(floatingItem.modelData.id)} }
                 }
+            }
+            Rectangle {
+                readonly property var selectedBlock: root.insertionPoint ? root.findBlockItem(workspace, root.insertionPoint.blockId) : null
+                readonly property point at: selectedBlock ? selectedBlock.mapToItem(workspace, 0, selectedBlock.height - 8) : Qt.point(0, 0)
+                visible: !!selectedBlock && !root.dragging
+                x: at.x; y: at.y; width: selectedBlock ? selectedBlock.width : 0; height: 4 / root.zoom
+                color: Theme.accent; radius: height / 2; z: 50
             }
             // Attach preview: the dragged first block's own silhouette (same
             // tabs/notches/C-shape as a real block, like the webapp's

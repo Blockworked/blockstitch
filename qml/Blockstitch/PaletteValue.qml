@@ -32,7 +32,8 @@ Item {
         onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
         onDragCanceled: root.dragCanceled()
         onActivated: root.activated()
-        onTapped: chip.requestPreview()
+        onTapped: { if (Theme.touchMode) root.activated(); else chip.requestPreview(); }
+        onContextRequested: (x, y) => chip.showContextMenu(x, y)
     }
     ValueChip {
         id: chip

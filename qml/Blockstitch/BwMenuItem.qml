@@ -6,7 +6,7 @@ MenuItem {
     property string iconName: ""
     property bool danger: false
     implicitWidth: 210
-    implicitHeight: 34
+    implicitHeight: Math.max(34, Theme.minimumTarget)
     height: visible ? implicitHeight : 0
     leftPadding: 10; rightPadding: 12
     HoverHandler { cursorShape: Qt.PointingHandCursor }

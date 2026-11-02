@@ -3,6 +3,8 @@ import QtQuick
 
 QtObject {
     // Empty follows the desktop, including changes made while the app is open.
+    property bool touchMode: Qt.platform.os === "android"
+    readonly property int minimumTarget: touchMode ? 48 : 0
     property string mode: ""
     readonly property bool dark: mode === "dark" || (mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property color window: dark ? "#1d1e20" : "#f3f4f6"

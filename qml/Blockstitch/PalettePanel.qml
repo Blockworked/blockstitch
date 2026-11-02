@@ -246,7 +246,7 @@ Rectangle {
                 Row {
                     visible:blk.sectionShown("data"); spacing:8; topPadding:8
                     Text { text:qsTr("VARIABLES"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:qsTr("Make a Variable"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeVariableRequested() }
+                    BwButton { text:qsTr("Make a Variable"); implicitHeight:Math.max(28,Theme.minimumTarget); font.pixelSize:11; onClicked:root.makeVariableRequested() }
                 }
                 Repeater {
                     model:root.variables||[]
@@ -264,7 +264,7 @@ Rectangle {
                 Row {
                     visible:blk.sectionShown("data"); spacing:8; topPadding:8
                     Text { text:qsTr("LISTS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:qsTr("Make a List"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeListRequested() }
+                    BwButton { text:qsTr("Make a List"); implicitHeight:Math.max(28,Theme.minimumTarget); font.pixelSize:11; onClicked:root.makeListRequested() }
                 }
                 CollectionPanel {
                     visible:blk.sectionShown("data")
@@ -301,7 +301,7 @@ Rectangle {
                 Row {
                     visible:root.dictsEnabled && blk.sectionShown("data"); spacing:8; topPadding:8
                     Text { text:qsTr("DICTS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:qsTr("Make a Dict"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeDictRequested() }
+                    BwButton { text:qsTr("Make a Dict"); implicitHeight:Math.max(28,Theme.minimumTarget); font.pixelSize:11; onClicked:root.makeDictRequested() }
                 }
                 CollectionPanel {
                     visible:root.dictsEnabled && blk.sectionShown("data")
@@ -339,7 +339,7 @@ Rectangle {
                 Row {
                     visible:blk.sectionShown("custom"); spacing:8; topPadding:8
                     Text { text:qsTr("MY BLOCKS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:qsTr("Make a Block"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeBlockRequested() }
+                    BwButton { text:qsTr("Make a Block"); implicitHeight:Math.max(28,Theme.minimumTarget); font.pixelSize:11; onClicked:root.makeBlockRequested() }
                 }
                 Repeater {
                     model:(root.blockDefinitions||[]).filter(def=>!def.read_only)
@@ -377,7 +377,7 @@ Rectangle {
                 Row {
                     visible:root.blockLibraryEnabled && blk.sectionShown("community"); spacing:8; topPadding:8
                     Text { text:qsTr("COMMUNITY BLOCKS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:qsTr("Browse"); iconName:"book-open"; implicitHeight:28; font.pixelSize:11; onClicked:root.browseBlocksRequested() }
+                    BwButton { text:qsTr("Browse"); iconName:"book-open"; implicitHeight:Math.max(28,Theme.minimumTarget); font.pixelSize:11; onClicked:root.browseBlocksRequested() }
                 }
                 Repeater {
                     model:root.communityPacks
@@ -463,7 +463,7 @@ Rectangle {
                         readonly property bool current: root.layout==="flyout"
                             ? root.flyoutOpen && !root.searching && (modelData.id==="search"?root.category==="all":root.category===modelData.id)
                             : !root.searching && root.category===modelData.id
-                        width:railColumn.width-8; x:4; height:46; radius:6
+                        width:railColumn.width-8; x:4; height:Math.max(46,Theme.minimumTarget); radius:6
                         color:current?Theme.panelRaised:(railHover.hovered?Theme.field:"transparent")
                         opacity:root.searching&&root.layout==="rail"?0.5:1
                         Column {
@@ -528,7 +528,7 @@ Rectangle {
             }
             Rectangle {
                 visible:root.layout==="tiles"&&!root.searching&&root.category!=="all"
-                Layout.fillWidth:true; Layout.leftMargin:8; Layout.rightMargin:8; Layout.bottomMargin:6; implicitHeight:30; radius:6
+                Layout.fillWidth:true; Layout.leftMargin:8; Layout.rightMargin:8; Layout.bottomMargin:6; implicitHeight:Math.max(30,Theme.minimumTarget); radius:6
                 color:backHover.hovered?Theme.field:"transparent"
                 Row {
                     anchors.verticalCenter:parent.verticalCenter; anchors.left:parent.left; anchors.leftMargin:6; spacing:6
