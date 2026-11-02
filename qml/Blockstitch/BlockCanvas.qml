@@ -1592,7 +1592,7 @@ Rectangle {
                     Row {
                         id:headerRow;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;anchors.leftMargin:8;anchors.rightMargin:4;height:commentCard.headerH;spacing:7
                         LucideIcon { name:"message-square";color:Theme.textDim;width:14;height:14;anchors.verticalCenter:parent.verticalCenter }
-                        Text { id:commentLabel;text:qsTr("COMMENT");color:Theme.textDim;font.pixelSize:10;font.weight:Font.Bold;anchors.verticalCenter:parent.verticalCenter }
+                        Text { id:commentLabel;text:qsTr("Comment");color:Theme.textDim;font.pixelSize:12;font.weight:Font.Medium;anchors.verticalCenter:parent.verticalCenter }
                         Item { width:Math.max(0,parent.width-14-commentLabel.width-collapseBtn.width-parent.spacing*3);height:1 }
                         BwButton { id:collapseBtn;iconName:commentCard.modelData.collapsed?"chevron-down":"chevron-up";text:"";flat:true;implicitWidth:24;implicitHeight:24;anchors.verticalCenter:parent.verticalCenter;onClicked:root.commentCollapseChanged(commentCard.modelData.id,!commentCard.modelData.collapsed) }
                     }

@@ -186,7 +186,7 @@ Popup {
                     }
                 }
 
-                Text { text: qsTr("Hour"); color: Theme.textDim; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.5 }
+                Text { text: qsTr("Hour"); color: Theme.textDim; font.pixelSize: 11; font.weight: Font.Medium }
                 ChoiceGrid {
                     // On a 12-hour clock the grid is 12, 1 ... 11 of the half of the day shown.
                     values: control.use12h ? Array.from({ length: 12 }, (_, i) => i + (control.hour >= 12 ? 12 : 0)) : Array.from({ length: 24 }, (_, i) => i)
@@ -194,7 +194,7 @@ Popup {
                     current: control.hour
                     onChosen: v => control.hour = v
                 }
-                Text { text: qsTr("Minute"); color: Theme.textDim; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 0.5 }
+                Text { text: qsTr("Minute"); color: Theme.textDim; font.pixelSize: 11; font.weight: Font.Medium }
                 ChoiceGrid {
                     values: Array.from({ length: 12 }, (_, i) => i * 5)
                     labels: values.map(control.pad)
