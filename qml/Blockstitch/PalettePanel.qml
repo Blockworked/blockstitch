@@ -79,7 +79,7 @@ Rectangle {
         else if(type==="ReplaceItemOfList"){i.name=firstListName();i.index=n(1);i.value=t("thing");}
         else if(type==="If"){i.condition={kind:"Bool"};i.body=[];} else if(type==="IfElse"){i.condition={kind:"Bool"};i.then_body=[];i.else_body=[];}
         else if(type==="Repeat"){i.count=n(10);i.body=[];} else if(type==="Forever"){i.body=[];} else if(type==="While"){i.condition={kind:"Bool"};i.body=[];}
-        else if(type==="Return")i.value=n(0); else if(type==="SetVariable"){i.name=(variables||[])[0]||"variable";i.value=n(0);} else if(type==="ChangeVariable"){i.name=(variables||[])[0]||"variable";i.value=n(1);}
+        else if(type==="Return")i.value=n(0); else if(type==="SetVariable"){i.name=BlockRegistry.defaultVariableName(variables);i.value=n(0);} else if(type==="ChangeVariable"){i.name=BlockRegistry.defaultVariableName(variables);i.value=n(1);}
         return i;
     }
     function firstListName(){return lists&&lists.length?lists[0].name:"";}

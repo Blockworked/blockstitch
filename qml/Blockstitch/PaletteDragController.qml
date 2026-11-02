@@ -5,9 +5,12 @@ import QtQuick
 // semantic edit handed to the host's `submit`; the host maps it onto its
 // own commands. Fill the editor with it, above the palette and the canvas.
 //
+// `variableToCreate` asks the host to declare that name with the insertion,
+// in the same undo step. Browsing and canceled drags never request it.
+//
 // Edits (`kind` and its fields):
-//   insert_instruction  strandId, path, instruction
-//   add_strand          x, y, instruction
+//   insert_instruction  strandId, path, instruction, variableToCreate?
+//   add_strand          x, y, instruction, variableToCreate?
 //   put_value           location, value
 //   create_floating_value  x, y, value, originBlockId
 //   remove_instructions strandId, path, count
@@ -64,6 +67,10 @@ Item {
     function inTrash(sx, sy) { return !!root.trashContains && root.trashContains(sx, sy); }
     function send(edit, onReply) {
         if (!root.submit) { console.warn("PaletteDragController: no submit for", edit.kind); return; }
+        if (edit.kind === "add_strand" || edit.kind === "insert_instruction") {
+            const name = BlockRegistry.variableToCreate(edit.instruction, root.variables);
+            if (name) edit = Object.assign({}, edit, { variableToCreate: name });
+        }
         root.submit(edit, (ok, error) => { if (onReply) onReply(ok !== false, error); });
     }
 

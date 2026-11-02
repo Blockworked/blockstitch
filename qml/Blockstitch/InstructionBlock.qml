@@ -656,7 +656,7 @@ Item {
         Row {
             spacing: 7
                     Text { text:qsTr("set"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:Array.from(root.variables||[]); currentIndex:instruction?Array.from(root.variables||[]).indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose variable")); implicitWidth:106; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("name",currentText) }
+                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:BlockRegistry.variableChoices(root.variables).map(choice => choice.value); currentIndex:instruction?model.indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose variable")); implicitWidth:106; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("name",currentText) }
                     Text { text:qsTr("to"); color:Theme.text; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("SetVariableValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }
@@ -665,7 +665,7 @@ Item {
         Row {
             spacing: 7
                     Text { text:qsTr("change"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:Array.from(root.variables||[]); currentIndex:instruction?Array.from(root.variables||[]).indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose variable")); implicitWidth:106; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("name",currentText) }
+                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:BlockRegistry.variableChoices(root.variables).map(choice => choice.value); currentIndex:instruction?model.indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose variable")); implicitWidth:106; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("name",currentText) }
                     Text { text:qsTr("by"); color:Theme.text; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("ChangeVariableValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }

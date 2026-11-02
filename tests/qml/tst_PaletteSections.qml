@@ -21,6 +21,20 @@ Item {
         function names(section) { return section.items.map(i => i.name); }
         function sectionsOf(category) { return palette.resolvedSections.filter(s => s.category === category); }
 
+        function test_variable_defaults_are_shared_and_alphabetical() {
+            palette.variables = [];
+            compare(palette.prefab("SetVariable").name, "my variable");
+            compare(palette.prefab("ChangeVariable").name, "my variable");
+            compare(BlockRegistry.variableChoices(palette.variables), [{value: "my variable", label: "my variable"}]);
+            const names = ["zebra", "apple", "middle"];
+            palette.variables = names;
+            compare(palette.prefab("SetVariable").name, "apple");
+            compare(palette.prefab("ChangeVariable").name, "apple");
+            compare(BlockRegistry.variableChoices(palette.variables).map(choice => choice.value), ["apple", "middle", "zebra"]);
+            compare(names, ["zebra", "apple", "middle"]);
+            palette.variables = ["score"];
+        }
+
         function test_variablesSitWithMakeAVariable() {
             palette.sections = [];
             const data = sectionsOf("data");

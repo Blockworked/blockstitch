@@ -114,6 +114,22 @@ QtObject {
     function resetOperators() { operators = defaultOperators(); }
     function registerPrefabs(map) { prefabs = Object.assign({}, prefabs, map); }
 
+    // Hosts register the variable targets used by their own instruction types.
+    property var variableFields: ({ SetVariable: ["name"], ChangeVariable: ["name"] })
+    readonly property string defaultVariable: "my variable"
+    function registerVariableFields(map) { variableFields = Object.assign({}, variableFields, map); }
+    function sortedVariables(variables) { return Array.from(variables || []).sort((a, b) => a.localeCompare(b)); }
+    function defaultVariableName(variables) { return sortedVariables(variables)[0] || defaultVariable; }
+    function variableChoices(variables) {
+        const names = sortedVariables(variables);
+        return (names.length ? names : [defaultVariable]).map(name => ({ value: name, label: name }));
+    }
+    function variableToCreate(instruction, variables) {
+        return instruction && (variableFields[instruction.type] || []).some(key => instruction[key] === defaultVariable)
+            && !Array.from(variables || []).includes(defaultVariable) ? defaultVariable : null;
+    }
+
+
     function defaultOperators() {
         const mathOptions = [
             {value:"Abs",label:qsTr("abs")},{value:"Floor",label:qsTr("floor")},{value:"Ceiling",label:qsTr("ceiling")},{value:"Sign",label:qsTr("sign")},

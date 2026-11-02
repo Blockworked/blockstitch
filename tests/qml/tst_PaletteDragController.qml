@@ -65,6 +65,7 @@ Item {
             canvas.cancelDrag(); canvas.cancelValueDrag();
             scene.floatingValues = [];
             controller.cancel(); controller.locked = false; controller.documentId = "doc-a";
+            controller.variables = [];
             canvas.setZoom(1);
             scene.strands = JSON.parse(JSON.stringify(scene.pristine));
             wait(50);
@@ -77,6 +78,34 @@ Item {
         }
         function drop(spec, gx, gy) { dragTo(spec, gx, gy); controller.end(gx + 6, gy + 6); wait(20); }
         function below(id) { const b = block(id); verify(!!b, id); return b.mapToItem(null, 0, b.height); }
+
+        function test_variable_creation_is_requested_only_on_insertion() {
+            const spec = {kind: "instruction", instruction: {id: "palette", type: "SetVariable",
+                name: "my variable", value: num(0)}};
+            controller.begin(spec, 1000, 60, 6, 6);
+            compare(scene.edits.length, 0);
+            controller.cancel();
+            compare(scene.edits.length, 0);
+            controller.addAt(spec, 450, 300);
+            compare(scene.edits.length, 1);
+            compare(scene.edits[0].variableToCreate, "my variable");
+            verify(spec.instruction.variableToCreate === undefined);
+            controller.variables = ["my variable"];
+            controller.addAt(spec, 450, 400);
+            compare(scene.edits.length, 2);
+            verify(scene.edits[1].variableToCreate === undefined);
+        }
+        function test_host_variable_fields_use_the_same_drop_policy() {
+            BlockRegistry.registerVariableFields({TestResponse: ["destination"]});
+            const instruction = {id: "response", type: "TestResponse", destination: "my variable"};
+            controller.send({kind: "insert_instruction", strandId: "s1", path: [{index: 1}], instruction: instruction});
+            compare(scene.edits.length, 1);
+            compare(scene.edits[0].variableToCreate, "my variable");
+            instruction.destination = "score";
+            controller.send({kind: "insert_instruction", strandId: "s1", path: [{index: 1}], instruction: instruction});
+            compare(scene.edits.length, 2);
+            verify(scene.edits[1].variableToCreate === undefined);
+        }
 
         function test_above_keeps_lower_stack_fixed_data() {
             return [{ tag: "above", covering: false }, { tag: "covering", covering: true }];
