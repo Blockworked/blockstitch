@@ -259,6 +259,8 @@ Rectangle {
     function operatorCategory(op) { return extraCategories[op] || (systemOperators.indexOf(op)>=0 ? "system" : "operators"); }
     function humanize(s) { return String(s).replace(/([a-z0-9])([A-Z])/g,"$1 $2").toLowerCase(); }
     function matches(label) { return humanize(label).indexOf(searchText.trim().toLowerCase())>=0; }
+    // Palette blocks still building in the background (see the entry Loader).
+    property int pendingEntries: 0
     readonly property bool searching: searchText.trim().length>0
     readonly property bool noResults: {
         if(!searching) return false;
@@ -303,6 +305,13 @@ Rectangle {
                             delegate:Loader {
                                 id:entry
                                 required property var modelData
+                                // Past the first sections, blocks build over the next
+                                // frames instead of all before the palette first shows.
+                                asynchronous:sec.index>1
+                                property bool pending: false
+                                Component.onCompleted: if (status === Loader.Loading) { pending = true; ++root.pendingEntries; }
+                                onStatusChanged: if (pending && status !== Loader.Loading) { pending = false; --root.pendingEntries; }
+                                Component.onDestruction: if (pending) --root.pendingEntries
                                 visible:!root.searching || root.itemMatches(modelData)
                                 sourceComponent:modelData.kind==="instruction"?instructionEntry:modelData.kind==="operator"?operatorEntry
                                     :modelData.kind==="variables"?variablesEntry:modelData.kind==="lists"?listsEntry:dictsEntry

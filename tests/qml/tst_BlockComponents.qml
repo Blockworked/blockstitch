@@ -48,12 +48,17 @@ Item {
         }
 
         function test_paletteComponentsCanBeAddedRemovedAndInserted() {
+            // Palette blocks past the first sections build over a few frames.
+            tryCompare(palette, "pendingEntries", 0);
             const entry = descendants(palette).find(o => o.spec && o.spec.kind === "instruction");
             verify(!!entry);
             entry.instruction = { id: "palette-TestFind", type: "TestFind" };
             const row = descendants(entry).find(o => o.paletteMode === true);
             const plus = descendants(entry).find(o => o.objectName === "addComponentButton");
             verify(!!plus);
+            // Let the rebuilt row and the palette around it settle first.
+            waitForItemPolished(entry);
+            wait(50);
             mouseClick(plus);
             const menu = findChild(plus, "addComponentMenu");
             verify(!!menu);
