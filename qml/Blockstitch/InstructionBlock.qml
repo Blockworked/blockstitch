@@ -94,8 +94,12 @@ Item {
                 pieces.unshift(groups.pop());
             groups.push({ kind: "component", component: piece.component, pieces: pieces });
         }
-        return groups;
+        return isWrap || isHeader ? groups : groups.filter(p => !(p.kind === "value" && p.box));
     }
+    // Value pieces marked `box` (multi-line text) each get a line of their
+    // own under a statement's row; wraps and hats keep them in the row.
+    readonly property var boxPieces: isWrap || isHeader || hasBranchHeader ? [] : headPieces.filter(p => p.kind === "value" && p.box)
+    readonly property real boxExtra: boxPieces.length ? boxes.implicitHeight + 8 : 0
     readonly property int rowHeight: 58
     readonly property real tabDepth: 8
     readonly property real spine: 20
@@ -139,8 +143,8 @@ Item {
     // Match the web canvas: the chosen color marks a custom block's icon and
     // hover outline, while the block body stays in the neutral canvas palette.
     readonly property color displayColor: type === "RunBranch" ? Theme.panelRaised : isCustomBlock ? Theme.block : blockColor
-    implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(type === "RunBranch" ? 150 : isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 28), hasBranchHeader ? pvOuterWidth + 28 : 0)
-    implicitHeight: isWrap ? headHeight + mouthTotal + Math.max(0, slotCount() - 1) * midHeight + footHeight + (isCap ? 0 : tabDepth) : hasBranchHeader ? pvTop + pvOuterHeight + 8 + tabDepth : isCap ? rowHeight - tabDepth : rowHeight
+    implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(type === "RunBranch" ? 150 : isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 28), hasBranchHeader ? pvOuterWidth + 28 : 0, boxPieces.length ? boxes.x + boxes.implicitWidth + 16 : 0)
+    implicitHeight: isWrap ? headHeight + mouthTotal + Math.max(0, slotCount() - 1) * midHeight + footHeight + (isCap ? 0 : tabDepth) : hasBranchHeader ? pvTop + pvOuterHeight + 8 + tabDepth : (isCap ? rowHeight - tabDepth : rowHeight) + boxExtra
     z: dragRole > 0 ? 50 : hovered ? 2 : 1
     // The overlay draws active tails; trashed tails wait for their removal.
     opacity: dragRole === 1 && dragState && ((dragState.active && dragState.externalPreview) || (!dragState.active && dragState.settling && dragState.settleHidden)) ? 0 : 1
@@ -913,6 +917,29 @@ Item {
         }
         Repeater { model: root.isWrap ? [] : root.headGroups; delegate: pieceDelegate }
     }
+    // The row's text boxes, one per line, each with its caption.
+    Column {
+        id: boxes
+        objectName: "blockBoxes"
+        visible: root.boxPieces.length > 0
+        x: 37; y: root.rowHeight - root.tabDepth - 4; spacing: 6
+        Repeater {
+            model: root.boxPieces
+            delegate: Row {
+                id: boxLine
+                objectName: "blockBoxLine"
+                required property var modelData
+                spacing: 8
+                Text {
+                    visible: !!boxLine.modelData.boxLabel
+                    text: boxLine.modelData.boxLabel || ""; color: Theme.textDim; font.pixelSize: 11
+                    width: visible ? Math.max(captionMetrics.advanceWidth, 46) : 0; topPadding: 6
+                    TextMetrics { id: captionMetrics; font.pixelSize: 11; text: boxLine.modelData.boxLabel || "" }
+                }
+                Repeater { model: [boxLine.modelData]; delegate: pieceDelegate }
+            }
+        }
+    }
 
     // Head bar content, then one mouth per body (nested blocks) with separator bars between them.
     Row {
@@ -1077,6 +1104,8 @@ Item {
                     location: root.paletteMode ? null : root.fieldLocation(piece.modelData.field)
                     leafOptions: piece.modelData.options ? BlockRegistry.choices(piece.modelData.options, root.instruction) : null
                     leafPlaceholder: piece.modelData.placeholder || qsTr("choose")
+                    multiline: !!piece.modelData.box && !!piece.parent && piece.parent.objectName === "blockBoxLine"
+                    monospace: !!piece.modelData.monospace
                     pickAction: piece.modelData.pickAction || ""
                     pickOnClick: !piece.modelData.expression || !root.instruction || !root.instruction[piece.modelData.expression]
                     boxed: !!piece.modelData.bool; forceBoolean: !!piece.modelData.bool && (!valueData || valueData.kind === "Bool")

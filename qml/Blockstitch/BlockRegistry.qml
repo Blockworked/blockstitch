@@ -202,7 +202,9 @@ QtObject {
         if (valueReplacementHandler) valueReplacementHandler(location, value);
     }
     function customCallRow(definition) {
-        if (!definition || !(definition.pieces || []).some(p => p.component)) return null;
+        // Plain definitions draw from their pieces; components and
+        // multi-line boxes need a registered-style row.
+        if (!definition || !(definition.pieces || []).some(p => p.component || (p.kind === "Input" && p.multiline))) return null;
         const spec = {head: [], components: []};
         let group = null, arg = 0, branched = false;
         for (const p of definition.pieces || []) {
@@ -215,7 +217,8 @@ QtObject {
                 continue;
             }
             const piece = p.kind === "Input"
-                ? {kind: "value", key: "args", index: arg, field: "CallArg:" + arg++, bool: p.value_type === "Bool"}
+                ? Object.assign({kind: "value", key: "args", index: arg, field: "CallArg:" + arg++, bool: p.value_type === "Bool"},
+                    p.multiline && p.value_type !== "Bool" ? {box: true, boxLabel: p.name} : {})
                 : p.kind === "Label" && !branched ? {kind: "label", text: p.text} : null;
             if (piece) (group ? group.pieces : spec.head).push(piece);
         }
@@ -229,7 +232,7 @@ QtObject {
             if (d && !bool && ((d.kind === "Number" && typeof d.value === "number" && isFinite(d.value))
                                || (d.kind === "Text" && typeof d.value === "string")))
                 return JSON.parse(JSON.stringify(d));
-            return bool ? { kind: "Bool" } : { kind: "Number", value: 0 };
+            return bool ? { kind: "Bool" } : p.multiline ? { kind: "Text", value: "" } : { kind: "Number", value: 0 };
         });
     }
     // BEGIN GENERATED operator descriptors (blockstitch-core tests/descriptors.rs; BLESS=1 rewrites)

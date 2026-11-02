@@ -71,6 +71,23 @@ Item {
         if (cur.length) parts.push(cur);
         return parts;
     }
+    // Draw a Text/Number leaf as a box showing every line, typed in place
+    // (a block's text box under its row); `monospace` for code.
+    property bool multiline: false
+    property bool monospace: false
+    readonly property string leafText: valueData && (valueData.kind === "Text" || valueData.kind === "Number") && valueData.value !== undefined ? String(valueData.value) : ""
+    readonly property int leafLines: leafText.split("\n").length
+    function commitText(text) {
+        if (!root.valueData || text === root.leafText) return;
+        if (root.location) root.editRequested(root.location, text);
+        else root.leafEdited([], root.leafFromText(root.valueData, text));
+    }
+    // The bigger editor, over the whole window.
+    function openTextEditor(text) {
+        if (!root.editable) return;
+        const dialog = textEditorComponent.createObject(root, { text: text });
+        if (dialog) dialog.open();
+    }
     // Marks this item for value-drop hit-testing (recursive childAt walk in BlockCanvas).
     readonly property bool isValueChip: true
     readonly property var valueLocation: location
@@ -530,7 +547,7 @@ Item {
             // Explicit, or the Loader keeps the width of a leaf it no longer shows.
             width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
             anchors.verticalCenter: parent.verticalCenter
-            sourceComponent: root.keyMode ? keycapLeaf : root.leafOptions !== null && root.valueData && root.valueData.kind === "Text" ? enumLeaf : root.activePick ? pickLeaf : textLeaf
+            sourceComponent: root.keyMode ? keycapLeaf : root.leafOptions !== null && root.valueData && root.valueData.kind === "Text" ? enumLeaf : root.activePick ? pickLeaf : root.multiline ? boxLeafComponent : root.leafLines > 1 ? summaryLeafComponent : textLeaf
         }
         Component {
             id: enumLeaf
@@ -632,16 +649,126 @@ Item {
                 implicitWidth: leafInput.implicitWidth; implicitHeight: leafInput.implicitHeight
                 BwTextField {
                     id: leafInput
-                    readOnly: !root.editable; text: root.valueData ? String(root.valueData.value) : ""; selectByMouse: true
+                    readOnly: !root.editable; text: root.leafText; selectByMouse: true
                     font.pixelSize: 12; color: Theme.text; implicitHeight: 27
-                    implicitWidth: Math.max(36, Math.min(600, contentWidth + 18))
-                    leftPadding: 7; rightPadding: 7; topPadding: 2; bottomPadding: 2
+                    // Room on the right for the expand button while editing.
+                    readonly property bool expandShown: activeFocus && root.editable
+                    implicitWidth: Math.max(36, Math.min(600, contentWidth + 18 + (expandShown ? 20 : 0)))
+                    leftPadding: 7; rightPadding: expandShown ? 27 : 7; topPadding: 2; bottomPadding: 2
                     background: Rectangle { radius: 5; color: root.flatLeaf ? "transparent" : Theme.field; border.color: root.flatLeaf ? "transparent" : (leafInput.activeFocus ? Theme.accent : Theme.border) }
-                    onEditingFinished: if (root.valueData && text !== String(root.valueData.value)) {
-                        if (root.location) root.editRequested(root.location, text);
-                        else root.leafEdited([], root.leafFromText(root.valueData, text));
+                    onEditingFinished: root.commitText(text)
+                    // Shift+Enter starts a second line, in the bigger editor.
+                    Keys.onPressed: event => {
+                        if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && (event.modifiers & Qt.ShiftModifier) && root.editable) {
+                            event.accepted = true;
+                            const at = leafInput.cursorPosition;
+                            root.openTextEditor(leafInput.text.slice(0, at) + "\n" + leafInput.text.slice(at));
+                        }
+                    }
+                    Item {
+                        objectName: "expandTextButton"
+                        visible: leafInput.expandShown
+                        anchors.right: parent.right; anchors.rightMargin: 3; anchors.verticalCenter: parent.verticalCenter
+                        width: 21; height: 21
+                        LucideIcon { anchors.centerIn: parent; name: "maximize"; width: 12; height: 12; color: expandMouse.containsMouse ? Theme.accent : Theme.textDim }
+                        ToolTip.visible: expandMouse.containsMouse; ToolTip.delay: 400; ToolTip.text: qsTr("Edit in a bigger box (Shift+Enter adds a line)")
+                        MouseArea { id: expandMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.openTextEditor(leafInput.text) }
                     }
                 }
+            }
+        }
+        // Text with line breaks: its first line and how many follow.
+        // A click opens the bigger editor.
+        Component {
+            id: summaryLeafComponent
+            Rectangle {
+                id: summaryLeaf
+                objectName: "multilineSummary"
+                implicitHeight: 27
+                implicitWidth: summaryRow.implicitWidth + 16
+                radius: 5
+                color: root.flatLeaf ? "transparent" : (summaryHover.hovered && root.editable ? Theme.hover : Theme.field)
+                border.color: root.flatLeaf ? "transparent" : (summaryHover.hovered && root.editable ? Theme.accent : Theme.border)
+                Row {
+                    id: summaryRow
+                    anchors.centerIn: parent; spacing: 6
+                    Text {
+                        text: root.leafText.split("\n")[0]; color: Theme.text; font.pixelSize: 12
+                        width: Math.min(implicitWidth, 260); elide: Text.ElideRight
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Rectangle {
+                        objectName: "multilineBadge"
+                        anchors.verticalCenter: parent.verticalCenter
+                        implicitWidth: badgeText.implicitWidth + 10; implicitHeight: 17; radius: 8.5
+                        color: Theme.panelRaised; border.color: Theme.border
+                        Text { id: badgeText; anchors.centerIn: parent; text: root.leafLines === 2 ? qsTr("+1 line") : qsTr("+%1 lines").arg(root.leafLines - 1); color: Theme.textDim; font.pixelSize: 10 }
+                    }
+                }
+                HoverHandler { id: summaryHover; enabled: root.editable; cursorShape: Qt.PointingHandCursor }
+                TapHandler { enabled: root.editable; onTapped: root.openTextEditor(root.leafText) }
+                ToolTip.visible: summaryHover.hovered; ToolTip.delay: 500; ToolTip.text: root.leafText
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Text, %1 lines. Click to edit.").arg(root.leafLines)
+            }
+        }
+        // A block's text box: every line shows, typed in place.
+        Component {
+            id: boxLeafComponent
+            Rectangle {
+                id: boxLeaf
+                objectName: "multilineBox"
+                readonly property real lineHeight: boxMetrics.height
+                readonly property int shownLines: Math.max(1, Math.min(10, root.leafLines))
+                implicitWidth: Math.max(260, Math.min(600, boxArea.contentWidth + 44))
+                implicitHeight: shownLines * lineHeight + 14
+                radius: 5
+                color: Theme.field
+                border.color: boxArea.activeFocus ? Theme.accent : Theme.border
+                FontMetrics { id: boxMetrics; font: boxArea.font }
+                Flickable {
+                    id: boxFlick
+                    anchors.fill: parent; anchors.margins: 1; anchors.rightMargin: 24
+                    contentWidth: boxArea.contentWidth + 14; contentHeight: boxArea.contentHeight + 12
+                    clip: true; boundsBehavior: Flickable.StopAtBounds
+                    interactive: contentHeight > height || contentWidth > width
+                    TextEdit {
+                        id: boxArea
+                        objectName: "multilineBoxArea"
+                        x: 7; y: 6
+                        // Fill the box, so a click anywhere in it starts typing.
+                        width: Math.max(contentWidth, boxFlick.width - 14)
+                        height: Math.max(contentHeight, boxFlick.height - 12)
+                        readOnly: !root.editable; text: root.leafText; selectByMouse: true
+                        font.pixelSize: 12; font.family: root.monospace ? "monospace" : font.family
+                        color: Theme.text; selectionColor: Theme.accent; selectedTextColor: "white"
+                        onEditingFinished: root.commitText(text)
+                        onCursorRectangleChanged: {
+                            const r = cursorRectangle;
+                            if (r.y < boxFlick.contentY) boxFlick.contentY = r.y;
+                            else if (r.y + r.height + 12 > boxFlick.contentY + boxFlick.height) boxFlick.contentY = r.y + r.height + 12 - boxFlick.height;
+                        }
+                        Keys.onPressed: event => {
+                            if (event.key === Qt.Key_Escape) { event.accepted = true; boxArea.focus = false; }
+                        }
+                    }
+                }
+                Item {
+                    visible: root.editable
+                    anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 3
+                    width: 21; height: 21
+                    LucideIcon { anchors.centerIn: parent; name: "maximize"; width: 12; height: 12; color: boxExpandMouse.containsMouse ? Theme.accent : Theme.textDim }
+                    ToolTip.visible: boxExpandMouse.containsMouse; ToolTip.delay: 400; ToolTip.text: qsTr("Edit in a bigger box")
+                    MouseArea { id: boxExpandMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.openTextEditor(boxArea.text) }
+                }
+            }
+        }
+        Component {
+            id: textEditorComponent
+            TextEditorDialog {
+                monospace: root.monospace
+                onTextAccepted: text => root.commitText(text)
+                onClosed: destroy()
             }
         }
         Text { visible: !!root.valueData && ["Var","Param"].indexOf(root.valueData.kind)>=0; text: root.valueData && root.valueData.name ? root.valueData.name : ""; color: root.referenceColor; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }

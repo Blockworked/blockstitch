@@ -253,10 +253,12 @@ Item {
         background: Rectangle { radius: Theme.radius; color: Theme.panel; border.color: Theme.border }
         contentItem: ColumnLayout {
             spacing: 12
-            Label { text: qsTr("Default parameters"); color: Theme.text; font.bold: true; font.pixelSize: 20 }
+            Label { text: qsTr("Inputs"); color: Theme.text; font.bold: true; font.pixelSize: 20 }
             Label {
                 Layout.fillWidth: true
-                text: qsTr("Starting values for new blocks added from the sidebar. Existing blocks keep their values.")
+                text: root.allowDefaults
+                    ? qsTr("Starting values for new blocks added from the sidebar (existing blocks keep their values), and which inputs get a text box of their own.")
+                    : qsTr("Which inputs get a text box of their own, for text with several lines.")
                 wrapMode: Text.WordWrap
                 color: Theme.textDim
             }
@@ -271,7 +273,7 @@ Item {
                     Label {
                         Layout.fillWidth: true
                         visible: !root.resultPieces().some(p => p.kind === "Input")
-                        text: qsTr("Add an input to the block to set its default value.")
+                        text: qsTr("Add an input to the block to set its options.")
                         wrapMode: Text.WordWrap
                         color: Theme.textDim
                     }
@@ -286,14 +288,24 @@ Item {
                             required property string valueType
                             required property string defaultKind
                             required property string defaultText
-                            readonly property string kind: defaultKind || (valueType === "Bool" ? "Bool" : "Number")
-                            readonly property string value: defaultKind ? defaultText : (valueType === "Bool" ? "false" : "0")
+                            required property bool multiline
+                            // With no default, a multi-line input starts as empty text.
+                            readonly property string kind: defaultKind || (valueType === "Bool" ? "Bool" : multiline ? "Text" : "Number")
+                            readonly property string value: defaultKind ? defaultText : (valueType === "Bool" ? "false" : multiline ? "" : "0")
                             objectName: "defaultParameterRow" + index
                             visible: pieceKind === "Input"
                             Layout.fillWidth: true
                             spacing: 6
                             Label { text: defaultRow.pieceName; color: Theme.text; font.bold: true }
+                            BwCheckBox {
+                                objectName: "multilineInput"
+                                visible: defaultRow.valueType !== "Bool"
+                                text: qsTr("Multi-line text box under the block")
+                                checked: defaultRow.multiline
+                                onToggled: pieces.setProperty(defaultRow.index, "multiline", checked)
+                            }
                             RowLayout {
+                                visible: root.allowDefaults
                                 Layout.fillWidth: true
                                 BwComboBox {
                                     objectName: "defaultParameterType"
@@ -318,7 +330,7 @@ Item {
                                 }
                             }
                             ScrollView {
-                                visible: defaultRow.kind === "Text"
+                                visible: root.allowDefaults && defaultRow.kind === "Text"
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 80
                                 contentWidth: availableWidth
@@ -336,7 +348,7 @@ Item {
                                 }
                             }
                             Label {
-                                visible: defaultRow.kind === "Number" && (!defaultRow.value.trim().length || !isFinite(Number(defaultRow.value)))
+                                visible: root.allowDefaults && defaultRow.kind === "Number" && (!defaultRow.value.trim().length || !isFinite(Number(defaultRow.value)))
                                 text: qsTr("Enter a finite number")
                                 color: Theme.danger
                             }
@@ -453,7 +465,8 @@ Item {
                 pieceId: p.id || "",
                 defaultKind: p.default_value ? p.default_value.kind : "",
                 defaultText: p.default_value ? String(p.default_value.value) : "",
-                pieceJson: JSON.stringify(p)
+                pieceJson: JSON.stringify(p),
+                multiline: p.kind === "Input" && !!p.multiline
             });
         }
         if (!pieces.count)
@@ -491,7 +504,7 @@ Item {
         Qt.callLater(previewViewport.centerPreview);
     }
     function blankPiece(kind, name, valueType) {
-        return { component: false, pieceKind: kind, pieceName: name, valueType: valueType || "Any", pieceId: "", defaultKind: "", defaultText: "", pieceJson: "" };
+        return { component: false, pieceKind: kind, pieceName: name, valueType: valueType || "Any", pieceId: "", defaultKind: "", defaultText: "", pieceJson: "", multiline: false };
     }
     // Puts the keyboard in the first piece; the host calls it once shown.
     function focusFirst() {
@@ -619,7 +632,7 @@ Item {
             return;
         const from = branchInfo[ordinal].index;
         const to = branchInfo[targetOrdinal].index;
-        const roles = ["component", "pieceKind", "pieceName", "valueType", "pieceId", "defaultKind", "defaultText", "pieceJson"];
+        const roles = ["component", "pieceKind", "pieceName", "valueType", "pieceId", "defaultKind", "defaultText", "pieceJson", "multiline"];
         const copy = item => {
             const out = {};
             for (const role of roles)
@@ -702,6 +715,8 @@ Item {
                     piece.value_type = p.valueType;
                     if (p.component) piece.component = true;
                     else delete piece.component;
+                    if (p.multiline && p.valueType !== "Bool") piece.multiline = true;
+                    else delete piece.multiline;
                     // A host without defaults passes the stored one through.
                     if (root.allowDefaults) {
                         const value = root.inputDefaultForPiece(p);
@@ -1532,9 +1547,8 @@ Item {
             }
             BwButton {
                 objectName: "defaultParametersButton"
-                visible: root.allowDefaults
                 Layout.fillWidth: true
-                text: qsTr("Default parameters")
+                text: qsTr("Inputs")
                 iconName: "sliders-horizontal"
                 onClicked: {
                     root.commitPiece();

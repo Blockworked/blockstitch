@@ -24,6 +24,7 @@
     "BwTimePicker.qml",
     "SmoothScroll.qml",
     "BooleanSlot.qml",
+    "TextEditorDialog.qml",
     "ValueChip.qml",
     "InstructionBlock.qml",
     "InstructionList.qml",
