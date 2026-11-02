@@ -4,6 +4,10 @@ import QtQuick
 // Exact SVG geometry from @lucide/vue 1.x (formerly lucide-vue-next 0.469.0), the same package the web
 // frontends use, keyed by lucide's own kebab-case names.
 QtObject {
+    // data: URLs LucideIcon built, by name|color|stroke|filled. Only ever
+    // mutated in place, so the icons reading it don't re-evaluate.
+    readonly property var sources: ({ urls: {}, count: 0 })
+
     readonly property var paths: ({
         "app-window": "<rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/><path d=\"M10 4v4\"/><path d=\"M2 8h20\"/><path d=\"M6 4v4\"/>",
         "arrow-left": "<path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/>",
