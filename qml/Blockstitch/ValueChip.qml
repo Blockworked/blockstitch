@@ -719,7 +719,7 @@ Item {
                 id: boxLeaf
                 objectName: "multilineBox"
                 readonly property real lineHeight: boxMetrics.height
-                readonly property int shownLines: Math.max(1, Math.min(10, root.leafLines))
+                readonly property int shownLines: Math.max(1, Math.min(10, boxArea.lineCount))
                 implicitWidth: Math.max(260, Math.min(600, boxArea.contentWidth + 44))
                 implicitHeight: shownLines * lineHeight + 14
                 radius: 5

@@ -72,9 +72,17 @@ Item {
             mouseClick(area, 5, 5);
             verify(area.activeFocus);
             area.cursorPosition = area.length;
+            const box = named(block, "multilineBox");
+            const before = box.implicitHeight;
             keyClick(Qt.Key_Return);
             keyClick(Qt.Key_F);
             verify(area.activeFocus, "Enter adds a line in a box");
+            verify(box.implicitHeight > before, "the box grows as lines are typed");
+            keyClick(Qt.Key_Backspace);
+            keyClick(Qt.Key_Backspace);
+            compare(box.implicitHeight, before, "and shrinks as they are taken away");
+            keyClick(Qt.Key_Return);
+            keyClick(Qt.Key_F);
             area.focus = false;
             tryCompare(blockEdits, "count", 1);
             compare(blockEdits.signalArguments[0][0].field_id, "Body");
