@@ -69,6 +69,14 @@ A piece inside one may name a field of an object `key` holds with a string
 `index`. Components follow the head, or stand where it has a
 `{kind: "components"}` piece. The palette shows a block without the "+".
 
+Any text slot can hold several lines. A one-line field opens a bigger editor
+(`TextEditorDialog`) from its expand button or Shift+Enter, and text that
+already has line breaks shows its first line with a "+N lines" badge. A value
+piece with `box: true` instead gets a line of its own under a statement's row,
+a text box showing every line (`boxLabel` captions it, `monospace` is for
+code); wraps and hats keep it in the row. A custom block input with
+`multiline` set is drawn the same way at its calls.
+
 ### Operator descriptors
 
 What a fresh operator holds comes from `blockstitch-core`, not the QML.

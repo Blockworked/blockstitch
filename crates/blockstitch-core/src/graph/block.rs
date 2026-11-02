@@ -36,6 +36,9 @@ pub enum BlockPiece {
         /// Literal used for new calls. Expressions are deliberately not accepted.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         default_value: Option<Evaluated>,
+        /// Calls draw this input as a multi-line text box under the row.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        multiline: bool,
     },
     Branch {
         id: String,
@@ -44,18 +47,22 @@ pub enum BlockPiece {
 }
 
 impl BlockPiece {
-    /// Fresh argument for an input; older definitions keep their typed blank.
+    /// Fresh argument for an input; older definitions keep their typed blank,
+    /// and a multi-line one starts as empty text.
     pub fn input_default(&self) -> Option<Value> {
         match self {
             Self::Input {
                 value_type,
                 default_value,
+                multiline,
                 ..
             } => Some(
                 default_value
                     .clone()
                     .map(Evaluated::into_value)
                     .unwrap_or_else(|| match value_type {
+                        // A text box takes typed lines, which a number slot refuses.
+                        InputValueType::Any if *multiline => Value::text(""),
                         InputValueType::Any => Value::number(0.0),
                         InputValueType::Bool => Value::Bool,
                     }),
@@ -220,6 +227,17 @@ impl BlockDef {
         let mut after_branch = false;
         for piece in pieces {
             after_branch |= matches!(piece, BlockPiece::Branch { .. });
+            if let BlockPiece::Input {
+                name,
+                multiline: true,
+                value_type: InputValueType::Bool,
+                ..
+            } = piece
+            {
+                return Err(format!(
+                    "Input \"{name}\" can't be a multi-line box: it's a boolean"
+                ));
+            }
             if let BlockPiece::Input { component: true, value_type, .. } = piece {
                 if *value_type != InputValueType::Bool {
                     return Err("A component must have a boolean enabled parameter".to_string());
@@ -402,6 +420,7 @@ mod tests {
             name: name.to_string(),
             value_type: InputValueType::Any,
             default_value: None,
+            multiline: false,
         };
         assert!(BlockDef::validate_pieces(&[label("jump")]).is_ok());
         assert!(BlockDef::validate_pieces(&[label("  ")]).is_err());
@@ -460,6 +479,7 @@ mod tests {
                     name: "x".to_string(),
                     value_type: InputValueType::Any,
                     default_value: None,
+                    multiline: false,
                 },
             ])
             .is_err()

@@ -88,6 +88,7 @@ fn input(id: &str, name: &str) -> BlockPiece {
         name: name.into(),
         value_type: InputValueType::Any,
         default_value: None,
+        multiline: false,
     }
 }
 fn branch(id: &str, name: &str) -> BlockPiece {
@@ -204,6 +205,7 @@ fn a_new_input_takes_its_default_at_existing_calls() {
         name: "speed".into(),
         value_type: InputValueType::Any,
         default_value: Some(Evaluated::Number(4.0)),
+        multiline: false,
     };
     let flag = BlockPiece::Input {
         component: false,
@@ -211,6 +213,7 @@ fn a_new_input_takes_its_default_at_existing_calls() {
         name: "fast".into(),
         value_type: InputValueType::Bool,
         default_value: None,
+        multiline: false,
     };
     g.update_block(
         &id,
@@ -359,6 +362,7 @@ fn reporter_shapes_and_bad_definitions() {
                 name: "x".into(),
                 value_type: InputValueType::Bool,
                 default_value: Some(Evaluated::Number(1.0)),
+                multiline: false,
             },
         ], // wrong default type
         vec![
@@ -369,6 +373,7 @@ fn reporter_shapes_and_bad_definitions() {
                 name: "x".into(),
                 value_type: InputValueType::Any,
                 default_value: Some(Evaluated::Number(f64::INFINITY)),
+                multiline: false,
             },
         ], // not finite
     ];
@@ -437,4 +442,69 @@ fn adding_a_component_reconciles_calls_and_undo_restores_the_definition() {
     assert_eq!(graph, after);
     let saved = serde_json::to_value(&graph).unwrap();
     assert_eq!(serde_json::from_value::<BlockGraph<Block>>(saved).unwrap(), after);
+}
+
+#[test]
+fn a_multiline_input_round_trips_and_stays_off_when_missing() {
+    let boxed = BlockPiece::Input {
+        component: false,
+        id: "b".into(),
+        name: "body".into(),
+        value_type: InputValueType::Any,
+        default_value: None,
+        multiline: true,
+    };
+    let json = serde_json::to_value(&boxed).unwrap();
+    assert_eq!(json["multiline"], true);
+    assert_eq!(serde_json::from_value::<BlockPiece>(json).unwrap(), boxed);
+    let old: BlockPiece = serde_json::from_value(serde_json::json!({
+        "kind": "Input", "id": "b", "name": "body"
+    }))
+    .unwrap();
+    assert!(matches!(
+        old,
+        BlockPiece::Input {
+            multiline: false,
+            ..
+        }
+    ));
+    let plain = serde_json::to_value(BlockPiece::Input {
+        component: false,
+        id: "p".into(),
+        name: "p".into(),
+        value_type: InputValueType::Any,
+        default_value: None,
+        multiline: false,
+    })
+    .unwrap();
+    assert!(
+        plain.get("multiline").is_none(),
+        "older readers never see the key"
+    );
+}
+
+#[test]
+fn a_boolean_input_cant_be_a_multiline_box() {
+    let flag = BlockPiece::Input {
+        component: false,
+        id: "f".into(),
+        name: "fast".into(),
+        value_type: InputValueType::Bool,
+        default_value: None,
+        multiline: true,
+    };
+    assert!(BlockDef::validate_pieces(&[flag]).is_err());
+}
+
+#[test]
+fn a_multiline_input_starts_as_empty_text() {
+    let boxed = BlockPiece::Input {
+        component: false,
+        id: "b".into(),
+        name: "body".into(),
+        value_type: InputValueType::Any,
+        default_value: None,
+        multiline: true,
+    };
+    assert_eq!(boxed.input_default(), Some(Value::text("")));
 }
