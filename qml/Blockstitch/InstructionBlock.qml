@@ -516,7 +516,7 @@ Item {
     Component { id: fieldsFor0
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN RAN"); color:Theme.text; font.pixelSize:12; font.weight:Font.DemiBold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("WHEN RAN"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     Component { id: fieldsFor1
@@ -571,7 +571,7 @@ Item {
                         implicitHeight:Math.max(27,coordWait.implicitHeight+4); implicitWidth:coordLabelWait.implicitWidth+coordWait.implicitWidth+21
                         width:implicitWidth; height:implicitHeight; radius:5; color:Theme.field
                         border.color:coordWait.dropHighlighted?Theme.accent:Theme.border
-                        Text { id:coordLabelWait; x:7; text:qsTr("MS"); color:Theme.text; font.pixelSize:10; font.weight:Font.DemiBold; font.letterSpacing:0.5; anchors.verticalCenter:parent.verticalCenter }
+                        Text { id:coordLabelWait; x:7; text:qsTr("ms"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                         ValueChip { id:coordWait; x:coordLabelWait.width+14; anchors.verticalCenter:parent.verticalCenter; flatLeaf:true; valueData:instruction?instruction.duration:null; location:root.fieldLocation("WaitDuration"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     }
         }
@@ -617,7 +617,7 @@ Item {
                         implicitHeight:Math.max(27,coordX.implicitHeight+4); implicitWidth:coordLabelX.implicitWidth+coordX.implicitWidth+21
                         width:implicitWidth; height:implicitHeight; radius:5; color:Theme.field
                         border.color:coordX.dropHighlighted?Theme.accent:Theme.border
-                        Text { id:coordLabelX; x:7; text:qsTr("X"); color:Theme.text; font.pixelSize:10; font.weight:Font.DemiBold; font.letterSpacing:0.5; anchors.verticalCenter:parent.verticalCenter }
+                        Text { id:coordLabelX; x:7; text:qsTr("x"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                         ValueChip { id:coordX; x:coordLabelX.width+14; anchors.verticalCenter:parent.verticalCenter; flatLeaf:true; valueData:instruction?instruction.x:null; location:root.fieldLocation("MoveMouseX"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     }
                     Rectangle {
@@ -625,7 +625,7 @@ Item {
                         implicitHeight:Math.max(27,coordY.implicitHeight+4); implicitWidth:coordLabelY.implicitWidth+coordY.implicitWidth+21
                         width:implicitWidth; height:implicitHeight; radius:5; color:Theme.field
                         border.color:coordY.dropHighlighted?Theme.accent:Theme.border
-                        Text { id:coordLabelY; x:7; text:qsTr("Y"); color:Theme.text; font.pixelSize:10; font.weight:Font.DemiBold; font.letterSpacing:0.5; anchors.verticalCenter:parent.verticalCenter }
+                        Text { id:coordLabelY; x:7; text:qsTr("y"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                         ValueChip { id:coordY; x:coordLabelY.width+14; anchors.verticalCenter:parent.verticalCenter; flatLeaf:true; valueData:instruction?instruction.y:null; location:root.fieldLocation("MoveMouseY"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     }
         }
@@ -639,7 +639,7 @@ Item {
                         implicitHeight:Math.max(27,coordScroll.implicitHeight+4); implicitWidth:coordLabelScroll.implicitWidth+coordScroll.implicitWidth+21
                         width:implicitWidth; height:implicitHeight; radius:5; color:Theme.field
                         border.color:coordScroll.dropHighlighted?Theme.accent:Theme.border
-                        Text { id:coordLabelScroll; x:7; text:qsTr("AMOUNT"); color:Theme.text; font.pixelSize:10; font.weight:Font.DemiBold; font.letterSpacing:0.5; anchors.verticalCenter:parent.verticalCenter }
+                        Text { id:coordLabelScroll; x:7; text:qsTr("amount"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                         ValueChip { id:coordScroll; x:coordLabelScroll.width+14; anchors.verticalCenter:parent.verticalCenter; flatLeaf:true; valueData:instruction?instruction.amount:null; location:root.fieldLocation("ScrollAmount"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     }
                     BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Vertical"),qsTr("Horizontal")]; currentIndex:instruction&&instruction.axis==="Horizontal"?1:0; implicitWidth:92; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("axis",["Vertical","Horizontal"][index]) }

@@ -5,6 +5,17 @@ import QtQuick.Shapes
 
 Rectangle {
     id: root
+    // A section's name: sentence case after a small block notch, so it reads as
+    // part of the palette rather than as a caption.
+    component SectionLabel: Row {
+        property alias text: label.text
+        spacing:7
+        Shape {
+            width:14; height:5; anchors.verticalCenter:parent.verticalCenter; preferredRendererType:Shape.CurveRenderer
+            ShapePath { strokeWidth:0; fillColor:Theme.blockTop; startX:0; startY:0; PathLine { x:14; y:0 } PathLine { x:11; y:5 } PathLine { x:3; y:5 } PathLine { x:0; y:0 } }
+        }
+        Text { id:label; color:Theme.textDim; font.pixelSize:13; font.weight:Font.Medium; anchors.verticalCenter:parent.verticalCenter }
+    }
     property var instructionTypes: []
     property var listInstructionTypes: []
     property var variables: []
@@ -292,12 +303,12 @@ Rectangle {
                         spacing:8
                         Text {
                             visible:blk.only==="" && !root.searching && sec.firstOfCategory
-                            text:root.categoryName(sec.modelData.category); color:Theme.text; font.pixelSize:13; font.weight:Font.DemiBold
+                            text:root.categoryName(sec.modelData.category); color:Theme.text; font.pixelSize:15; font.weight:Font.Bold
                             topPadding:sec.index===0?0:12
                         }
                         Row {
                             visible:!root.searching && (sec.modelData.title!=="" || sec.modelData.action!==""); spacing:8; topPadding:4
-                            Text { visible:text!==""; text:sec.modelData.title; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; font.capitalization:Font.AllUppercase; anchors.verticalCenter:parent.verticalCenter }
+                            SectionLabel { visible:sec.modelData.title!==""; text:sec.modelData.title; anchors.verticalCenter:parent.verticalCenter }
                             BwButton { visible:sec.modelData.action!==""; text:root.actionText(sec.modelData.action,sec.modelData.actionText); implicitHeight:28; font.pixelSize:11; onClicked:root.sectionAction(sec.modelData.action) }
                         }
                         Repeater {
@@ -383,7 +394,7 @@ Rectangle {
                 }
                 Row {
                     visible:blk.sectionShown("custom"); spacing:8; topPadding:8
-                    Text { text:qsTr("MY BLOCKS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
+                    SectionLabel { text:qsTr("My blocks"); anchors.verticalCenter:parent.verticalCenter }
                     BwButton { text:qsTr("Make a Block"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeBlockRequested() }
                 }
                 Repeater {
@@ -421,7 +432,7 @@ Rectangle {
                 }
                 Row {
                     visible:root.blockLibraryEnabled && blk.sectionShown("community"); spacing:8; topPadding:8
-                    Text { text:qsTr("COMMUNITY BLOCKS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
+                    SectionLabel { text:qsTr("Community blocks"); anchors.verticalCenter:parent.verticalCenter }
                     BwButton { text:qsTr("Browse"); iconName:"book-open"; implicitHeight:28; font.pixelSize:11; onClicked:root.browseBlocksRequested() }
                 }
                 Repeater {

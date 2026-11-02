@@ -26,7 +26,7 @@ Item {
         function test_labelAndStandalone() {
             const card = findChild(canvas, "commentCard_note");
             function hasLabel(item) {
-                if (item.text === "COMMENT") return true;
+                if (item.text === "Comment") return true;
                 return (item.children || []).some(hasLabel);
             }
             verify(hasLabel(card));
