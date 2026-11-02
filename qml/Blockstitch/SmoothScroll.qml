@@ -54,6 +54,9 @@ QtObject {
     // name is the only reliable hint.
     readonly property bool x11: Qt.platform.pluginName === "xcb"
     function isTouchpad(event) {
+        // The browser can't tell them apart; every wheel event there takes the
+        // follow path, which keeps up when events arrive faster than frames.
+        if (Qt.platform.os === "wasm") return true;
         if (event.phase !== Qt.NoScrollPhase) return true;
         const dev = event.device;
         if (x11) return !!dev && /touch ?pad|track ?pad|synaptics|glidepoint/i.test(dev.name);
