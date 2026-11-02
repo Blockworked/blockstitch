@@ -45,6 +45,8 @@ Item {
         BlockRegistry.unindexBlock(_indexedId, root)
     // number of instructions from this one to the end of its list (inclusive)
     property int tailCount: 1
+    signal tapped()
+    signal insertionRequested(string strandId, var path)
     signal dragBegan(string strandId, var path, int tailCount, real sceneX, real sceneY, real offsetX, real offsetY, real blockW, real blockH)
     signal dragMoved(real sceneX, real sceneY)
     signal dragEnded(real sceneX, real sceneY)
@@ -717,6 +719,7 @@ Item {
         onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
         onDragCanceled: root.dragCanceled()
         onActivated: root.activated()
+        onTapped: { root.tapped(); if (!root.paletteMode) root.insertionRequested(root.strandId, root.path); }
         onContextRequested: (x, y) => root.openMenu(x, y)
     }
     // Built on first use: a menu per block costs more than the block itself.

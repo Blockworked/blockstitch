@@ -3,6 +3,8 @@ import QtQuick
 
 QtObject {
     // Empty follows the desktop, including changes made while the app is open.
+    property bool touchMode: Qt.platform.os === "android"
+    readonly property int minimumTarget: touchMode ? 48 : 0
     property string mode: ""
     // Text inside blocks: labels, fields and dropdowns. Header captions are one smaller.
     readonly property int blockText: 13

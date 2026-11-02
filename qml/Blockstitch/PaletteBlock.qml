@@ -42,6 +42,7 @@ Item {
         onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
         onDragCanceled: root.dragCanceled()
         onActivated: root.activated()
+        onTapped: if (Theme.touchMode) root.activated()
         onInstructionEdited: (sid, p, next) => { root.instruction = next; root.instructionEdited(next); }
     }
 }

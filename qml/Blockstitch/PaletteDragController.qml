@@ -74,6 +74,8 @@ Item {
         root.submit(edit, (ok, error) => { if (onReply) onReply(ok !== false, error); });
     }
 
+    Connections { target: root.canvas; function onTouchNavigationStarted() { root.cancel(); } }
+
     // ---- palette drags ----
     function begin(spec, sx, sy, ox, oy) {
         releaseGhost();
@@ -157,7 +159,25 @@ Item {
         const scene = canvas.mapToItem(null, 80, 80);
         return canvas.workspacePoint(scene.x, scene.y) || { x: 0, y: 0 };
     }
-    function addAtView(spec) { const at = viewPoint(); return addAt(spec, at.x, at.y); }
+    // A touch add uses the selected gap, or a free position in the visible view.
+    function addAtView(spec) {
+        if (root.locked || !canvas) return false;
+        const entry = entryFor(spec);
+        if (!entry) return false;
+        const point = canvas.insertionPoint;
+        const strand = point && canvas.strandById(point.strandId);
+        if (entry.kind === "instruction" && strand && !canvas.isHeaderType(entry.instruction.type)) {
+            const list = canvas.listFor(strand, point.path.slice(0, -1));
+            const at = point.path[point.path.length - 1].index;
+            // A terminal block has no following connector. Never create unreachable code.
+            if (list && at <= list.length && !(at > 0 && canvas.isCapBlock(list[at - 1]))) {
+                send({ kind: "insert_instruction", strandId: point.strandId, path: copy(point.path), instruction: entry.instruction });
+                return true;
+            }
+        }
+        const at = canvas.findEmptyPosition(entry.kind === "value" ? 160 : 260, entry.kind === "value" ? 48 : canvas.blockHeight(entry.instruction));
+        return addAt(spec, at.x, at.y);
+    }
 
     // ---- canvas drags dropped on the trash ----
     // A tail is one removal; a whole strand goes with its first block.

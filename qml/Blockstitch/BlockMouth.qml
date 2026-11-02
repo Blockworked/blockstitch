@@ -98,6 +98,7 @@ Item {
                     item.paletteDragMoved.connect((sx, sy) => block.paletteDragMoved(sx, sy));
                     item.paletteDragEnded.connect((sx, sy) => block.paletteDragEnded(sx, sy));
                     item.paletteDragCanceled.connect(() => block.paletteDragCanceled());
+                    item.insertionRequested.connect(block.insertionRequested);
                     item.dragBegan.connect(block.dragBegan);
                     item.dragMoved.connect(block.dragMoved);
                     item.dragEnded.connect(block.dragEnded);

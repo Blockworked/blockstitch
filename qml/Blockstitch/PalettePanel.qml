@@ -542,7 +542,7 @@ Rectangle {
                         readonly property bool current: root.layout === "flyout" ? root.flyoutOpen && !root.searching && (modelData.id === "search" ? root.category === "all" : root.category === modelData.id) : !root.searching && root.category === modelData.id
                         width: railColumn.width - 8
                         x: 4
-                        height: 46
+                        height: Math.max(46, Theme.minimumTarget)
                         radius: 6
                         color: current ? Theme.panelRaised : (railHover.hovered ? Theme.field : "transparent")
                         opacity: root.searching && root.layout === "rail" ? 0.5 : 1
@@ -669,7 +669,7 @@ Rectangle {
                 Layout.leftMargin: 8
                 Layout.rightMargin: 8
                 Layout.bottomMargin: 6
-                implicitHeight: 30
+                implicitHeight: Math.max(30, Theme.minimumTarget)
                 radius: 6
                 color: backHover.hovered ? Theme.field : "transparent"
                 Row {

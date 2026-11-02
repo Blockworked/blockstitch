@@ -52,7 +52,7 @@ Column {
                 StitchButton {
                     visible: sec.modelData.action !== ""
                     text: panel.actionText(sec.modelData.action, sec.modelData.actionText)
-                    implicitHeight: 28
+                    implicitHeight: Math.max(28, Theme.minimumTarget)
                     font.pixelSize: 11
                     onClicked: panel.sectionAction(sec.modelData.action)
                 }
@@ -205,7 +205,7 @@ Column {
         }
         StitchButton {
             text: qsTr("Make a Block")
-            implicitHeight: 28
+            implicitHeight: Math.max(28, Theme.minimumTarget)
             font.pixelSize: 11
             onClicked: panel.makeBlockRequested()
         }
@@ -279,7 +279,7 @@ Column {
         StitchButton {
             text: qsTr("Browse")
             iconName: "book-open"
-            implicitHeight: 28
+            implicitHeight: Math.max(28, Theme.minimumTarget)
             font.pixelSize: 11
             onClicked: panel.browseBlocksRequested()
         }

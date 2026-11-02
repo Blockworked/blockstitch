@@ -487,6 +487,11 @@ Item {
         onDragEnded: (sx, sy) => root.valueDragEnded(sx, sy)
         onDragCanceled: root.valueDragCanceled()
         onTapped: root.requestPreview()
+        onContextRequested: (x, y) => root.showContextMenu(x, y)
+    }
+    function showContextMenu(x, y) {
+        if (!menuArea.menu) menuArea.menu = valueMenu.createObject(menuArea);
+        menuArea.menu.popup(x, y);
     }
     // A handler, not a MouseArea: a MouseArea here would swallow the hover
     // (and grab cursor) of everything behind it.
@@ -501,9 +506,7 @@ Item {
             // Exclusive, so only the innermost chip under the pointer opens a menu.
             gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: eventPoint => {
-                if (!menuArea.menu)
-                    menuArea.menu = valueMenu.createObject(menuArea);
-                menuArea.menu.popup(eventPoint.position.x, eventPoint.position.y);
+                root.showContextMenu(eventPoint.position.x, eventPoint.position.y);
             }
         }
         Component {

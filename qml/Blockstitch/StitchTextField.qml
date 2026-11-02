@@ -8,7 +8,7 @@ T.TextField {
     id:control
     implicitWidth:implicitBackgroundWidth + leftInset + rightInset
         || Math.max(contentWidth, placeholderLoader.item ? placeholderLoader.item.implicitWidth : 0) + leftPadding + rightPadding
-    implicitHeight:34
+    implicitHeight:Math.max(34,Theme.minimumTarget)
     color:Theme.text; placeholderTextColor:Theme.textDim; selectionColor:Theme.accent; selectedTextColor:"white"
     font.pixelSize:13; selectByMouse:true; verticalAlignment:TextInput.AlignVCenter
     leftPadding:10;rightPadding:10;topPadding:5;bottomPadding:5
