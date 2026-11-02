@@ -42,6 +42,8 @@ Rectangle {
     signal renameDictRequested(string name)
     signal deleteDictRequested(string name)
     signal makeBlockRequested()
+    // The button on a host section, see `sections`.
+    signal sectionActionRequested(string action)
     // Optional: a library of shared blocks, and sharing a block as a pack.
     property bool blockLibraryEnabled: false
     signal browseBlocksRequested()
@@ -176,8 +178,9 @@ Rectangle {
     }
     // The host's palette sections, in order: [{category, title, action, items}].
     // "items" names instruction types and ops, plus "@variables", "@lists" and
-    // "@dicts" for those collections; "action" ("makeVariable", "makeList",
-    // "makeDict") puts that button by the title. Anything no section names joins
+    // "@dicts" for those collections; "action" puts a button by the title:
+    // "makeVariable", "makeList", "makeDict", or the host's own, labelled by
+    // "actionText" and reported through sectionActionRequested. Anything no section names joins
     // an untitled section at the end of its category.
     property var sections: []
     readonly property var defaultSections: [
@@ -206,7 +209,7 @@ Rectangle {
                 else if(name==="@dicts") items.push({kind:"dicts",name:name});
                 else if(known[name] && !used[name]) { used[name]=true; items.push(known[name]); }
             }
-            if(items.length) out.push({category:s.category,title:s.title||"",action:s.action||"",items:items});
+            if(items.length) out.push({category:s.category,title:s.title||"",action:s.action||"",actionText:s.actionText||"",items:items});
         }
         for(const name of order) {
             if(used[name]) continue;
@@ -214,7 +217,7 @@ Rectangle {
             let last=-1;
             for(let i=0;i<out.length;i++) if(out[i].category===item.category) last=i;
             if(last>=0 && out[last].title==="" && out[last].action==="") out[last].items.push(item);
-            else out.splice(last>=0?last+1:out.length,0,{category:item.category,title:"",action:"",items:[item]});
+            else out.splice(last>=0?last+1:out.length,0,{category:item.category,title:"",action:"",actionText:"",items:[item]});
         }
         const rank=c=>{ const i=categories.findIndex(x=>x.id===c); return i<0?categories.length:i; };
         return out.map((s,i)=>({s:s,i:i})).sort((a,b)=>rank(a.s.category)-rank(b.s.category)||a.i-b.i).map(x=>x.s);
@@ -225,11 +228,12 @@ Rectangle {
         return matches(item.name);
     }
     function categoryName(id) { for(const c of categories) if(c.id===id) return c.name; return id; }
-    function actionText(action) {
+    function actionText(action, text) {
+        if(text) return text;
         return action==="makeVariable"?qsTr("Make a Variable"):action==="makeList"?qsTr("Make a List"):action==="makeDict"?qsTr("Make a Dict"):action;
     }
     function sectionAction(action) {
-        if(action==="makeVariable") makeVariableRequested(); else if(action==="makeList") makeListRequested(); else if(action==="makeDict") makeDictRequested();
+        if(action==="makeVariable") makeVariableRequested(); else if(action==="makeList") makeListRequested(); else if(action==="makeDict") makeDictRequested(); else sectionActionRequested(action);
     }
     function operatorExplainer(op) {
         if(listOperators.some(o=>o[0]===op)) return qsTr("A list reporter block that reads data without changing the list.");
@@ -292,7 +296,7 @@ Rectangle {
                         Row {
                             visible:!root.searching && (sec.modelData.title!=="" || sec.modelData.action!==""); spacing:8; topPadding:4
                             Text { visible:text!==""; text:sec.modelData.title; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; font.capitalization:Font.AllUppercase; anchors.verticalCenter:parent.verticalCenter }
-                            BwButton { visible:sec.modelData.action!==""; text:root.actionText(sec.modelData.action); implicitHeight:28; font.pixelSize:11; onClicked:root.sectionAction(sec.modelData.action) }
+                            BwButton { visible:sec.modelData.action!==""; text:root.actionText(sec.modelData.action,sec.modelData.actionText); implicitHeight:28; font.pixelSize:11; onClicked:root.sectionAction(sec.modelData.action) }
                         }
                         Repeater {
                             model:sec.modelData.items

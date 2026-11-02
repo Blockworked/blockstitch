@@ -13,6 +13,7 @@ Item {
         variables: ["score"]
         extraCategories: ({ SetClipboard: "system" })
     }
+    SignalSpy { id: actionSpy; target: palette; signalName: "sectionActionRequested" }
     TestCase {
         name: "PaletteSections"
         when: windowShown
@@ -44,6 +45,18 @@ Item {
             compare(operators[0].title, "");
             verify(names(operators[0]).indexOf("Add") >= 0);
             compare(palette.categoryCount("input"), 1);
+            palette.sections = [];
+        }
+
+        function test_hostActionButton() {
+            palette.sections = [{ category: "data", title: "Globals", action: "makeGlobal", actionText: "Make a Global", items: ["Wait"] }];
+            const section = palette.resolvedSections.find(s => s.action === "makeGlobal");
+            compare(section.actionText, "Make a Global");
+            compare(palette.actionText(section.action, section.actionText), "Make a Global");
+            actionSpy.clear();
+            palette.sectionAction("makeGlobal");
+            compare(actionSpy.count, 1);
+            compare(actionSpy.signalArguments[0][0], "makeGlobal");
             palette.sections = [];
         }
 

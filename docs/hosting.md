@@ -118,7 +118,8 @@ The palette groups blocks by category. Give it `sections` to order them
 within one: `[{category, title, action, items}]`, where `items` names
 instruction types and ops plus `@variables`, `@lists` or `@dicts`, and
 `action` (`makeVariable`, `makeList`, `makeDict`) puts that button by the
-title. Blocks no section names join an untitled section at the end of their
+title. Any other `action` is the host's own: `actionText` labels the button and
+a click sends `sectionActionRequested(action)`. Blocks no section names join an untitled section at the end of their
 category; without `sections`, variables, lists and dicts still get their own.
 
 Fresh values come from the core: `BlockRegistry.freshValue(kind, names)` for
