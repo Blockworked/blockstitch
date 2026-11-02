@@ -516,13 +516,13 @@ Item {
     Component { id: fieldsFor0
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN RAN"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("When run"); color:Theme.text; font.pixelSize:13; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     Component { id: fieldsFor1
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN BATTERY DISCHARGED TO"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("When battery discharged to"); color:Theme.text; font.pixelSize:13; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { valueData:instruction?instruction.threshold:null; location:root.fieldLocation("BatteryDischargeThreshold"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     Text { text:"%"; color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
         }
@@ -530,7 +530,7 @@ Item {
     Component { id: fieldsFor2
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN BATTERY CHARGED TO"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("When battery charged to"); color:Theme.text; font.pixelSize:13; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { valueData:instruction?instruction.threshold:null; location:root.fieldLocation("BatteryChargeThreshold"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     Text { text:"%"; color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
         }
@@ -538,7 +538,7 @@ Item {
     Component { id: fieldsFor3
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("When"); color:Theme.text; font.pixelSize:13; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
                     BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("every day"),qsTr("weekly"),qsTr("monthly"),qsTr("yearly")]; implicitWidth:104; implicitHeight:30; font.pixelSize:12 }
                     Text { text:qsTr("at"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
                     BwTextField { anchors.verticalCenter:parent.verticalCenter; text: instruction&&instruction.schedule ? String(instruction.schedule.hour).padStart(2,"0")+":"+String(instruction.schedule.minute).padStart(2,"0") : "09:00"; implicitWidth:72; implicitHeight:30; font.pixelSize:12 }
@@ -547,19 +547,19 @@ Item {
     Component { id: fieldsFor4
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN POWER PLUGGED IN"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("When power plugged in"); color:Theme.text; font.pixelSize:13; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     Component { id: fieldsFor5
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN POWER UNPLUGGED"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("When power unplugged"); color:Theme.text; font.pixelSize:13; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     Component { id: fieldsFor6
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN CLIPBOARD CHANGES"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("When clipboard changes"); color:Theme.text; font.pixelSize:13; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     Component { id: fieldsFor7
@@ -594,7 +594,7 @@ Item {
     Component { id: fieldsForWhenKey
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("When"); color:Theme.text; font.pixelSize:13; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; keyMode:true; keyCapturing:root.isCapturingKey(); onKeyCaptureRequested:root.keyCaptureRequested(root.strandId,root.path); valueData:instruction?instruction.key:null; location:root.fieldLocation("KeyValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Pressed"),qsTr("Released")]; currentIndex: instruction&&instruction.direction==="Release"?1:0; implicitWidth:104; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("direction",index===1?"Release":"Press") }
         }
@@ -1109,7 +1109,7 @@ Item {
                 id: labelPiece
                 // Event (header) labels use the same caption style as the
                 // built-in event blocks above, so every hat reads alike.
-                Text { text: piece.modelData.text || ""; color: Theme.text; font.pixelSize: root.isHeader ? 11 : 12; font.weight: root.isHeader ? Font.DemiBold : Font.Normal; height: 30; verticalAlignment: Text.AlignVCenter }
+                Text { text: piece.modelData.text || ""; color: Theme.text; font.pixelSize: root.isHeader ? 13 : 12; font.weight: root.isHeader ? Font.DemiBold : Font.Normal; height: 30; verticalAlignment: Text.AlignVCenter }
             }
             Component {
                 id: valuePiece
