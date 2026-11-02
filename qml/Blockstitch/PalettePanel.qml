@@ -7,14 +7,8 @@ Rectangle {
     id: root
     // A section's name: sentence case after a small block notch, so it reads as
     // part of the palette rather than as a caption.
-    component SectionLabel: Row {
-        property alias text: label.text
-        spacing:7
-        Shape {
-            width:14; height:5; anchors.verticalCenter:parent.verticalCenter; preferredRendererType:Shape.CurveRenderer
-            ShapePath { strokeWidth:0; fillColor:Theme.blockTop; startX:0; startY:0; PathLine { x:14; y:0 } PathLine { x:11; y:5 } PathLine { x:3; y:5 } PathLine { x:0; y:0 } }
-        }
-        Text { id:label; color:Theme.textDim; font.pixelSize:13; font.weight:Font.Medium; anchors.verticalCenter:parent.verticalCenter }
+    component SectionLabel: Text {
+        color:Theme.textDim; font.pixelSize:13; font.weight:Font.DemiBold
     }
     property var instructionTypes: []
     property var listInstructionTypes: []
