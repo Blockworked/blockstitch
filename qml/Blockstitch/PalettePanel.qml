@@ -171,11 +171,70 @@ Rectangle {
     function categoryCount(c) {
         if(c==="custom" || c==="community") return (blockDefinitions||[]).filter(def => !!def.read_only === (c==="community")).length;
         let n=0;
-        const types=[].concat(Array.from(instructionTypes||[]));
-        types.forEach(t=>{ if(instructionCategory(t)===c) n++; });
-        if(c==="data") n+=Array.from(listInstructionTypes||[]).length+listOperators.length+(dictsEnabled?dictInstructionTypes.length+dictOperators.length:0);
-        allOperators.forEach(o=>{ if(operatorCategory(o[0])===c) n++; });
+        for(const s of resolvedSections) if(s.category===c) n+=s.items.filter(i=>i.kind==="instruction"||i.kind==="operator").length;
         return n;
+    }
+    // The host's palette sections, in order: [{category, title, action, items}].
+    // "items" names instruction types and ops, plus "@variables", "@lists" and
+    // "@dicts" for those collections; "action" ("makeVariable", "makeList",
+    // "makeDict") puts that button by the title. Anything no section names joins
+    // an untitled section at the end of its category.
+    property var sections: []
+    readonly property var defaultSections: [
+        {category:"data",title:qsTr("Variables"),action:"makeVariable",items:["@variables","SetVariable","ChangeVariable"]},
+        {category:"data",title:qsTr("Lists"),action:"makeList",items:["@lists"].concat(listOperators.map(o=>o[0]),Array.from(listInstructionTypes||[]))},
+        {category:"data",title:qsTr("Dicts"),action:"makeDict",items:["@dicts"].concat(dictOperators.map(o=>o[0]),Array.from(dictInstructionTypes||[]))}
+    ]
+    readonly property var resolvedSections: {
+        const known={}, order=[];
+        const add=(name,kind,spec,category)=>{ if(!known[name]){ known[name]={kind:kind,name:name,spec:spec,category:category}; order.push(name); } };
+        for(const t of instructionTypes||[]) add(t,"instruction",null,instructionCategory(t));
+        for(const o of allOperators) add(o[0],"operator",o,operatorCategory(o[0]));
+        for(const o of listOperators) add(o[0],"operator",o,"data");
+        for(const t of listInstructionTypes||[]) add(t,"instruction",null,"data");
+        if(dictsEnabled){ for(const o of dictOperators) add(o[0],"operator",o,"data"); for(const t of dictInstructionTypes||[]) add(t,"instruction",null,"data"); }
+        const given=Array.from(sections||[]);
+        const tokens=given.reduce((all,s)=>all.concat(Array.from(s.items||[]).filter(i=>String(i).indexOf("@")===0)),[]);
+        for(const s of defaultSections) if(tokens.indexOf(s.items[0])<0) given.push(s);
+        const used={}, out=[];
+        for(const s of given) {
+            if(Array.from(s.items||[]).indexOf("@dicts")>=0 && !dictsEnabled) continue;
+            const items=[];
+            for(const name of s.items||[]) {
+                if(name==="@variables") items.push({kind:"variables",name:name});
+                else if(name==="@lists") items.push({kind:"lists",name:name});
+                else if(name==="@dicts") items.push({kind:"dicts",name:name});
+                else if(known[name] && !used[name]) { used[name]=true; items.push(known[name]); }
+            }
+            if(items.length) out.push({category:s.category,title:s.title||"",action:s.action||"",items:items});
+        }
+        for(const name of order) {
+            if(used[name]) continue;
+            const item=known[name];
+            let last=-1;
+            for(let i=0;i<out.length;i++) if(out[i].category===item.category) last=i;
+            if(last>=0 && out[last].title==="" && out[last].action==="") out[last].items.push(item);
+            else out.splice(last>=0?last+1:out.length,0,{category:item.category,title:"",action:"",items:[item]});
+        }
+        const rank=c=>{ const i=categories.findIndex(x=>x.id===c); return i<0?categories.length:i; };
+        return out.map((s,i)=>({s:s,i:i})).sort((a,b)=>rank(a.s.category)-rank(b.s.category)||a.i-b.i).map(x=>x.s);
+    }
+    function itemMatches(item) {
+        if(item.kind==="variables") return (variables||[]).some(v=>matches(v));
+        if(item.kind==="lists"||item.kind==="dicts") return false;
+        return matches(item.name);
+    }
+    function categoryName(id) { for(const c of categories) if(c.id===id) return c.name; return id; }
+    function actionText(action) {
+        return action==="makeVariable"?qsTr("Make a Variable"):action==="makeList"?qsTr("Make a List"):action==="makeDict"?qsTr("Make a Dict"):action;
+    }
+    function sectionAction(action) {
+        if(action==="makeVariable") makeVariableRequested(); else if(action==="makeList") makeListRequested(); else if(action==="makeDict") makeDictRequested();
+    }
+    function operatorExplainer(op) {
+        if(listOperators.some(o=>o[0]===op)) return qsTr("A list reporter block that reads data without changing the list.");
+        if(dictOperators.some(o=>o[0]===op)) return qsTr("A dict reporter block that reads data without changing the dict.");
+        return qsTr("A value or operator block that can be placed in an input.");
     }
     // App-specific categories ({id, name, icon}), listed before Custom.
     property var appCategories: []
@@ -217,123 +276,96 @@ Rectangle {
             function itemShown(c,label) { return root.searching ? root.matches(label) : (only===""||only===c); }
             function sectionShown(c) { return !root.searching && (only===""||only===c); }
                 Repeater {
-                    model:root.instructionTypes
-                    delegate:PaletteBlock {
-                        required property string modelData
-                        visible:blk.itemShown(root.instructionCategory(modelData),modelData)
-                        instruction:root.prefab(modelData); spec:({kind:"instruction",type:modelData,instruction:instruction})
-                        variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
-                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                        onActivated:root.blockActivated(modelData,instruction); onKeyCaptureRequested:root.standaloneKeyCaptureRequested()
-                        onAppPickerRequested: instruction => root.appPickerRequested(instruction)
-                        onPieceActionRequested: (action, instruction) => root.pieceActionRequested(action, instruction)
-                        onDetailsRequested:type=>root.detailsRequested(type,type,qsTr("See what this block does and where it can be used."))
-                    }
-                }
-                Text { visible:blk.sectionShown("operators"); text:qsTr("OPERATORS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; topPadding:8 }
-                Repeater {
-                    model:root.allOperators
-                    delegate:PaletteValue {
+                    model:root.resolvedSections
+                    delegate:Column {
+                        id:sec
                         required property var modelData
-                        visible:blk.itemShown(root.operatorCategory(modelData[0]),modelData[0])
-                        valueData:root.operatorValue(modelData); spec:({kind:"value",value:valueData})
-                        blockDefinitions:root.blockDefinitions
-                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                        onActivated:root.valueActivated(valueData)
-                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,qsTr("A value or operator block that can be placed in an input."))
-                    }
-                }
-                Row {
-                    visible:blk.sectionShown("data"); spacing:8; topPadding:8
-                    Text { text:qsTr("VARIABLES"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:qsTr("Make a Variable"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeVariableRequested() }
-                }
-                Repeater {
-                    model:root.variables||[]
-                    delegate:PaletteValue {
-                        required property string modelData
-                        visible:blk.itemShown("data",modelData)
-                        valueData:({kind:"Var",name:modelData}); editable:false; spec:({kind:"value",value:valueData})
-                        blockDefinitions:root.blockDefinitions
-                        extraMenu:[{id:"rename",text:qsTr("Rename variable"),icon:"equal"},{id:"delete",text:qsTr("Delete variable"),icon:"trash",danger:true}]
-                        onExtraMenuTriggered:id=>id==="rename"?root.renameVariableRequested(modelData):root.deleteVariableRequested(modelData)
-                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                        onActivated:root.valueActivated(valueData)
-                    }
-                }
-                Row {
-                    visible:blk.sectionShown("data"); spacing:8; topPadding:8
-                    Text { text:qsTr("LISTS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:qsTr("Make a List"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeListRequested() }
-                }
-                CollectionPanel {
-                    visible:blk.sectionShown("data")
-                    collections:root.lists; noun:"list"; rowWidth:Math.max(230,root.width-28-root.railWidth-1)
-                    onEditorStateRequested:(name,visible,x,y)=>root.listEditorStateRequested(name,visible,x,y)
-                    onRenameRequested:name=>root.renameListRequested(name)
-                    onDeleteRequested:name=>root.deleteListRequested(name)
-                    onDetailsRequested:name=>root.detailsRequested(name,"List",qsTr("A document-wide ordered collection of text and number items."))
-                }
-                Repeater {
-                    model:root.listOperators
-                    delegate:PaletteValue {
-                        required property var modelData
-                        visible:blk.itemShown("data",modelData[0])
-                        valueData:root.operatorValue(modelData); spec:({kind:"value",value:valueData})
-                        blockDefinitions:root.blockDefinitions
-                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                        onActivated:root.valueActivated(valueData)
-                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,qsTr("A list reporter block that reads data without changing the list."))
-                    }
-                }
-                Repeater {
-                    model:root.listInstructionTypes
-                    delegate:PaletteBlock {
-                        required property string modelData
-                        visible:blk.itemShown("data",modelData)
-                        instruction:root.prefab(modelData); spec:({kind:"instruction",type:modelData,instruction:instruction})
-                        variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
-                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                        onActivated:root.blockActivated(modelData)
-                        onDetailsRequested:type=>root.detailsRequested(type,type,qsTr("See what this block does and where it can be used."))
-                    }
-                }
-                Row {
-                    visible:root.dictsEnabled && blk.sectionShown("data"); spacing:8; topPadding:8
-                    Text { text:qsTr("DICTS"); color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:qsTr("Make a Dict"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeDictRequested() }
-                }
-                CollectionPanel {
-                    visible:root.dictsEnabled && blk.sectionShown("data")
-                    collections:root.dicts; noun:"dict"; rowWidth:Math.max(230,root.width-28-root.railWidth-1)
-                    emptyText:qsTr("Make a dict, then check it to open its editor on the canvas.")
-                    onEditorStateRequested:(name,visible,x,y)=>root.dictEditorStateRequested(name,visible,x,y)
-                    onRenameRequested:name=>root.renameDictRequested(name)
-                    onDeleteRequested:name=>root.deleteDictRequested(name)
-                    onDetailsRequested:name=>root.detailsRequested(name,"Dict",qsTr("A document-wide collection of text and number values, looked up by key."))
-                }
-                Repeater {
-                    model:root.dictsEnabled?root.dictOperators:[]
-                    delegate:PaletteValue {
-                        required property var modelData
-                        visible:blk.itemShown("data",modelData[0])
-                        valueData:root.operatorValue(modelData); spec:({kind:"value",value:valueData})
-                        blockDefinitions:root.blockDefinitions
-                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                        onActivated:root.valueActivated(valueData)
-                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,qsTr("A dict reporter block that reads data without changing the dict."))
-                    }
-                }
-                Repeater {
-                    model:root.dictsEnabled?root.dictInstructionTypes:[]
-                    delegate:PaletteBlock {
-                        required property string modelData
-                        visible:blk.itemShown("data",modelData)
-                        instruction:root.prefab(modelData); spec:({kind:"instruction",type:modelData,instruction:instruction})
-                        variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
-                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                        onActivated:root.blockActivated(modelData)
-                        onDetailsRequested:type=>root.detailsRequested(type,type,qsTr("See what this block does and where it can be used."))
+                        required property int index
+                        readonly property bool firstOfCategory: index===0 || root.resolvedSections[index-1].category!==modelData.category
+                        visible:root.searching ? modelData.items.some(i=>root.itemMatches(i)) : (blk.only===""||blk.only===modelData.category)
+                        spacing:8
+                        Text {
+                            visible:blk.only==="" && !root.searching && sec.firstOfCategory
+                            text:root.categoryName(sec.modelData.category); color:Theme.text; font.pixelSize:13; font.weight:Font.DemiBold
+                            topPadding:sec.index===0?0:12
+                        }
+                        Row {
+                            visible:!root.searching && (sec.modelData.title!=="" || sec.modelData.action!==""); spacing:8; topPadding:4
+                            Text { visible:text!==""; text:sec.modelData.title; color:Theme.textDim; font.pixelSize:10; font.weight:Font.Bold; font.letterSpacing:1; font.capitalization:Font.AllUppercase; anchors.verticalCenter:parent.verticalCenter }
+                            BwButton { visible:sec.modelData.action!==""; text:root.actionText(sec.modelData.action); implicitHeight:28; font.pixelSize:11; onClicked:root.sectionAction(sec.modelData.action) }
+                        }
+                        Repeater {
+                            model:sec.modelData.items
+                            delegate:Loader {
+                                id:entry
+                                required property var modelData
+                                visible:!root.searching || root.itemMatches(modelData)
+                                sourceComponent:modelData.kind==="instruction"?instructionEntry:modelData.kind==="operator"?operatorEntry
+                                    :modelData.kind==="variables"?variablesEntry:modelData.kind==="lists"?listsEntry:dictsEntry
+                                Component {
+                                    id:instructionEntry
+                                    PaletteBlock {
+                                        instruction:root.prefab(entry.modelData.name); spec:({kind:"instruction",type:entry.modelData.name,instruction:instruction})
+                                        variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
+                                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                                        onActivated:root.blockActivated(entry.modelData.name,instruction); onKeyCaptureRequested:root.standaloneKeyCaptureRequested()
+                                        onAppPickerRequested: instruction => root.appPickerRequested(instruction)
+                                        onPieceActionRequested: (action, instruction) => root.pieceActionRequested(action, instruction)
+                                        onDetailsRequested:type=>root.detailsRequested(type,type,qsTr("See what this block does and where it can be used."))
+                                    }
+                                }
+                                Component {
+                                    id:operatorEntry
+                                    PaletteValue {
+                                        valueData:root.operatorValue(entry.modelData.spec); spec:({kind:"value",value:valueData})
+                                        blockDefinitions:root.blockDefinitions
+                                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                                        onActivated:root.valueActivated(valueData)
+                                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,root.operatorExplainer(kind))
+                                    }
+                                }
+                                Component {
+                                    id:variablesEntry
+                                    Column {
+                                        spacing:8
+                                        Repeater {
+                                            model:root.variables||[]
+                                            delegate:PaletteValue {
+                                                required property string modelData
+                                                visible:!root.searching || root.matches(modelData)
+                                                valueData:({kind:"Var",name:modelData}); editable:false; spec:({kind:"value",value:valueData})
+                                                blockDefinitions:root.blockDefinitions
+                                                extraMenu:[{id:"rename",text:qsTr("Rename variable"),icon:"equal"},{id:"delete",text:qsTr("Delete variable"),icon:"trash",danger:true}]
+                                                onExtraMenuTriggered:id=>id==="rename"?root.renameVariableRequested(modelData):root.deleteVariableRequested(modelData)
+                                                onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
+                                                onActivated:root.valueActivated(valueData)
+                                            }
+                                        }
+                                    }
+                                }
+                                Component {
+                                    id:listsEntry
+                                    CollectionPanel {
+                                        collections:root.lists; noun:"list"; rowWidth:Math.max(230,root.width-28-root.railWidth-1)
+                                        onEditorStateRequested:(name,visible,x,y)=>root.listEditorStateRequested(name,visible,x,y)
+                                        onRenameRequested:name=>root.renameListRequested(name)
+                                        onDeleteRequested:name=>root.deleteListRequested(name)
+                                        onDetailsRequested:name=>root.detailsRequested(name,"List",qsTr("A document-wide ordered collection of text and number items."))
+                                    }
+                                }
+                                Component {
+                                    id:dictsEntry
+                                    CollectionPanel {
+                                        collections:root.dicts; noun:"dict"; rowWidth:Math.max(230,root.width-28-root.railWidth-1)
+                                        emptyText:qsTr("Make a dict, then check it to open its editor on the canvas.")
+                                        onEditorStateRequested:(name,visible,x,y)=>root.dictEditorStateRequested(name,visible,x,y)
+                                        onRenameRequested:name=>root.renameDictRequested(name)
+                                        onDeleteRequested:name=>root.deleteDictRequested(name)
+                                        onDetailsRequested:name=>root.detailsRequested(name,"Dict",qsTr("A document-wide collection of text and number values, looked up by key."))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 Row {
