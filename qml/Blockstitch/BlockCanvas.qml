@@ -420,10 +420,60 @@ Rectangle {
         const right = (flick.contentX + flick.width) / z + _viewMargin, bottom = (flick.contentY + flick.height) / z + _viewMargin;
         return x < right && x + w > left && y < bottom && y + h > top;
     }
+    // Blocks well outside this band are hidden, so a frame doesn't draw a
+    // whole long strand. The band moves in steps, not with every scroll.
+    property bool cullBlocks: true
+    property real cullLeft: -1e9
+    property real cullTop: -1e9
+    property real cullRight: 1e9
+    property real cullBottom: 1e9
+    property bool _cullSet: false
+    function updateCull() {
+        const z = root.zoom || 1;
+        const w = flick.width / z, h = flick.height / z;
+        if (w <= 0 || h <= 0) return;
+        const left = flick.contentX / z, top = flick.contentY / z, right = left + w, bottom = top + h;
+        const mx = Math.max(400, w / 2), my = Math.max(400, h / 2);
+        if (_cullSet && left - mx / 2 >= cullLeft && right + mx / 2 <= cullRight && top - my / 2 >= cullTop && bottom + my / 2 <= cullBottom) return;
+        _cullSet = true;
+        cullLeft = left - mx; cullRight = right + mx; cullTop = top - my; cullBottom = bottom + my;
+    }
+    Connections {
+        target: flick
+        function onContentXChanged() { root.updateCull(); }
+        function onContentYChanged() { root.updateCull(); }
+        function onWidthChanged() { root.updateCull(); }
+        function onHeightChanged() { root.updateCull(); }
+    }
+    onZoomChanged: updateCull()
+    onOriginOffsetXChanged: updateCull()
+    onOriginOffsetYChanged: updateCull()
+    function inCullBand(x, y, w, h) {
+        return !cullBlocks || (x < cullRight && x + w > cullLeft && y < cullBottom && y + h > cullTop);
+    }
     function buildStrand(strand) {
         if (!strand || strand.built) return;
+        strand.loading = true;
+        strand.estY = 0;
         strand.built = true;
+        // A strand made with the canvas fills its blocks a little later.
+        Qt.callLater(() => { if (strand) strand.loading = false; });
         builtStrands++;
+    }
+    // A top-level block slot of a strand. While the strand is first being
+    // filled, only slots near the view build; later ones (edits) build at once.
+    property var _waitingSlots: []
+    function slotCreated(strand, slot, estH) {
+        const y = strand.estY;
+        strand.estY += estH - 8;
+        if (!lazyStrands || !strand.loading || nearView(strand.x, strand.y + y, strandEstW, estH)) { slot.built = true; return; }
+        _waitingSlots.push(slot);
+        _queueDirty = true;
+        strandBuilder.start();
+    }
+    function waitingSlots() {
+        _waitingSlots = _waitingSlots.filter(s => s && s.built === false);
+        return _waitingSlots;
     }
     // How many strands still wait for their blocks.
     function pendingStrands() {
@@ -431,32 +481,68 @@ Rectangle {
         for (let i = 0; i < strandRepeater.count; ++i) if (strandRepeater.itemAt(i) && !strandRepeater.itemAt(i).built) ++n;
         return n;
     }
+    // Strands and top-level blocks still waiting to be built.
+    function pendingBuilds() { return pendingStrands() + waitingSlots().length; }
     // Builds every strand now, for callers that need each block to exist.
     function buildAllStrands() {
         for (let i = 0; i < strandRepeater.count; ++i) buildStrand(strandRepeater.itemAt(i));
+        for (const s of waitingSlots()) s.built = true;
+        _waitingSlots = [];
         strandBuilder.stop();
+        builtStrands++;
     }
-    // One unbuilt strand per pass, nearest to the view first, so the view
-    // shows up before blocks nobody is looking at yet.
+    // Builds what waits, nearest to the view first: one strand a pass, or
+    // blocks of long strands for a few milliseconds, so the view shows up
+    // before blocks nobody is looking at yet.
     Timer {
         id: strandBuilder
         interval: 0
         onTriggered: {
             const z = root.zoom || 1;
             const cx = (flick.contentX + flick.width / 2) / z, cy = (flick.contentY + flick.height / 2) / z;
+            const dist = (x, y, w, h) => {
+                const dx = Math.max(x - cx, 0, cx - x - w), dy = Math.max(y - cy, 0, cy - y - h);
+                return dx * dx + dy * dy;
+            };
             let best = null, bestD = Infinity;
             for (let i = 0; i < strandRepeater.count; ++i) {
                 const s = strandRepeater.itemAt(i);
                 if (!s || s.built) continue;
-                const dx = Math.max(s.x - cx, 0, cx - s.x - s.width), dy = Math.max(s.y - cy, 0, cy - s.y - s.height);
-                const d = dx * dx + dy * dy;
+                const d = dist(s.x, s.y, s.width, s.height);
                 if (d < bestD) { bestD = d; best = s; }
             }
-            if (!best) return;
-            root.buildStrand(best);
-            start();
+            if (best) {
+                root.buildStrand(best);
+                start();
+                return;
+            }
+            // Ordered once, and again only when the view moves or slots
+            // join; a long strand would otherwise lay out and sort each pass.
+            const key = Math.round(cx / 200) + "," + Math.round(cy / 200);
+            let queue = root._waitingSlots;
+            if (queue.length && (root._queueKey !== key || root._queueDirty)) {
+                queue = queue.filter(s => s && s.built === false);
+                const strands = new Set();
+                for (const s of queue) if (!strands.has(s.strandItem)) { strands.add(s.strandItem); s.strandItem.forceLayout(); }
+                const d = new Map();
+                for (const s of queue) d.set(s, dist(s.strandItem.x + s.x, s.strandItem.y + s.y, s.width, s.height));
+                queue.sort((a, b) => d.get(a) - d.get(b));
+                root._queueKey = key;
+                root._queueDirty = false;
+            }
+            const t0 = Date.now();
+            let i = 0;
+            while (i < queue.length && Date.now() - t0 < 30) {
+                const s = queue[i++];
+                if (s && s.built === false) s.built = true;
+            }
+            root._waitingSlots = queue.slice(i);
+            if (i) root.builtStrands++;
+            if (root._waitingSlots.length) start();
         }
     }
+    property string _queueKey: ""
+    property bool _queueDirty: false
     // Scrolls the block with this instruction id into view and outlines it.
     function revealInstruction(id) {
         if (!findBlockItem(workspace, id)) buildAllStrands();
@@ -1411,7 +1497,7 @@ Rectangle {
             dragSession.applyingDocument = false;
         }
     }
-    Component.onCompleted: { syncStrands(); syncListEditors(); syncDictEditors(); tryInitialCenter(); }
+    Component.onCompleted: { syncStrands(); syncListEditors(); syncDictEditors(); tryInitialCenter(); updateCull(); }
     // Prefer free space in the view, then the closest free space around it.
     function findEmptyPosition(width, height) {
         applyWorldResize();
@@ -1552,13 +1638,18 @@ Rectangle {
             // The dot grid lives in world space and moves with the content,
             // so scrolling and zooming never repaint it. Each 22px tile holds a
             // quarter dot in every corner, drawn at twice the size and scaled
-            // down so zooming in stays sharp; the margin covers a zoomed-out view.
+            // down so zooming in stays sharp. It covers the cull band around
+            // the view rather than the whole world, which can be huge for a
+            // long strand, and moves only when the band does.
             Image {
                 id:grid; z:-200
-                readonly property int margin: 22 * 100
                 // Keep the tile phase tied to world coordinates as the origin moves.
-                x:-margin + root.originOffsetX % 22; y:-margin + root.originOffsetY % 22
-                width:2*(root.worldW+2*margin); height:2*(root.worldH+2*margin)
+                readonly property real phaseX: root.originOffsetX % 22
+                readonly property real phaseY: root.originOffsetY % 22
+                readonly property real tileLeft: Math.floor((Math.max(root.cullLeft, -root.worldW) - phaseX) / 22) * 22 + phaseX - 22
+                readonly property real tileTop: Math.floor((Math.max(root.cullTop, -root.worldH) - phaseY) / 22) * 22 + phaseY - 22
+                x:tileLeft; y:tileTop
+                width:2*(Math.min(root.cullRight, 2 * root.worldW) - tileLeft + 44); height:2*(Math.min(root.cullBottom, 2 * root.worldH) - tileTop + 44)
                 scale:0.5; transformOrigin:Item.TopLeft
                 fillMode:Image.Tile; smooth:true
                 // Tile from the top left so resizing cannot shift the pattern.
@@ -1604,6 +1695,8 @@ Rectangle {
                     // by the background builder; until then a placeholder of
                     // about the right size stands in.
                     property bool built: false
+                    property bool loading: false
+                    property real estY: 0
                     readonly property bool nearView: root.nearView(x, y, Math.max(width, root.strandEstW), Math.max(height, 58))
                     onNearViewChanged: if (nearView) root.buildStrand(strand)
                     x:sx + root.originOffsetX; y:sy + root.originOffsetY; spacing:-8
@@ -1631,8 +1724,23 @@ Rectangle {
                     }
                     Repeater {
                         model:strandBlocks
-                        delegate:InstructionBlock {
-                            id:block; required property string payload; required property int index
+                        // Far blocks of a long strand stand in as a placeholder
+                        // of their estimated size until the builder reaches them.
+                        delegate:Loader {
+                            id:slot; required property string payload; required property int index
+                            property bool built: false
+                            readonly property Item strandItem: strand
+                            sourceComponent: built ? blockComponent : placeholderComponent
+                            Component.onCompleted: root.slotCreated(strand, slot, root.blockHeight(JSON.parse(payload)))
+                            Component {
+                                id:placeholderComponent
+                                Item { width: root.strandEstW; height: root.blockHeight(JSON.parse(slot.payload)) }
+                            }
+                            Component {
+                            id:blockComponent
+                        InstructionBlock {
+                            id:block; readonly property string payload: slot.payload; readonly property int index: slot.index
+                            visible: dragRole !== 0 || root.inCullBand(strand.x + slot.x, strand.y + slot.y + snapShift, Math.max(slot.width, 1), Math.max(slot.height, 1))
                             instruction:JSON.parse(payload); strandId:strand.sid; path:[{index:index}]; tailCount:strandBlocks.count-index; recordingTarget:index===0&&root.recordingTargetId===strand.sid; dragState:dragSession
                             variables:root.variables; lists:root.lists; blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; locked:root.locked
                             branchColor: root.branchColorForStrand(strand.sid)
@@ -1660,6 +1768,8 @@ Rectangle {
                             onDragMoved:(sx,sy)=>root.moveDrag(sx,sy)
                             onDragEnded:(sx,sy)=>root.endDrag(sx,sy)
                             onDragCanceled:root.cancelDrag()
+                        }
+                            }
                         }
                     }
                 }

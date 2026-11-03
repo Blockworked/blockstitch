@@ -23,7 +23,7 @@ Item {
             verify(!!block("near-a"));
             compare(block("far-a"), null);
             compare(canvas.pendingStrands(), 1);
-            tryVerify(() => canvas.pendingStrands() === 0);
+            tryVerify(() => canvas.pendingBuilds() === 0);
             verify(!!block("far-b"));
             canvas.strands = [];
             wait(20);
@@ -36,6 +36,41 @@ Item {
             compare(block("far-a"), null);
             verify(canvas.revealInstruction("far-a"));
             verify(!!block("far-a"));
+            canvas.strands = [];
+            wait(20);
+        }
+
+        function test_aLongStrandBuildsItsFarBlocksLater() {
+            canvas.strands = [];
+            wait(20);
+            const long = { id: "long", x: 0, y: 0, instructions: [] };
+            for (let i = 0; i < 200; ++i) long.instructions.push({ id: "l" + i, type: "Wait", ms: i });
+            canvas.strands = [long];
+            verify(!!block("l0"));
+            compare(block("l199"), null);
+            // Placeholders keep the strand about as tall as its blocks.
+            verify(canvas.needBottom >= 199 * 40);
+            verify(canvas.pendingBuilds() > 0);
+            tryVerify(() => canvas.pendingBuilds() === 0);
+            verify(!!block("l199"));
+            // A block added once the strand is there builds at once.
+            const more = JSON.parse(JSON.stringify(long));
+            more.instructions.push({ id: "l200", type: "Wait", ms: 1 });
+            canvas.strands = [more];
+            verify(!!block("l200"));
+            canvas.strands = [];
+            wait(20);
+        }
+
+        function test_revealBuildsAFarBlockOfALongStrand() {
+            canvas.strands = [];
+            wait(20);
+            const long = { id: "long", x: 0, y: 0, instructions: [] };
+            for (let i = 0; i < 200; ++i) long.instructions.push({ id: "r" + i, type: "Wait", ms: i });
+            canvas.strands = [long];
+            compare(block("r150"), null);
+            verify(canvas.revealInstruction("r150"));
+            verify(!!block("r150"));
             canvas.strands = [];
             wait(20);
         }
