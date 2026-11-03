@@ -31,9 +31,9 @@ Item {
 
         function test_revealBuildsTheStrandItNeeds() {
             canvas.strands = [];
-            wait(20);
+            // Blocks of an earlier test can outlive their strand by a pass.
+            tryVerify(() => !block("far-a"));
             canvas.strands = [strand("near", 0, 0), strand("far", 0, 6000)];
-            compare(block("far-a"), null);
             verify(canvas.revealInstruction("far-a"));
             verify(!!block("far-a"));
             canvas.strands = [];
@@ -71,6 +71,20 @@ Item {
             compare(block("r150"), null);
             verify(canvas.revealInstruction("r150"));
             verify(!!block("r150"));
+            canvas.strands = [];
+            wait(20);
+        }
+
+        function test_aHoveredBlockStacksOverTheNext() {
+            canvas.strands = [];
+            wait(20);
+            canvas.strands = [strand("pair", 40, 40)];
+            const a = block("pair-a"), b = block("pair-b");
+            mouseMove(a, 20, 10);
+            // Its outline must draw over the block below it.
+            tryVerify(() => a.hovered);
+            verify(a.parent.z > b.parent.z);
+            mouseMove(canvas, canvas.width - 5, canvas.height - 5);
             canvas.strands = [];
             wait(20);
         }

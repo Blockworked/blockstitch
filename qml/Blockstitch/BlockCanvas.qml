@@ -1730,6 +1730,9 @@ Rectangle {
                             id:slot; required property string payload; required property int index
                             property bool built: false
                             readonly property Item strandItem: strand
+                            // Blocks stack among their siblings (a hovered or dragged
+                            // block over the next one), so the slot carries their z.
+                            z: item ? item.z : 0
                             sourceComponent: built ? blockComponent : placeholderComponent
                             Component.onCompleted: root.slotCreated(strand, slot, root.blockHeight(JSON.parse(payload)))
                             Component {
