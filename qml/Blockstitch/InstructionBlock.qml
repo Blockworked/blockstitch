@@ -516,62 +516,62 @@ Item {
     Component { id: fieldsFor0
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN RAN"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("WHEN RAN"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     Component { id: fieldsFor1
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN BATTERY DISCHARGED TO"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("WHEN BATTERY DISCHARGED TO"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { valueData:instruction?instruction.threshold:null; location:root.fieldLocation("BatteryDischargeThreshold"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:"%"; color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:"%"; color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     Component { id: fieldsFor2
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN BATTERY CHARGED TO"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("WHEN BATTERY CHARGED TO"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { valueData:instruction?instruction.threshold:null; location:root.fieldLocation("BatteryChargeThreshold"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:"%"; color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:"%"; color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     Component { id: fieldsFor3
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("every day"),qsTr("weekly"),qsTr("monthly"),qsTr("yearly")]; implicitWidth:104; implicitHeight:30; font.pixelSize:12 }
-                    Text { text:qsTr("at"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwTextField { anchors.verticalCenter:parent.verticalCenter; text: instruction&&instruction.schedule ? String(instruction.schedule.hour).padStart(2,"0")+":"+String(instruction.schedule.minute).padStart(2,"0") : "09:00"; implicitWidth:72; implicitHeight:30; font.pixelSize:12 }
+                    Text { text:qsTr("WHEN"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("every day"),qsTr("weekly"),qsTr("monthly"),qsTr("yearly")]; implicitWidth:104; implicitHeight:30; font.pixelSize:Theme.blockText }
+                    Text { text:qsTr("at"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
+                    BwTextField { anchors.verticalCenter:parent.verticalCenter; text: instruction&&instruction.schedule ? String(instruction.schedule.hour).padStart(2,"0")+":"+String(instruction.schedule.minute).padStart(2,"0") : "09:00"; implicitWidth:72; implicitHeight:30; font.pixelSize:Theme.blockText }
         }
     }
     Component { id: fieldsFor4
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN POWER PLUGGED IN"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("WHEN POWER PLUGGED IN"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     Component { id: fieldsFor5
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN POWER UNPLUGGED"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("WHEN POWER UNPLUGGED"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     Component { id: fieldsFor6
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN CLIPBOARD CHANGES"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("WHEN CLIPBOARD CHANGES"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     Component { id: fieldsFor7
         Row {
             spacing: 7
-                    Text { text:qsTr("Wait"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("Wait"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     Rectangle {
                         anchors.verticalCenter:parent.verticalCenter
                         implicitHeight:Math.max(27,coordWait.implicitHeight+4); implicitWidth:coordLabelWait.implicitWidth+coordWait.implicitWidth+21
                         width:implicitWidth; height:implicitHeight; radius:5; color:Theme.field
                         border.color:coordWait.dropHighlighted?Theme.accent:Theme.border
-                        Text { id:coordLabelWait; x:7; text:qsTr("ms"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                        Text { id:coordLabelWait; x:7; text:qsTr("ms"); color:Theme.textDim; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                         ValueChip { id:coordWait; x:coordLabelWait.width+14; anchors.verticalCenter:parent.verticalCenter; flatLeaf:true; valueData:instruction?instruction.duration:null; location:root.fieldLocation("WaitDuration"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     }
         }
@@ -579,45 +579,45 @@ Item {
     Component { id: fieldsFor8
         Row {
             spacing: 7
-                    Text { text:qsTr("Text"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("Text"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.text:null; location:root.fieldLocation("TextValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }
     }
     Component { id: fieldsFor9
         Row {
             spacing: 7
-                    Text { text:qsTr("Key"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("Key"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; keyMode:true; keyCapturing:root.isCapturingKey(); onKeyCaptureRequested:root.keyCaptureRequested(root.strandId,root.path); valueData:instruction?instruction.key:null; location:root.fieldLocation("KeyValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Click"),qsTr("Press"),qsTr("Release")]; currentIndex: instruction?["Click","Press","Release"].indexOf(instruction.direction):0; implicitWidth:88; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("direction",["Click","Press","Release"][index]) }
+                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Click"),qsTr("Press"),qsTr("Release")]; currentIndex: instruction?["Click","Press","Release"].indexOf(instruction.direction):0; implicitWidth:88; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("direction",["Click","Press","Release"][index]) }
         }
     }
     Component { id: fieldsForWhenKey
         Row {
             spacing: 7
-                    Text { text:qsTr("WHEN"); color:Theme.text; font.pixelSize:11; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("WHEN"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; keyMode:true; keyCapturing:root.isCapturingKey(); onKeyCaptureRequested:root.keyCaptureRequested(root.strandId,root.path); valueData:instruction?instruction.key:null; location:root.fieldLocation("KeyValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Pressed"),qsTr("Released")]; currentIndex: instruction&&instruction.direction==="Release"?1:0; implicitWidth:104; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("direction",index===1?"Release":"Press") }
+                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Pressed"),qsTr("Released")]; currentIndex: instruction&&instruction.direction==="Release"?1:0; implicitWidth:104; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("direction",index===1?"Release":"Press") }
         }
     }
     Component { id: fieldsFor10
         Row {
             spacing: 7
-                    Text { text:qsTr("Mouse button"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Left"),qsTr("Right"),qsTr("Middle"),qsTr("Side"),qsTr("Extra")]; currentIndex:instruction?["Left","Right","Middle","Side","Extra"].indexOf(instruction.button):0; implicitWidth:82; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("button",["Left","Right","Middle","Side","Extra"][index]) }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Click"),qsTr("Press"),qsTr("Release")]; currentIndex:instruction?["Click","Press","Release"].indexOf(instruction.direction):0; implicitWidth:88; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("direction",["Click","Press","Release"][index]) }
+                    Text { text:qsTr("Mouse button"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
+                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Left"),qsTr("Right"),qsTr("Middle"),qsTr("Side"),qsTr("Extra")]; currentIndex:instruction?["Left","Right","Middle","Side","Extra"].indexOf(instruction.button):0; implicitWidth:82; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("button",["Left","Right","Middle","Side","Extra"][index]) }
+                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Click"),qsTr("Press"),qsTr("Release")]; currentIndex:instruction?["Click","Press","Release"].indexOf(instruction.direction):0; implicitWidth:88; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("direction",["Click","Press","Release"][index]) }
         }
     }
     Component { id: fieldsFor11
         Row {
             spacing: 7
-                    Text { text:qsTr("Move mouse"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Relative"),qsTr("Absolute")]; currentIndex:instruction&&instruction.coordinate==="Absolute"?1:0; implicitWidth:88; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("coordinate",["Relative","Absolute"][index]) }
+                    Text { text:qsTr("Move mouse"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
+                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Relative"),qsTr("Absolute")]; currentIndex:instruction&&instruction.coordinate==="Absolute"?1:0; implicitWidth:88; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("coordinate",["Relative","Absolute"][index]) }
                     Rectangle {
                         anchors.verticalCenter:parent.verticalCenter
                         implicitHeight:Math.max(27,coordX.implicitHeight+4); implicitWidth:coordLabelX.implicitWidth+coordX.implicitWidth+21
                         width:implicitWidth; height:implicitHeight; radius:5; color:Theme.field
                         border.color:coordX.dropHighlighted?Theme.accent:Theme.border
-                        Text { id:coordLabelX; x:7; text:qsTr("x"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                        Text { id:coordLabelX; x:7; text:qsTr("x"); color:Theme.textDim; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                         ValueChip { id:coordX; x:coordLabelX.width+14; anchors.verticalCenter:parent.verticalCenter; flatLeaf:true; valueData:instruction?instruction.x:null; location:root.fieldLocation("MoveMouseX"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     }
                     Rectangle {
@@ -625,7 +625,7 @@ Item {
                         implicitHeight:Math.max(27,coordY.implicitHeight+4); implicitWidth:coordLabelY.implicitWidth+coordY.implicitWidth+21
                         width:implicitWidth; height:implicitHeight; radius:5; color:Theme.field
                         border.color:coordY.dropHighlighted?Theme.accent:Theme.border
-                        Text { id:coordLabelY; x:7; text:qsTr("y"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                        Text { id:coordLabelY; x:7; text:qsTr("y"); color:Theme.textDim; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                         ValueChip { id:coordY; x:coordLabelY.width+14; anchors.verticalCenter:parent.verticalCenter; flatLeaf:true; valueData:instruction?instruction.y:null; location:root.fieldLocation("MoveMouseY"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     }
         }
@@ -633,44 +633,44 @@ Item {
     Component { id: fieldsFor12
         Row {
             spacing: 7
-                    Text { text:qsTr("Scroll"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("Scroll"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     Rectangle {
                         anchors.verticalCenter:parent.verticalCenter
                         implicitHeight:Math.max(27,coordScroll.implicitHeight+4); implicitWidth:coordLabelScroll.implicitWidth+coordScroll.implicitWidth+21
                         width:implicitWidth; height:implicitHeight; radius:5; color:Theme.field
                         border.color:coordScroll.dropHighlighted?Theme.accent:Theme.border
-                        Text { id:coordLabelScroll; x:7; text:qsTr("amount"); color:Theme.textDim; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                        Text { id:coordLabelScroll; x:7; text:qsTr("amount"); color:Theme.textDim; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                         ValueChip { id:coordScroll; x:coordLabelScroll.width+14; anchors.verticalCenter:parent.verticalCenter; flatLeaf:true; valueData:instruction?instruction.amount:null; location:root.fieldLocation("ScrollAmount"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
                     }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Vertical"),qsTr("Horizontal")]; currentIndex:instruction&&instruction.axis==="Horizontal"?1:0; implicitWidth:92; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("axis",["Vertical","Horizontal"][index]) }
+                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Vertical"),qsTr("Horizontal")]; currentIndex:instruction&&instruction.axis==="Horizontal"?1:0; implicitWidth:92; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("axis",["Vertical","Horizontal"][index]) }
         }
     }
     Component { id: fieldsFor13
         Row {
             spacing: 7
-                    Text { text:qsTr("Run command"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwTextField { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.command?instruction.command:""; placeholderText:qsTr("command"); implicitWidth:Math.max(92,Math.min(480,contentWidth+22)); implicitHeight:30; font.pixelSize:12; onEditingFinished:root.setField("command",text) }
+                    Text { text:qsTr("Run command"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
+                    BwTextField { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.command?instruction.command:""; placeholderText:qsTr("command"); implicitWidth:Math.max(92,Math.min(480,contentWidth+22)); implicitHeight:30; font.pixelSize:Theme.blockText; onEditingFinished:root.setField("command",text) }
         }
     }
     Component { id: fieldsFor14
         Row {
             spacing: 7
-                    Text { text:qsTr("Open app"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.name?instruction.name:qsTr("Choose app..."); iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
+                    Text { text:qsTr("Open app"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
+                    BwButton { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.name?instruction.name:qsTr("Choose app..."); iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:Theme.blockText; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
         }
     }
     Component { id: fieldsFor15
         Row {
             spacing: 7
-                    Text { text:qsTr("Close app"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.name?instruction.name:qsTr("Choose app..."); iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:12; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
+                    Text { text:qsTr("Close app"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
+                    BwButton { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.name?instruction.name:qsTr("Choose app..."); iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:Theme.blockText; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
         }
     }
     Component { id: fieldsFor16
         Row {
             spacing: 7
-                    Text { text:qsTr("set"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:BlockRegistry.variableChoices(root.variables).map(choice => choice.value); currentIndex:instruction?model.indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose variable")); implicitWidth:106; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("name",currentText) }
+                    Text { text:qsTr("set"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
+                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:BlockRegistry.variableChoices(root.variables).map(choice => choice.value); currentIndex:instruction?model.indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose variable")); implicitWidth:106; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("name",currentText) }
                     Text { text:qsTr("to"); color:Theme.text; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("SetVariableValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }
@@ -678,8 +678,8 @@ Item {
     Component { id: fieldsFor17
         Row {
             spacing: 7
-                    Text { text:qsTr("change"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:BlockRegistry.variableChoices(root.variables).map(choice => choice.value); currentIndex:instruction?model.indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose variable")); implicitWidth:106; implicitHeight:30; font.pixelSize:12; onActivated:index=>root.setField("name",currentText) }
+                    Text { text:qsTr("change"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
+                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:BlockRegistry.variableChoices(root.variables).map(choice => choice.value); currentIndex:instruction?model.indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose variable")); implicitWidth:106; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("name",currentText) }
                     Text { text:qsTr("by"); color:Theme.text; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("ChangeVariableValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }
@@ -687,41 +687,41 @@ Item {
     Component { id: fieldsFor18
         Row {
             spacing: 7
-                    Text { text:qsTr("set clipboard to"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("set clipboard to"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("SetClipboardValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }
     }
     Component { id: fieldsFor19
         Row {
             spacing: 7
-                    Text { text:qsTr("add"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("add"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("AddToListValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:qsTr("to"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("to"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: fieldsFor23 }
         }
     }
     Component { id: fieldsFor20
         Row {
             spacing: 7
-                    Text { text:qsTr("delete"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("delete"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.index:null; location:root.fieldLocation("DeleteOfListIndex"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:qsTr("of"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("of"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: fieldsFor23 }
         }
     }
     Component { id: fieldsFor21
         Row {
             spacing: 7
-                    Text { text:qsTr("delete all of"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("delete all of"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: fieldsFor23 }
         }
     }
     Component { id: fieldsFor22
         Row {
             spacing: 7
-                    Text { text:qsTr("shift"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("shift"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: fieldsFor23 }
-                    Text { text:qsTr("by"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("by"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.amount:null; location:root.fieldLocation("ShiftListAmount"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }
     }
@@ -732,7 +732,7 @@ Item {
             model: choices; textRole: "label"
             currentIndex: choices.findIndex(c => c.value === (root.instruction ? root.instruction.name : ""))
             displayText: currentIndex >= 0 ? currentText : (root.instruction && root.instruction.name ? root.instruction.name : qsTr("Choose list"))
-            implicitWidth: 98; implicitHeight: 30; font.pixelSize: 12
+            implicitWidth: 98; implicitHeight: 30; font.pixelSize: Theme.blockText
             onActivated: index => {
                 const choice = choices[index];
                 if (choice.action) choice.action(name => root.setField("name", name));
@@ -749,49 +749,49 @@ Item {
     Component { id: fieldsFor24
         Row {
             spacing: 7
-                    Text { text:qsTr("insert"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("insert"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("InsertIntoListValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:qsTr("at"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("at"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.index:null; location:root.fieldLocation("InsertIntoListIndex"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:qsTr("of"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("of"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: listDropdown }
         }
     }
     Component { id: fieldsFor25
         Row {
             spacing: 7
-                    Text { text:qsTr("replace item"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("replace item"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.index:null; location:root.fieldLocation("ReplaceItemOfListIndex"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:qsTr("of"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("of"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: listDropdown }
-                    Text { text:qsTr("with"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("with"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("ReplaceItemOfListValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }
     }
     Component { id: fieldsFor26
         Row {
             spacing: 7
-                    Text { text:qsTr("reverse"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("reverse"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: listDropdown }
         }
     }
     Component { id: fieldsFor27
         Row {
             spacing: 7
-                    Text { text:qsTr("return"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("return"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                     ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("ReturnValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
         }
     }
     Component { id: fieldsFor28
         Row {
             spacing: 7
-                    Text { text:qsTr("break loop"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("break loop"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     Component { id: fieldsFor29
         Row {
             spacing: 7
-                    Text { text:qsTr("continue loop"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:qsTr("continue loop"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
         }
     }
     // Embedded call-site preview for a header with branches (see hasBranchHeader).
@@ -840,7 +840,7 @@ Item {
                 required property int index
                 visible: index < root.branchModel.length - 1 && modelData.s.length > 0
                 x: root.spine + 8; y: root.pvHead + index * (root.pvMouth + root.pvMid) + root.pvMouth + Math.round((root.pvMid - height) / 2)
-                text: modelData.s; color: Theme.text; font.pixelSize: 12
+                text: modelData.s; color: Theme.text; font.pixelSize: Theme.blockText
             }
         }
         Repeater {
@@ -864,7 +864,7 @@ Item {
                     id: pvRow
                     x: 14; y: Math.round((root.pvMouth - height) / 2); spacing: 6
                     LucideIcon { name: "git-branch"; color: root.customColor; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
-                    Text { text: pv.modelData.n; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: pv.modelData.n; color: Theme.text; font.pixelSize: Theme.blockText; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                 }
                 BlockDragArea {
                     id: pvDrag
@@ -893,7 +893,7 @@ Item {
                 spacing: 7
                 Repeater { model:root.type==="CallBlock"?root.callHeadPieces():[];delegate:Item {
                     required property var modelData;width:modelData.kind==="Label"?callPieceText.implicitWidth:callPieceValue.implicitWidth;height:30
-                    Text{id:callPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;anchors.centerIn:parent}
+                    Text{id:callPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:Theme.blockText;font.weight:Font.DemiBold;anchors.centerIn:parent}
                     ValueChip{id:callPieceValue;visible:modelData.kind==="Input";valueData:instruction&&(instruction.args||[])[modelData.argIndex]?(instruction.args||[])[modelData.argIndex]:(modelData.bool?{kind:"Bool"}:{kind:"Number",value:0});location:root.fieldLocation("CallArg:"+modelData.argIndex);boxed:!!modelData.bool;anchors.centerIn:parent;onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled()}
                 }}
                 Repeater {
@@ -917,7 +917,7 @@ Item {
                                 model: headerGroup.modelData.pieces
                                 delegate: Item {
                                     required property var modelData;width:modelData.kind==="Label"?headerText.implicitWidth:headerParam.implicitWidth;height:30
-                                    Text{id:headerText;visible:modelData.kind==="Label";text:modelData.text||"";color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;anchors.centerIn:parent}
+                                    Text{id:headerText;visible:modelData.kind==="Label";text:modelData.text||"";color:Theme.text;font.pixelSize:Theme.blockText;font.weight:Font.DemiBold;anchors.centerIn:parent}
                                     PaletteValue{id:headerParam;visible:modelData.kind==="Input";anchors.centerIn:parent;editable:false;valueData:({kind:"Param",name:modelData.name||""});forceBoolean:modelData.value_type==="Bool";referenceColor:root.customColor;blockDefinitions:root.blockDefinitions
                                         spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,color:root.customColor,originBlockId:root.instruction?root.instruction.block_id:null})
                                         onDragStarted:(sp,sx,sy,ox,oy)=>root.paletteDragStarted(sp,sx,sy,ox,oy);onDragMoved:(sx,sy)=>root.paletteDragMoved(sx,sy);onDragEnded:(sx,sy)=>root.paletteDragEnded(sx,sy);onDragCanceled:root.paletteDragCanceled()}
@@ -926,7 +926,7 @@ Item {
                         }
                     }
                 }
-                Text { visible:root.type==="RunBranch"; text:instruction?(instruction.name||""):""; color:Theme.text; font.pixelSize:12; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                Text { visible:root.type==="RunBranch"; text:instruction?(instruction.name||""):""; color:Theme.text; font.pixelSize:Theme.blockText; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
             }
         }
         Repeater { model: root.isWrap ? [] : root.headGroups; delegate: pieceDelegate }
@@ -946,9 +946,9 @@ Item {
                 spacing: 8
                 Text {
                     visible: !!boxLine.modelData.boxLabel
-                    text: boxLine.modelData.boxLabel || ""; color: Theme.textDim; font.pixelSize: 11
+                    text: boxLine.modelData.boxLabel || ""; color: Theme.textDim; font.pixelSize: Theme.blockText - 1
                     width: visible ? Math.max(captionMetrics.advanceWidth, 46) : 0; topPadding: 6
-                    TextMetrics { id: captionMetrics; font.pixelSize: 11; text: boxLine.modelData.boxLabel || "" }
+                    TextMetrics { id: captionMetrics; font.pixelSize: Theme.blockText - 1; text: boxLine.modelData.boxLabel || "" }
                 }
                 Repeater { model: [boxLine.modelData]; delegate: pieceDelegate }
             }
@@ -963,19 +963,19 @@ Item {
             active: root.isWrap && !root.rowSpec && root.type !== "BranchCallBlock"; visible: active; anchors.verticalCenter: parent.verticalCenter
             sourceComponent: Row {
                 spacing: 7
-                Text { visible:root.type==="If"||root.type==="IfElse"; text:qsTr("if"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                Text { visible:root.type==="If"||root.type==="IfElse"; text:qsTr("if"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                 ValueChip { visible:root.type==="If"||root.type==="IfElse"||root.type==="While"; valueData:instruction?instruction.condition:null; location:root.fieldLocation("Condition"); boxed:true; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                Text { visible:root.type==="If"||root.type==="IfElse"; text:qsTr("then"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                Text { visible:root.type==="Repeat"; text:qsTr("repeat"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                Text { visible:root.type==="If"||root.type==="IfElse"; text:qsTr("then"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
+                Text { visible:root.type==="Repeat"; text:qsTr("repeat"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
                 Loader { active:root.type==="Repeat"; visible:active; sourceComponent:Component { ValueChip { valueData:instruction?instruction.count:null; location:root.fieldLocation("RepeatCount"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() } } }
-                Text { visible:root.type==="Forever"; text:qsTr("forever"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
-                Text { visible:root.type==="While"; text:qsTr("while"); color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+                Text { visible:root.type==="Forever"; text:qsTr("forever"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
+                Text { visible:root.type==="While"; text:qsTr("while"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
             }
         }
         Repeater { model: root.isWrap ? root.headGroups : []; delegate: pieceDelegate }
         Repeater { model:root.type==="BranchCallBlock" && !root.rowSpec ?root.callHeadPieces():[];delegate:Item {
             required property var modelData;width:modelData.kind==="Label"?branchPieceText.implicitWidth:branchPieceValue.implicitWidth;height:30
-            Text{id:branchPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;anchors.centerIn:parent}
+            Text{id:branchPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:Theme.blockText;font.weight:Font.DemiBold;anchors.centerIn:parent}
             ValueChip{id:branchPieceValue;visible:modelData.kind==="Input";valueData:instruction&&(instruction.args||[])[modelData.argIndex]?(instruction.args||[])[modelData.argIndex]:(modelData.bool?{kind:"Bool"}:{kind:"Number",value:0});location:root.fieldLocation("CallArg:"+modelData.argIndex);boxed:!!modelData.bool;anchors.centerIn:parent;onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled()}
         }}
     }
@@ -1070,7 +1070,7 @@ Item {
                 visible: slotDelegate.index < root.slotCount() - 1
                 x: root.spine + 8; y: root.effMouthHeights[slotDelegate.index] + Math.round((root.midHeight - height) / 2)
                 text: root.type === "BranchCallBlock" ? root.branchSeparator(slotDelegate.index) : BlockRegistry.separator(root.type, slotDelegate.index)
-                color: Theme.text; font.pixelSize: 12
+                color: Theme.text; font.pixelSize: Theme.blockText
             }
         }
     }
@@ -1109,7 +1109,7 @@ Item {
                 id: labelPiece
                 // Event (header) labels use the same caption style as the
                 // built-in event blocks above, so every hat reads alike.
-                Text { text: piece.modelData.text || ""; color: Theme.text; font.pixelSize: root.isHeader ? 11 : 12; font.weight: root.isHeader ? Font.DemiBold : Font.Normal; height: 30; verticalAlignment: Text.AlignVCenter }
+                Text { text: piece.modelData.text || ""; color: Theme.text; font.pixelSize: root.isHeader ? Theme.blockText - 1 : Theme.blockText; font.weight: root.isHeader ? Font.DemiBold : Font.Normal; height: 30; verticalAlignment: Text.AlignVCenter }
             }
             Component {
                 id: valuePiece
@@ -1143,7 +1143,7 @@ Item {
                     readonly property int chosen: { for (let i = 0; i < choices.length; ++i) if (choices[i].value === current) return i; return -1; }
                     model: choices; textRole: "label"; currentIndex: chosen
                     displayText: chosen >= 0 ? choices[chosen].label : (current.length ? current : (piece.modelData.placeholder || "choose"))
-                    implicitWidth: Math.min(190, Math.max(56, dropMetrics.advanceWidth + 36)); implicitHeight: 28; font.pixelSize: 12
+                    implicitWidth: Math.min(190, Math.max(56, dropMetrics.advanceWidth + 36)); implicitHeight: 28; font.pixelSize: Theme.blockText
                     leftPadding: 8; rightPadding: 26
                     TextMetrics { id: dropMetrics; font: pieceDrop.font; text: pieceDrop.displayText }
                     onActivated: index => {
@@ -1183,7 +1183,7 @@ Item {
                         }
                         Text {
                             visible: pieceButton.label.length > 0
-                            text: pieceButton.label; color: Theme.text; font.pixelSize: 12
+                            text: pieceButton.label; color: Theme.text; font.pixelSize: Theme.blockText
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -1250,7 +1250,7 @@ Item {
                 id: textPiece
                 BwTextField {
                     text: root.pieceValue(piece.modelData); placeholderText: piece.modelData.placeholder || ""
-                    implicitWidth: Math.min(piece.modelData.maxWidth || 200, Math.max(piece.modelData.minWidth || 64, contentWidth + 20)); implicitHeight: 28; font.pixelSize: 12
+                    implicitWidth: Math.min(piece.modelData.maxWidth || 200, Math.max(piece.modelData.minWidth || 64, contentWidth + 20)); implicitHeight: 28; font.pixelSize: Theme.blockText
                     leftPadding: 7; rightPadding: 7; topPadding: 2; bottomPadding: 2
                     onEditingFinished: if (text !== root.pieceValue(piece.modelData)) root.setPieceField(piece.modelData, text)
                 }

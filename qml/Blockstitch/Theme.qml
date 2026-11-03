@@ -4,6 +4,8 @@ import QtQuick
 QtObject {
     // Empty follows the desktop, including changes made while the app is open.
     property string mode: ""
+    // Text inside blocks: labels, fields and dropdowns. Header captions are one smaller.
+    readonly property int blockText: 13
     readonly property bool dark: mode === "dark" || (mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property color window: dark ? "#1d1e20" : "#f3f4f6"
     readonly property color panel: dark ? "#242527" : "#ffffff"

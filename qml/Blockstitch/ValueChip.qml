@@ -475,7 +475,7 @@ Item {
                 required property int index
                 visible: index < root.callBranches.length - 1 && modelData.sep.length > 0
                 x: 28; y: root.branchTop(index) + root.branchMouthHeight(index) + Math.round((root.branchMid - height) / 2)
-                text: modelData.sep; color: Theme.text; font.pixelSize: 12
+                text: modelData.sep; color: Theme.text; font.pixelSize: Theme.blockText
             }
         }
     }
@@ -484,7 +484,7 @@ Item {
         anchors.verticalCenterOffset: root.hasBranches ? 12 + root.branchHead / 2 - root.implicitHeight / 2 : 0
         visible: !root.draggedOut
         LucideIcon { visible: root.customCall; name: root.callDef && root.callDef.icon ? root.callDef.icon : "blocks"; color: root.refColor; width: 14; height: 14; anchors.verticalCenter: parent.verticalCenter }
-        Text { visible: root.opPrefix.length > 0; text: root.opPrefix; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+        Text { visible: root.opPrefix.length > 0; text: root.opPrefix; color: Theme.text; font.pixelSize: Theme.blockText; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
         Repeater {
             model: root.valueData && root.valueData.kind === "Op" && !root.opLayout ? (root.valueData.args || []) : []
             delegate: Row {
@@ -493,7 +493,7 @@ Item {
                 // The name/choice slot of a reporter is a dropdown over a plain Text leaf.
                 readonly property bool isEnum: index === root.enumIndex && !!modelData && modelData.kind === "Text"
                 anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                Text { visible: argRow.index > 0 && root.infixAt(argRow.index).length > 0; text: root.infixAt(argRow.index); color: Theme.text; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                Text { visible: argRow.index > 0 && root.infixAt(argRow.index).length > 0; text: root.infixAt(argRow.index); color: Theme.text; font.pixelSize: Theme.blockText; anchors.verticalCenter: parent.verticalCenter }
                 Loader {
                     active: argRow.isEnum
                     width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
@@ -506,7 +506,7 @@ Item {
                             model: choices; textRole: "label"
                             currentIndex: chosen
                             displayText: chosen >= 0 ? choices[chosen].label : (argRow.modelData && argRow.modelData.value ? String(argRow.modelData.value) : "choose")
-                            implicitWidth: Math.min(170, Math.max(56, enumMetrics.advanceWidth + 34)); implicitHeight: 27; font.pixelSize: 12
+                            implicitWidth: Math.min(170, Math.max(56, enumMetrics.advanceWidth + 34)); implicitHeight: 27; font.pixelSize: Theme.blockText
                             leftPadding: 8; rightPadding: 26
                             enabled: root.editable
                             TextMetrics { id: enumMetrics; font: enumBox.font; text: enumBox.displayText }
@@ -559,7 +559,7 @@ Item {
                 readonly property int chosen: choices.findIndex(c => c.value === current)
                 model: choices; textRole: "label"; currentIndex: chosen
                 displayText: chosen >= 0 ? choices[chosen].label : (current || root.leafPlaceholder)
-                implicitWidth: Math.min(190, Math.max(56, leafMetrics.advanceWidth + 36)); implicitHeight: 28; font.pixelSize: 12
+                implicitWidth: Math.min(190, Math.max(56, leafMetrics.advanceWidth + 36)); implicitHeight: 28; font.pixelSize: Theme.blockText
                 leftPadding: 8; rightPadding: 26; enabled: root.editable
                 TextMetrics { id: leafMetrics; font: leafBox.font; text: leafBox.displayText }
                 onActivated: index => {
@@ -584,7 +584,7 @@ Item {
                     border.color: root.keyCapturing ? Theme.accentHover : Theme.border
                 }
                 Text {
-                    id: hint; anchors.centerIn: parent; font.pixelSize: 12; visible: keycaps.showHint
+                    id: hint; anchors.centerIn: parent; font.pixelSize: Theme.blockText; visible: keycaps.showHint
                     text: root.keyCapturing ? qsTr("Press keys...") : qsTr("Click to set key")
                     color: root.keyCapturing ? "white" : Theme.text
                 }
@@ -597,8 +597,8 @@ Item {
                             id: capPart
                             required property var modelData; required property int index; spacing: 4
                             anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                            Text { visible: capPart.index > 0; text: "+"; color: Theme.text; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: root.keyPartLabel(capPart.modelData); color: Theme.text; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                            Text { visible: capPart.index > 0; text: "+"; color: Theme.text; font.pixelSize: Theme.blockText - 1; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: root.keyPartLabel(capPart.modelData); color: Theme.text; font.pixelSize: Theme.blockText; anchors.verticalCenter: parent.verticalCenter }
                         }
                     }
                 }
@@ -635,7 +635,7 @@ Item {
                         name: root.activePick.icon || ""; width: 13; height: 13; color: Theme.text
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                    Text { text: root.pickLabel; color: Theme.text; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: root.pickLabel; color: Theme.text; font.pixelSize: Theme.blockText; anchors.verticalCenter: parent.verticalCenter }
                 }
                 HoverHandler { id: pickHover; enabled: pickChip.live; cursorShape: Qt.PointingHandCursor }
                 TapHandler { enabled: pickChip.live; onTapped: BlockRegistry.requestPick(root.activePick.action || "", root.location, root.valueData, pickChip) }
@@ -651,7 +651,7 @@ Item {
                 BwTextField {
                     id: leafInput
                     readOnly: !root.editable; text: root.leafText; selectByMouse: true
-                    font.pixelSize: 12; color: Theme.text; implicitHeight: 27
+                    font.pixelSize: Theme.blockText; color: Theme.text; implicitHeight: 27
                     // Room on the right for the expand button while editing.
                     readonly property bool expandShown: activeFocus && root.editable
                     implicitWidth: Math.max(36, Math.min(600, contentWidth + 18 + (expandShown ? 20 : 0)))
@@ -694,7 +694,7 @@ Item {
                     id: summaryRow
                     anchors.centerIn: parent; spacing: 6
                     Text {
-                        text: root.leafText.split("\n")[0]; color: Theme.text; font.pixelSize: 12
+                        text: root.leafText.split("\n")[0]; color: Theme.text; font.pixelSize: Theme.blockText
                         width: Math.min(implicitWidth, 260); elide: Text.ElideRight
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -741,7 +741,7 @@ Item {
                         width: Math.max(contentWidth, boxFlick.width - 14)
                         height: Math.max(contentHeight, boxFlick.height - 12)
                         readOnly: !root.editable; text: root.leafText; selectByMouse: true
-                        font.pixelSize: 12; font.family: root.monospace ? "monospace" : font.family
+                        font.pixelSize: Theme.blockText; font.family: root.monospace ? "monospace" : font.family
                         color: Theme.text; selectionColor: Theme.accent; selectedTextColor: "white"
                         onEditingFinished: root.commitText(text)
                         onCursorRectangleChanged: {
@@ -772,8 +772,8 @@ Item {
                 onClosed: destroy()
             }
         }
-        Text { visible: !!root.valueData && ["Var","Param"].indexOf(root.valueData.kind)>=0; text: root.valueData && root.valueData.name ? root.valueData.name : ""; color: root.referenceColor; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
-        Text { visible: !!root.valueData && root.valueData.kind === "Call" && !root.callDef; text: root.callDisplayLabel; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+        Text { visible: !!root.valueData && ["Var","Param"].indexOf(root.valueData.kind)>=0; text: root.valueData && root.valueData.name ? root.valueData.name : ""; color: root.referenceColor; font.pixelSize: Theme.blockText; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+        Text { visible: !!root.valueData && root.valueData.kind === "Call" && !root.callDef; text: root.callDisplayLabel; color: Theme.text; font.pixelSize: Theme.blockText; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
         Repeater {
             model: root.callPieces
             delegate: Item {
@@ -783,7 +783,7 @@ Item {
                 width: componentControl ? 24 : modelData.arg < 0 ? callText.implicitWidth : (callArg.item ? callArg.item.implicitWidth : 0)
                 height: componentControl ? 24 : modelData.arg < 0 ? callText.implicitHeight : (callArg.item ? callArg.item.implicitHeight : 0)
                 anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                Text { id: callText; visible: callPiece.modelData.arg < 0 && !callPiece.componentControl; text: callPiece.modelData.label; color: Theme.text; font.pixelSize: 12; font.weight: Font.DemiBold }
+                Text { id: callText; visible: callPiece.modelData.arg < 0 && !callPiece.componentControl; text: callPiece.modelData.label; color: Theme.text; font.pixelSize: Theme.blockText; font.weight: Font.DemiBold }
                 Rectangle {
                     anchors.fill: parent
                     visible: callPiece.componentControl
@@ -831,8 +831,8 @@ Item {
                 }
             }
         }
-        Text { visible: !!root.valueData && root.valueData.kind === "Op" && !root.opLayout && root.opPrefix.length===0 && root.opSuffix.length===0 && (root.valueData.args||[]).length===0; text: root.valueData && root.valueData.op ? root.valueData.op.toLowerCase() : ""; color: Theme.text; font.pixelSize: 12 }
-        Text { visible: root.opSuffix.length>0; text:root.opSuffix; color:Theme.text; font.pixelSize:12; anchors.verticalCenter:parent.verticalCenter }
+        Text { visible: !!root.valueData && root.valueData.kind === "Op" && !root.opLayout && root.opPrefix.length===0 && root.opSuffix.length===0 && (root.valueData.args||[]).length===0; text: root.valueData && root.valueData.op ? root.valueData.op.toLowerCase() : ""; color: Theme.text; font.pixelSize: Theme.blockText }
+        Text { visible: root.opSuffix.length>0; text:root.opSuffix; color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
         // The host's picker for the whole operator, which may rewrite every arg.
         Rectangle {
             readonly property var spec: root.opSpec && root.opSpec.pickOp && root.valueData && root.valueData.kind === "Op" ? root.opSpec.pickOp : null
@@ -864,7 +864,7 @@ Item {
             x: 8; y: 4; width: Math.min(244, implicitWidth)
             text: BlockRegistry.preview ? BlockRegistry.preview.text : ""
             color: BlockRegistry.preview && BlockRegistry.preview.error ? Theme.danger : Theme.text
-            font.pixelSize: 12; font.weight: Font.DemiBold; wrapMode: Text.Wrap
+            font.pixelSize: Theme.blockText; font.weight: Font.DemiBold; wrapMode: Text.Wrap
         }
     }
 }
