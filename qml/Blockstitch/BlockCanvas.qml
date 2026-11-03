@@ -410,8 +410,56 @@ Rectangle {
         }
         return Qt.point(x, y);
     }
+    // Strands far from the view build their blocks later (see strandBuilder).
+    property bool lazyStrands: true
+    property int builtStrands: 0
+    readonly property real _viewMargin: 400
+    function nearView(x, y, w, h) {
+        const z = root.zoom || 1;
+        const left = flick.contentX / z - _viewMargin, top = flick.contentY / z - _viewMargin;
+        const right = (flick.contentX + flick.width) / z + _viewMargin, bottom = (flick.contentY + flick.height) / z + _viewMargin;
+        return x < right && x + w > left && y < bottom && y + h > top;
+    }
+    function buildStrand(strand) {
+        if (!strand || strand.built) return;
+        strand.built = true;
+        builtStrands++;
+    }
+    // How many strands still wait for their blocks.
+    function pendingStrands() {
+        let n = 0;
+        for (let i = 0; i < strandRepeater.count; ++i) if (strandRepeater.itemAt(i) && !strandRepeater.itemAt(i).built) ++n;
+        return n;
+    }
+    // Builds every strand now, for callers that need each block to exist.
+    function buildAllStrands() {
+        for (let i = 0; i < strandRepeater.count; ++i) buildStrand(strandRepeater.itemAt(i));
+        strandBuilder.stop();
+    }
+    // One unbuilt strand per pass, nearest to the view first, so the view
+    // shows up before blocks nobody is looking at yet.
+    Timer {
+        id: strandBuilder
+        interval: 0
+        onTriggered: {
+            const z = root.zoom || 1;
+            const cx = (flick.contentX + flick.width / 2) / z, cy = (flick.contentY + flick.height / 2) / z;
+            let best = null, bestD = Infinity;
+            for (let i = 0; i < strandRepeater.count; ++i) {
+                const s = strandRepeater.itemAt(i);
+                if (!s || s.built) continue;
+                const dx = Math.max(s.x - cx, 0, cx - s.x - s.width), dy = Math.max(s.y - cy, 0, cy - s.y - s.height);
+                const d = dx * dx + dy * dy;
+                if (d < bestD) { bestD = d; best = s; }
+            }
+            if (!best) return;
+            root.buildStrand(best);
+            start();
+        }
+    }
     // Scrolls the block with this instruction id into view and outlines it.
     function revealInstruction(id) {
+        if (!findBlockItem(workspace, id)) buildAllStrands();
         const item = findBlockItem(workspace, id);
         if (!item) return false;
         const p = item.mapToItem(workspace, 0, 0);
@@ -1540,6 +1588,7 @@ Rectangle {
                 }
             }
             Repeater {
+                id: strandRepeater
                 model: strandModel
                 delegate:Column {
                     id:strand
@@ -1551,6 +1600,12 @@ Rectangle {
                     required property string payload
                     required property int index
                     readonly property var blockList: JSON.parse(payload || "[]")
+                    // Blocks are built once the strand comes near the view, or
+                    // by the background builder; until then a placeholder of
+                    // about the right size stands in.
+                    property bool built: false
+                    readonly property bool nearView: root.nearView(x, y, Math.max(width, root.strandEstW), Math.max(height, 58))
+                    onNearViewChanged: if (nearView) root.buildStrand(strand)
                     x:sx + root.originOffsetX; y:sy + root.originOffsetY; spacing:-8
                     z: (dragSession.active && dragSession.strandId === sid) || (dragSession.settling && dragSession.settleStrandId === sid) ? 100 : 0
                     // Report the real card width so the world extends past
@@ -1560,6 +1615,8 @@ Rectangle {
                     onImplicitWidthChanged: root.noteStrandWidth(sid, implicitWidth)
                     onImplicitHeightChanged: root.noteStrandHeight(sid, implicitHeight)
                     Component.onCompleted: {
+                        if (nearView || !root.lazyStrands) root.buildStrand(strand);
+                        else strandBuilder.start();
                         root.noteStrandWidth(sid, implicitWidth);
                         root.noteStrandHeight(sid, implicitHeight);
                     }
@@ -1567,7 +1624,11 @@ Rectangle {
                         root.clearStrandWidth(sid);
                         root.clearStrandHeight(sid);
                     }
-                    InstructionList { id:strandBlocks; instructions:strand.blockList }
+                    InstructionList { id:strandBlocks; instructions:strand.built ? strand.blockList : [] }
+                    Item {
+                        visible: !strand.built
+                        width: root.strandEstW; height: Math.max(58, strand.blockList.length * 50)
+                    }
                     Repeater {
                         model:strandBlocks
                         delegate:InstructionBlock {
@@ -1608,7 +1669,7 @@ Rectangle {
                 delegate:Rectangle {
                     id:commentCard; required property var modelData
                     objectName: "commentCard_" + modelData.id
-                    readonly property var attachedBlock: modelData.attached_to ? root.findBlockItem(workspace, modelData.attached_to) : null
+                    readonly property var attachedBlock: modelData.attached_to && root.builtStrands >= 0 ? root.findBlockItem(workspace, modelData.attached_to) : null
                     readonly property point blockAnchor: root.commentAnchor(attachedBlock)
                     Shape {
                         parent: workspace
