@@ -111,10 +111,9 @@ Rectangle {
     // Strands, comments and floating values use world coordinates;
     // everything rendered inside `workspace` adds the offset, and every
     // coordinate emitted back to the backend subtracts it again.
-    // The world grows symmetrically to fit its content: a fixed-size world
-    // clips strands placed far from the origin (and hides them from scroll),
-    // so expand it beyond the minimum whenever strands/comments/values
-    // extend past it.
+    // The world grows to fit its content: a fixed-size world clips strands
+    // placed far from the origin (and hides them from scroll), so expand it
+    // beyond the minimum whenever strands/comments/values extend past it.
     readonly property real minWorldW: 2600
     readonly property real minWorldH: 1800
     // Horizontal gets extra trailing room so the canvas extends a good
@@ -126,7 +125,7 @@ Rectangle {
     readonly property real strandEstW: 360
     // Live measured strand widths (sid -> implicitWidth), reported by the
     // strand delegates below. Reassigned as a whole on every report so
-    // needHalfW re-evaluates. Without this the world is sized from a fixed
+    // needX re-evaluates. Without this the world is sized from a fixed
     // estimate, so wide strands eat the padding and the canvas ends right
     // at (or inside) their right edge.
     property var _strandWidths: ({})
@@ -147,26 +146,27 @@ Rectangle {
         var w = _strandWidths && _strandWidths[sid];
         return (w > 0) ? w : root.strandEstW;
     }
-    readonly property real needHalfW: {
-        var hw = 0;
+    // How far content reaches left of / right of the origin.
+    readonly property var needX: {
+        var lo = 0, hi = 0;
         var sw = root._strandWidths;
         var sl = root.strands || [];
         for (var i = 0; i < sl.length; ++i) {
             var sx = (sl[i] && sl[i].x) || 0;
             var w = (sw && sw[sl[i].id] > 0) ? sw[sl[i].id] : root.strandEstW;
-            hw = Math.max(hw, Math.abs(sx), Math.abs(sx + w));
+            lo = Math.min(lo, sx); hi = Math.max(hi, sx + w);
         }
         var fv = root.floatingValues || [];
         for (var j = 0; j < fv.length; ++j) {
             var fx = (fv[j] && fv[j].x) || 0;
-            hw = Math.max(hw, Math.abs(fx), Math.abs(fx + 160));
+            lo = Math.min(lo, fx); hi = Math.max(hi, fx + 160);
         }
         var cm = root.comments || [];
         for (var k = 0; k < cm.length; ++k) {
             var cx = (cm[k] && cm[k].x) || 0;
-            hw = Math.max(hw, Math.abs(cx), Math.abs(cx + 220));
+            lo = Math.min(lo, cx); hi = Math.max(hi, cx + 220);
         }
-        return hw;
+        return { before: -lo, after: hi };
     }
     // Use measured strand heights so layout changes do not search every control.
     property var _strandHeights: ({})
@@ -182,36 +182,42 @@ Rectangle {
         delete heights[sid];
         _strandHeights = heights;
     }
-    readonly property real needHalfH: {
-        var hh = 0;
+    readonly property var needY: {
+        var lo = 0, hi = 0;
         var sl = root.strands || [];
         for (var i = 0; i < sl.length; ++i) {
             var sy = (sl[i] && sl[i].y) || 0;
             var sh = root._strandHeights[sl[i].id] ?? 58;
-            hh = Math.max(hh, Math.abs(sy), Math.abs(sy + sh));
+            lo = Math.min(lo, sy); hi = Math.max(hi, sy + sh);
         }
         var fv = root.floatingValues || [];
         for (var j = 0; j < fv.length; ++j) {
             var fy = (fv[j] && fv[j].y) || 0;
-            hh = Math.max(hh, Math.abs(fy), Math.abs(fy + 40));
+            lo = Math.min(lo, fy); hi = Math.max(hi, fy + 40);
         }
         var cm = root.comments || [];
         for (var k = 0; k < cm.length; ++k) {
             var cy = (cm[k] && cm[k].y) || 0;
             var chh = (cm[k] && cm[k].collapsed) ? 38 : 280;
-            hh = Math.max(hh, Math.abs(cy), Math.abs(cy + chh));
+            lo = Math.min(lo, cy); hi = Math.max(hi, cy + chh);
         }
-        return hh;
+        return { before: -lo, after: hi };
     }
-    readonly property real worldW: Math.max(root.minWorldW, 2 * (root.needHalfW + root.canvasPadX))
-    readonly property real worldH: Math.max(root.minWorldH, 2 * (root.needHalfH + root.canvasPadY))
-    readonly property real originOffsetX: worldW / 2
-    readonly property real originOffsetY: worldH / 2
-    // Growing the world moves the origin, which shifts every item's
-    // workspace position by half the growth. Compensate the scroll by the
-    // same amount so the view stays visually still instead of jumping.
-    property real _prevWorldW: 0
-    property real _prevWorldH: 0
+    readonly property real needRight: needX.after
+    readonly property real needBottom: needY.after
+    // Each side grows on its own. Growing right or down leaves the origin
+    // where it is; moving it shifts every item, which Qt pays for per item.
+    readonly property real worldLeft: Math.max(root.minWorldW / 2, root.needX.before + root.canvasPadX)
+    readonly property real worldTop: Math.max(root.minWorldH / 2, root.needY.before + root.canvasPadY)
+    readonly property real worldW: worldLeft + Math.max(root.minWorldW / 2, root.needX.after + root.canvasPadX)
+    readonly property real worldH: worldTop + Math.max(root.minWorldH / 2, root.needY.after + root.canvasPadY)
+    readonly property real originOffsetX: worldLeft
+    readonly property real originOffsetY: worldTop
+    // Growing left or up moves the origin, which shifts every item's
+    // workspace position. Compensate the scroll by the same amount so the
+    // view stays visually still instead of jumping.
+    property real _prevWorldLeft: 0
+    property real _prevWorldTop: 0
     property var _resizeViewX: null
     property var _resizeViewY: null
     property real _resizeScrollX: NaN
@@ -252,27 +258,29 @@ Rectangle {
             valueDrag.settleX += dx; valueDrag.settleY += dy;
         }
     }
-    onWorldWChanged: {
-        if (_prevWorldW > 0 && flick) {
-            shiftDragAnchors((worldW - _prevWorldW) / 2, 0);
+    onWorldLeftChanged: {
+        const shift = worldLeft - _prevWorldLeft;
+        if (_prevWorldLeft > 0 && flick && shift !== 0) {
+            shiftDragAnchors(shift, 0);
             pauseResizeScroll();
-            _resizeScrollX += (worldW - _prevWorldW) * root.zoom / 2;
-            root._zoomAnchorX += (worldW - _prevWorldW) / 2;
-            _resizeViewX = (_resizeViewX ?? flick.contentX) + (worldW - _prevWorldW) * root.zoom / 2;
+            _resizeScrollX += shift * root.zoom;
+            root._zoomAnchorX += shift;
+            _resizeViewX = (_resizeViewX ?? flick.contentX) + shift * root.zoom;
             Qt.callLater(root.applyWorldResize);
         }
-        _prevWorldW = worldW;
+        _prevWorldLeft = worldLeft;
     }
-    onWorldHChanged: {
-        if (_prevWorldH > 0 && flick) {
-            shiftDragAnchors(0, (worldH - _prevWorldH) / 2);
+    onWorldTopChanged: {
+        const shift = worldTop - _prevWorldTop;
+        if (_prevWorldTop > 0 && flick && shift !== 0) {
+            shiftDragAnchors(0, shift);
             pauseResizeScroll();
-            _resizeScrollY += (worldH - _prevWorldH) * root.zoom / 2;
-            root._zoomAnchorY += (worldH - _prevWorldH) / 2;
-            _resizeViewY = (_resizeViewY ?? flick.contentY) + (worldH - _prevWorldH) * root.zoom / 2;
+            _resizeScrollY += shift * root.zoom;
+            root._zoomAnchorY += shift;
+            _resizeViewY = (_resizeViewY ?? flick.contentY) + shift * root.zoom;
             Qt.callLater(root.applyWorldResize);
         }
-        _prevWorldH = worldH;
+        _prevWorldTop = worldTop;
     }
     property bool _centered: false
     // Zooming keeps one workspace point (the anchor) under one viewport point,
@@ -342,8 +350,8 @@ Rectangle {
     function centerOnOrigin() {
         zoomGlide.stop();
         canvasScroll.stop();
-        flick.contentX = Math.max(0, (flick.contentWidth - flick.width) / 2);
-        flick.contentY = Math.max(0, (flick.contentHeight - flick.height) / 2);
+        flick.contentX = Math.max(0, Math.min(flick.contentWidth - flick.width, root.originOffsetX * root.zoom - flick.width / 2));
+        flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, root.originOffsetY * root.zoom - flick.height / 2));
     }
     function tryInitialCenter() {
         if (_centered || flick.width <= 0 || flick.height <= 0) return;
@@ -352,7 +360,7 @@ Rectangle {
     }
     // Glides back to 100% with the workspace origin in the middle of the view.
     function resetView() {
-        _zoomTo(root.worldW / 2, root.worldH / 2, flick.width / 2, flick.height / 2, 1, true);
+        _zoomTo(root.originOffsetX, root.originOffsetY, flick.width / 2, flick.height / 2, 1, true);
     }
     // The block showing instruction `id` under `item`. Every non-palette
     // InstructionBlock indexes itself in BlockRegistry, so this checks a few
