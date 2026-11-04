@@ -69,6 +69,27 @@ Item {
             startDrag();
             compare(restored().item.valueData, { kind: "Number", value: 42 });
         }
+        function test_nestedVariableLeavesBlankNumber() {
+            chip.location = { kind: "Floating", floating_id: "f1", path: [0] };
+            chip.valueData = { kind: "Var", name: "a rather long variable name" };
+            waitForRendering(chip);
+            const w = chip.width;
+            startDrag();
+            compare(restored().item.valueData, { kind: "Number", value: 0 });
+            verify(chip.width < w);
+        }
+        function test_fieldVariableShrinksToBlank() {
+            chip.valueData = { kind: "Var", name: "a rather long variable name" };
+            waitForRendering(chip);
+            const w = chip.width;
+            startDrag();
+            compare(restored().item, null);
+            compare(chip.width, 36);
+            compare(chip.height, 27);
+            verify(chip.width < w);
+            mouseRelease(chip, 25, 60);
+            compare(chip.width, w);
+        }
         function test_floatingRootLeavesNoRestoredValue() {
             chip.location = { kind: "Floating", floating_id: "f1", path: [] };
             startDrag();

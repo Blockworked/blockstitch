@@ -264,20 +264,29 @@ Item {
         : Math.max(booleanShape ? 48 : 36, content.implicitWidth + (booleanShape ? 22 : showBox ? 12 : 0))
     readonly property real fullHeight: hasBranches ? branchHeight + 24 : Math.max(27, content.implicitHeight + (showBox ? 4 : 0))
 
-    implicitWidth: restoredValue.item ? restoredValue.item.implicitWidth : fullWidth
-    implicitHeight: restoredValue.item ? restoredValue.item.implicitHeight : fullHeight
+    // What the slot holds once this block leaves it: the value it displaced,
+    // or Number 0 in a nested slot (the core's blank there). A top-level
+    // field's blank is the host's, so that one shows an empty box.
+    readonly property bool vacated: draggedOut && inSlot && !!valueData
+    readonly property var vacatedValue: !vacated ? null
+        : valueData.saved ? valueData.saved
+        : (location.path || []).length > 0 ? { kind: "Number", value: 0 } : null
+    readonly property real blankWidth: booleanShape ? 48 : 36
+
+    implicitWidth: restoredValue.item ? restoredValue.item.implicitWidth : vacated ? blankWidth : fullWidth
+    implicitHeight: restoredValue.item ? restoredValue.item.implicitHeight : vacated ? 27 : fullHeight
 
     Loader {
         id: restoredValue
         objectName: "restoredValue"
-        active: root.draggedOut && root.inSlot && !!root.valueData && !!root.valueData.saved
+        active: !!root.vacatedValue
         source: "ValueChip.qml"
         anchors.centerIn: parent
         width: item ? item.implicitWidth : 0
         height: item ? item.implicitHeight : 0
         enabled: false
         onLoaded: {
-            item.valueData = Qt.binding(() => root.valueData ? root.valueData.saved : null);
+            item.valueData = Qt.binding(() => root.vacatedValue);
             item.boxed = false;
             item.editable = false;
             item.flatLeaf = Qt.binding(() => root.flatLeaf);
@@ -293,7 +302,7 @@ Item {
     }
 
     Rectangle {
-        visible: root.draggedOut && root.inSlot && !restoredValue.active
+        visible: root.vacated && !restoredValue.active
         anchors.fill: parent; radius: 5; color: Theme.field; border.color: Theme.border
     }
 
