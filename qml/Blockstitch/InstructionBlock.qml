@@ -882,6 +882,16 @@ Item {
         }
         }
     }
+    // Ends the head row of a strand's first block while new recordings land
+    // in that strand: a record glyph, so it reads like the Record button.
+    component RecordMark: Item {
+        visible: root.recordingTarget && !root.paletteMode
+        width: 14; height: 14; anchors.verticalCenter: parent.verticalCenter
+        Rectangle { anchors.fill: parent; radius: width / 2; color: "transparent"; border.width: 1.5; border.color: Theme.danger }
+        Rectangle { anchors.centerIn: parent; width: 6; height: 6; radius: 3; color: Theme.danger }
+        ToolTip.visible: recordHover.hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Recording target")
+        HoverHandler { id: recordHover }
+    }
     Row {
         id: fields; visible: !root.isWrap; x: root.hasBranchHeader ? 32 + root.pvPadX : 14; y: (root.hasBranchHeader ? root.pvTop + root.pvPadY : 0) + Math.round((root.rowHeight-height-8)/2); spacing: root.type === "RunBranch" ? 6 : 7
         LucideIcon { visible: !root.isWrap; name: root.isWrap ? "" : root.iconFor(root.type); color: root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : root.isHeader ? Theme.accent : Theme.text; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
@@ -933,6 +943,7 @@ Item {
             }
         }
         Repeater { model: root.isWrap ? [] : root.headGroups; delegate: pieceDelegate }
+        RecordMark {}
     }
     // The row's text boxes, one per line, each with its caption.
     Column {
@@ -981,6 +992,7 @@ Item {
             Text{id:branchPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:Theme.blockText;font.weight:Font.DemiBold;anchors.centerIn:parent}
             ValueChip{id:branchPieceValue;visible:modelData.kind==="Input";valueData:instruction&&(instruction.args||[])[modelData.argIndex]?(instruction.args||[])[modelData.argIndex]:(modelData.bool?{kind:"Bool"}:{kind:"Number",value:0});location:root.fieldLocation("CallArg:"+modelData.argIndex);boxed:!!modelData.bool;anchors.centerIn:parent;onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled()}
         }}
+        RecordMark {}
     }
 
     Repeater {
@@ -1088,7 +1100,7 @@ Item {
             id: piece
             required property var modelData
             readonly property string kind: modelData.kind
-            anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+            anchors.verticalCenter: parent.verticalCenter
             sourceComponent: kind === "label" ? labelPiece : kind === "value" ? valuePiece : kind === "dropdown" ? dropdownPiece : kind === "button" ? buttonPiece
                 : kind === "component" ? componentPiece : kind === "addComponent" ? addComponentPiece : kind === "removeComponent" ? removeComponentPiece : textPiece
             Component {
@@ -1261,14 +1273,6 @@ Item {
                 }
             }
         }
-    }
-
-    Rectangle {
-        visible: root.recordingTarget && !root.paletteMode
-        z: 20; width: 8; height: 8; radius: 4; color: Theme.danger
-        anchors.top: parent.top; anchors.topMargin: 6; anchors.right: parent.right; anchors.rightMargin: 8
-        ToolTip.visible: dotHover.hovered; ToolTip.text: qsTr("Recording target")
-        HoverHandler { id: dotHover }
     }
 
     Rectangle {
