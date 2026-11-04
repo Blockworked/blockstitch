@@ -410,27 +410,14 @@ Item {
         pvPieceMax = m;
     }
 
-    // Marks sit on tabs behind the block's edge, so they never widen it.
-    // Recording target: a tab on the top edge holding the Record button's dot.
-    Rectangle {
-        visible: root.recordingTarget && !root.paletteMode
-        z: -1; width: 28; height: 22; radius: 6
-        x: root.width - width - 10; y: -16
-        color: root.displayColor; border.width: 1.3; border.color: Theme.border
-        LucideIcon { name: "circle"; filled: true; color: Theme.danger; width: 12; height: 12; x: (parent.width - width) / 2; y: (16 - height) / 2 + 1 }
-        ToolTip.visible: recordHover.hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Recording target")
-        HoverHandler { id: recordHover }
-    }
-    // Breakpoint: a tab on the left edge with the menu item's glyph; click removes it.
+    // Breakpoint: a red bar in the head row's left padding; click removes it.
     Rectangle {
         visible: root.hasBreakpoint
-        z: -1; width: 24; height: 26; radius: 6
-        x: -18; y: Math.round(Math.min(root.headHeight, root.height - root.tabDepth) / 2 - height / 2)
-        color: root.displayColor; border.width: 1.3; border.color: Theme.border
-        LucideIcon { name: "circle-dot"; color: Theme.danger; width: 14; height: 14; x: (18 - width) / 2 + 1; y: (parent.height - height) / 2 }
+        z: 30; width: 4; radius: 2; color: Theme.danger
+        x: 5; height: 22; y: Math.round(Math.min(root.headHeight, root.height - root.tabDepth) / 2 - height / 2)
         ToolTip.visible: breakpointHover.hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Breakpoint: runs pause here. Click to remove.")
-        HoverHandler { id: breakpointHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: BlockRegistry.breakpointClicked(root.instruction.id) }
+        HoverHandler { id: breakpointHover; cursorShape: Qt.PointingHandCursor; margin: 4 }
+        TapHandler { margin: 4; onTapped: BlockRegistry.breakpointClicked(root.instruction.id) }
     }
     BlockSurface {
         id: surface
@@ -904,9 +891,19 @@ Item {
         }
         }
     }
+    // Recording target: the Record button's dot as a badge on the block's icon.
+    component RecordBadge: Rectangle {
+        visible: root.recordingTarget && !root.paletteMode
+        x: 9; y: -4; width: 10; height: 10; radius: 5
+        color: Theme.danger; border.width: 2; border.color: root.displayColor
+        ToolTip.visible: recordHover.hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Recording target")
+        HoverHandler { id: recordHover; margin: 3 }
+    }
     Row {
         id: fields; visible: !root.isWrap; x: root.hasBranchHeader ? 32 + root.pvPadX : 14; y: (root.hasBranchHeader ? root.pvTop + root.pvPadY : 0) + Math.round((root.rowHeight-height-8)/2); spacing: root.type === "RunBranch" ? 6 : 7
-        LucideIcon { visible: !root.isWrap; name: root.isWrap ? "" : root.iconFor(root.type); color: root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : root.isHeader ? Theme.accent : Theme.text; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
+        LucideIcon { visible: !root.isWrap; name: root.isWrap ? "" : root.iconFor(root.type); color: root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : root.isHeader ? Theme.accent : Theme.text; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter
+            RecordBadge {}
+        }
         Loader {
             active: !!root.type && !root.isWrap && !root.rowSpec && !root.isCustomBlock && root.type !== "RunBranch"; visible: active; anchors.verticalCenter: parent.verticalCenter
             sourceComponent: root.fieldsComponent(root.type)
@@ -983,7 +980,9 @@ Item {
     // Head bar content, then one mouth per body (nested blocks) with separator bars between them.
     Row {
         id:headContent; visible:root.isWrap; x:14; y:Math.round((root.headHeight-height)/2); spacing:7
-        LucideIcon { visible:root.isWrap; name:root.isWrap?root.iconFor(root.type):""; color:root.isCustomBlock?root.customColor:Theme.text; width:16;height:16; anchors.verticalCenter:parent.verticalCenter }
+        LucideIcon { visible:root.isWrap; name:root.isWrap?root.iconFor(root.type):""; color:root.isCustomBlock?root.customColor:Theme.text; width:16;height:16; anchors.verticalCenter:parent.verticalCenter
+            RecordBadge {}
+        }
         Loader {
             active: root.isWrap && !root.rowSpec && root.type !== "BranchCallBlock"; visible: active; anchors.verticalCenter: parent.verticalCenter
             sourceComponent: Row {
