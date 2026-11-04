@@ -13,6 +13,7 @@
     "BlockSurface.qml",
     "BlockDragArea.qml",
     "BwButton.qml",
+    "TextSelectHold.qml",
     "BwTextField.qml",
     "BwComboBox.qml",
     "BwCheckBox.qml",

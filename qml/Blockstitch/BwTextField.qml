@@ -13,6 +13,8 @@ T.TextField {
     font.pixelSize:13; selectByMouse:true; verticalAlignment:TextInput.AlignVCenter
     leftPadding:10;rightPadding:10;topPadding:5;bottomPadding:5
 
+    TextSelectHold {}
+
     Loader {
         id:placeholderLoader
         active:control.placeholderText.length > 0 && !control.length && !control.preeditText

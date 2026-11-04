@@ -735,7 +735,8 @@ Item {
                     anchors.fill: parent; anchors.margins: 1; anchors.rightMargin: 24
                     contentWidth: boxArea.contentWidth + 14; contentHeight: boxArea.contentHeight + 12
                     clip: true; boundsBehavior: Flickable.StopAtBounds
-                    interactive: contentHeight > height || contentWidth > width
+                    interactive: (contentHeight > height || contentWidth > width) && textHolds === 0
+                    property int textHolds: 0
                     TextEdit {
                         id: boxArea
                         objectName: "multilineBoxArea"
@@ -747,6 +748,7 @@ Item {
                         font.pixelSize: Theme.blockText; font.family: root.monospace ? "monospace" : font.family
                         color: Theme.text; selectionColor: Theme.accent; selectedTextColor: "white"
                         onEditingFinished: root.commitText(text)
+                        TextSelectHold {}
                         onCursorRectangleChanged: {
                             const r = cursorRectangle;
                             if (r.y < boxFlick.contentY) boxFlick.contentY = r.y;

@@ -1606,7 +1606,9 @@ Rectangle {
         // momentum flicks, which read as straight-line priming before
         // diagonal kicked in - and slow diagonals died out entirely. The
         // WheelHandler below is then the single owner and pans 1:1.
-        interactive: !wheelPan.active
+        interactive: !wheelPan.active && textHolds === 0
+        // Presses in text fields, which select rather than pan (TextSelectHold).
+        property int textHolds: 0
         SmoothScroll { id: canvasScroll; flickable: flick }
         // A drag or flick takes over from a zoom glide in progress.
         onMovementStarted: zoomGlide.stop()
@@ -1893,6 +1895,7 @@ Rectangle {
                             wrapMode: TextEdit.Wrap
                             padding: 7
                             background: null
+                            TextSelectHold {}
                             onActiveFocusChanged: if (!activeFocus && text !== commentCard.modelData.text)
                                 root.commentEdited(commentCard.modelData.id, text)
                         }
