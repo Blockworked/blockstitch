@@ -883,12 +883,11 @@ Item {
         }
     }
     // Ends the head row of a strand's first block while new recordings land
-    // in that strand: a record glyph, so it reads like the Record button.
-    component RecordMark: Item {
+    // in that strand. Same glyph as the Record button.
+    component RecordMark: LucideIcon {
         visible: root.recordingTarget && !root.paletteMode
-        width: 14; height: 14; anchors.verticalCenter: parent.verticalCenter
-        Rectangle { anchors.fill: parent; radius: width / 2; color: "transparent"; border.width: 1.5; border.color: Theme.danger }
-        Rectangle { anchors.centerIn: parent; width: 6; height: 6; radius: 3; color: Theme.danger }
+        name: "circle"; filled: true; color: Theme.danger
+        width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter
         ToolTip.visible: recordHover.hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Recording target")
         HoverHandler { id: recordHover }
     }
