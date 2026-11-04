@@ -128,6 +128,21 @@ Item {
             wait(20);
         }
 
+        function test_aHoveredNestedBlockStacksOverTheNext() {
+            canvas.strands = [];
+            wait(20);
+            canvas.strands = [{ id: "loop", x: 40, y: 40, instructions: [{ id: "loop-w", type: "While", body: [
+                { id: "in-a", type: "Wait", ms: 1 }, { id: "in-b", type: "Wait", ms: 2 }] }] }];
+            const a = block("in-a"), b = block("in-b");
+            verify(!!a && !!b);
+            mouseMove(a, 20, 10);
+            tryVerify(() => a.hovered);
+            verify(a.parent.z > b.parent.z);
+            mouseMove(canvas, canvas.width - 5, canvas.height - 5);
+            canvas.strands = [];
+            wait(20);
+        }
+
         function test_aPlaceholderHoldsTheStrandsSize() {
             canvas.strands = [];
             wait(20);

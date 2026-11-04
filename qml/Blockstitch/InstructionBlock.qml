@@ -1027,6 +1027,8 @@ Item {
                         required property string payload; required property int index
                         readonly property var blockData: JSON.parse(payload)
                         width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
+                        // A hovered or dragged block stacks over the next one.
+                        z: item ? item.z : 0
                         // Supply bindings at creation to avoid rebuilding controls for each property.
                         Component.onCompleted: setSource("InstructionBlock.qml", {
                             instruction: Qt.binding(() => child.blockData),

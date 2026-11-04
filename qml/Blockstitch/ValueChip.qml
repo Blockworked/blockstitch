@@ -453,6 +453,7 @@ Item {
                             readonly property var blockData: JSON.parse(payload)
                             source: "InstructionBlock.qml"
                             width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
+                            z: item ? item.z : 0
                             onLoaded: {
                                 item.instruction = Qt.binding(() => branchChild.blockData);
                                 item.strandId = Qt.binding(() => branchItem.branchStrandId);
