@@ -32,6 +32,30 @@ QtObject {
     property var breakpointIds: []
     property var pausedIds: []
     signal breakpointClicked(string instructionId)
+    // Id lookups the blocks read. A host republishes equal lists on every
+    // state push; these only change when the ids do, so thousands of blocks
+    // don't re-evaluate for nothing.
+    property var commentedSet: ({})
+    property var runningSet: ({})
+    property var breakpointSet: ({})
+    property var pausedSet: ({})
+    property var marks: ({})
+    function _idSet(ids, old) {
+        const set = {};
+        for (const id of ids || []) set[id] = true;
+        const keys = Object.keys(set);
+        if (keys.length === Object.keys(old).length && keys.every(k => old[k] === true)) return old;
+        return set;
+    }
+    onCommentedIdsChanged: commentedSet = _idSet(commentedIds, commentedSet)
+    onRunningIdsChanged: runningSet = _idSet(runningIds, runningSet)
+    onBreakpointIdsChanged: breakpointSet = _idSet(breakpointIds, breakpointSet)
+    onPausedIdsChanged: pausedSet = _idSet(pausedIds, pausedSet)
+    onBlockMarksChanged: {
+        const next = blockMarks || {};
+        const keys = Object.keys(next);
+        if (keys.length !== Object.keys(marks).length || keys.some(k => marks[k] !== next[k])) marks = Object.assign({}, next);
+    }
     // JSON of the value location just dropped elsewhere; that chip stays
     // blank until the new state arrives.
     property string settlingValueKey: ""
@@ -112,12 +136,16 @@ QtObject {
     // id -> live non-palette InstructionBlocks showing it (they keep it
     // current themselves). Plain JS, not notifying: nothing binds to it.
     property var blockItems: ({})
+    // Bumped as blocks come and go, so a cached layout knows to look again.
+    property int indexSerial: 0
     function indexBlock(id, item) {
+        ++indexSerial;
         const list = blockItems[id];
         if (!list) blockItems[id] = [item];
         else if (list.indexOf(item) < 0) list.push(item);
     }
     function unindexBlock(id, item) {
+        ++indexSerial;
         const list = blockItems[id];
         if (!list) return;
         const at = list.indexOf(item);

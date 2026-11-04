@@ -35,8 +35,8 @@ Item {
         // Nothing to decode for an icon that isn't showing.
         source: root.name.length ? root.svgSource() : ""
         // Keep headroom for the canvas' 1.8x zoom and fractional Windows DPI.
-        sourceSize.width: Math.max(1, Math.round(root.width * Screen.devicePixelRatio * 2))
-        sourceSize.height: Math.max(1, Math.round(root.height * Screen.devicePixelRatio * 2))
+        sourceSize.width: Math.max(1, Math.round(root.width * Icons.density * 2))
+        sourceSize.height: Math.max(1, Math.round(root.height * Icons.density * 2))
         fillMode: Image.PreserveAspectFit
         smooth: true
         mipmap: true

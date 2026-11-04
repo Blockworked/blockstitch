@@ -75,6 +75,45 @@ Item {
             wait(20);
         }
 
+        function test_aLongTailAttachedBuildsItsFarBlocksLater() {
+            canvas.strands = [];
+            wait(20);
+            const head = { id: "head", x: 0, y: 0, instructions: [] };
+            for (let i = 0; i < 3; ++i) head.instructions.push({ id: "h" + i, type: "Wait", ms: i });
+            const tail = { id: "tail", x: 400, y: 0, instructions: [] };
+            for (let i = 0; i < 200; ++i) tail.instructions.push({ id: "t" + i, type: "Wait", ms: i });
+            canvas.strands = [head, tail];
+            tryVerify(() => canvas.pendingBuilds() === 0);
+            // The tail joins the head: blocks near the view come at once,
+            // the rest after, and every block keeps its place.
+            const joined = { id: "head", x: 0, y: 0, instructions: head.instructions.concat(tail.instructions) };
+            canvas.strands = [joined];
+            verify(!!block("h2"));
+            verify(!!block("t0"));
+            compare(block("t199"), null);
+            tryVerify(() => canvas.pendingBuilds() === 0);
+            verify(block("t199").mapToItem(canvas, 0, 0).y > block("t198").mapToItem(canvas, 0, 0).y);
+            canvas.strands = [];
+            wait(20);
+        }
+
+        function test_equalIdListsKeepTheirLookups() {
+            BlockRegistry.runningIds = ["a", "b"];
+            const running = BlockRegistry.runningSet;
+            verify(running.a && running.b);
+            BlockRegistry.runningIds = ["b", "a"];
+            verify(BlockRegistry.runningSet === running);
+            BlockRegistry.runningIds = ["a"];
+            verify(BlockRegistry.runningSet !== running);
+            verify(!BlockRegistry.runningSet.b);
+            BlockRegistry.blockMarks = { a: "oops" };
+            const marks = BlockRegistry.marks;
+            BlockRegistry.blockMarks = { a: "oops" };
+            verify(BlockRegistry.marks === marks);
+            BlockRegistry.runningIds = [];
+            BlockRegistry.blockMarks = {};
+        }
+
         function test_aHoveredBlockStacksOverTheNext() {
             canvas.strands = [];
             wait(20);

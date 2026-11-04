@@ -465,6 +465,15 @@ Rectangle {
         Qt.callLater(() => { if (strand) strand.loading = false; });
         builtStrands++;
     }
+    // Many blocks joining a built strand at once (an attach) build like a
+    // new strand: what's near the view now, the rest in the background.
+    function bulkInsert(strand, repeater, at, n) {
+        if (!lazyStrands || n < 20 || !strand.built || strand.loading) return;
+        const next = repeater.itemAt(at), prev = at > 0 ? repeater.itemAt(at - 1) : null;
+        strand.estY = next ? next.y : prev ? prev.y + prev.height - 8 : 0;
+        strand.loading = true;
+        Qt.callLater(() => { if (strand) strand.loading = false; });
+    }
     // A top-level block slot of a strand. While the strand is first being
     // filled, only slots near the view build; later ones (edits) build at once.
     property var _waitingSlots: []
@@ -529,9 +538,15 @@ Rectangle {
                 queue = queue.filter(s => s && s.built === false);
                 const strands = new Set();
                 for (const s of queue) if (!strands.has(s.strandItem)) { strands.add(s.strandItem); s.strandItem.forceLayout(); }
-                const d = new Map();
-                for (const s of queue) d.set(s, dist(s.strandItem.x + s.x, s.strandItem.y + s.y, s.width, s.height));
-                queue.sort((a, b) => d.get(a) - d.get(b));
+                // Bucketed by distance in 100px rings rather than sorted: a
+                // JS comparator costs a call per comparison, seconds in all.
+                const rings = {};
+                for (const s of queue) {
+                    const r = Math.min(Math.floor(Math.sqrt(dist(s.strandItem.x + s.x, s.strandItem.y + s.y, s.width, s.height)) / 100), 1e6);
+                    (rings[r] || (rings[r] = [])).push(s);
+                }
+                queue = [];
+                for (const r of Object.keys(rings).map(Number).sort((a, b) => a - b)) queue = queue.concat(rings[r]);
                 root._queueKey = key;
                 root._queueDirty = false;
             }
@@ -891,6 +906,17 @@ Rectangle {
         for (let i = 0; i < aa.length; ++i) if (!stepsEqual(aa[i], bb[i])) return false;
         return true;
     }
+    // Snap geometry only changes with the document, the origin or as blocks
+    // build, not per drag step: walking a long strand each step cost
+    // hundreds of milliseconds. Plain JS so nothing re-evaluates on it.
+    readonly property var _snapCache: ({ key: null })
+    function snapGeometry() {
+        const key = [root.strands, root.originOffsetX, root.originOffsetY, BlockRegistry.indexSerial,
+                     dragSession.strandId, JSON.stringify(dragSession.path || []), dragSession.draggedWidth];
+        const c = _snapCache;
+        if (!c.key || c.key.some((v, i) => v !== key[i])) { c.key = key; c.containers = null; c.tail = null; }
+        return c;
+    }
     function collectContainers() {
         const out = [];
         const strands = root.strands || [];
@@ -957,7 +983,8 @@ Rectangle {
     // (or 8px above the old bottom edge at the end / on the mouth origin when
     // empty), and everything after it moves by height-8, not height.
     function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap) {
-        const containers = collectContainers();
+        const geometry = snapGeometry();
+        const containers = geometry.containers || (geometry.containers = collectContainers());
         let best = null, bestEff = 1e9;
         const srcParentBase = (sourceId && sourcePath && sourcePath.length) ? sourcePath.slice(0, sourcePath.length - 1) : null;
         const srcIdx = (sourceId && sourcePath && sourcePath.length) ? sourcePath[sourcePath.length - 1].index : -1;
@@ -1075,11 +1102,20 @@ Rectangle {
     ListModel { id: strandModel }
     function syncStrands() {
         const list = root.strands || [];
+        const changing = () => { dragSession.applyingDocument = true; };
+        const origins = {};
+        let originsChanged = false;
+        for (const s of list) {
+            const header = (s.instructions || [])[0];
+            origins[s.id] = header && header.type === "BlockHeader" ? header.block_id : "";
+            if (root.strandOrigins[s.id] !== origins[s.id]) originsChanged = true;
+        }
+        if (originsChanged || Object.keys(root.strandOrigins).length !== list.length) root.strandOrigins = origins;
         for (let i = strandModel.count - 1; i >= 0; --i) {
             const sid = strandModel.get(i).sid;
             let alive = false;
             for (let j = 0; j < list.length; ++j) if (list[j].id === sid) { alive = true; break; }
-            if (!alive) strandModel.remove(i);
+            if (!alive) { changing(); strandModel.remove(i); }
         }
         for (let j = 0; j < list.length; ++j) {
             const s = list[j];
@@ -1087,16 +1123,17 @@ Rectangle {
             let at = -1;
             for (let i = 0; i < strandModel.count; ++i) if (strandModel.get(i).sid === s.id) { at = i; break; }
             if (at === -1) {
+                changing();
                 strandModel.insert(j, { sid: s.id, sx: s.x, sy: s.y, payload: payload });
             } else {
-                if (at !== j) { strandModel.move(at, j, 1); at = j; }
-                if (strandModel.get(at).sx !== s.x) strandModel.setProperty(at, "sx", s.x);
-                if (strandModel.get(at).sy !== s.y) strandModel.setProperty(at, "sy", s.y);
-                if (strandModel.get(at).payload !== payload)
-                    strandModel.setProperty(at, "payload", payload);
+                if (at !== j) { changing(); strandModel.move(at, j, 1); at = j; }
+                const row = strandModel.get(at);
+                if (row.sx !== s.x) { changing(); strandModel.setProperty(at, "sx", s.x); }
+                if (row.sy !== s.y) { changing(); strandModel.setProperty(at, "sy", s.y); }
+                if (row.payload !== payload) { changing(); strandModel.setProperty(at, "payload", payload); }
             }
         }
-        while (strandModel.count > list.length) strandModel.remove(strandModel.count - 1);
+        while (strandModel.count > list.length) { changing(); strandModel.remove(strandModel.count - 1); }
     }
     function beginDrag(strandId, path, tailCount, sx, sy, ox, oy, bw, bh) {
         cancelValueDrag(); clearPaletteHighlight(); endSettle();
@@ -1148,16 +1185,19 @@ Rectangle {
         }
         const ghostLeft = dragSession.originX + dragSession.dx;
         const ghostTop = dragSession.originY + dragSession.dy;
-        const tail = listFor(srcStrand, sourcePath.slice(0, -1)).slice(sourcePath[sourcePath.length - 1].index);
-        const endsCap = tail.length > 0 && isCapBlock(tail[tail.length - 1]);
-        const stackHeight = contentHeightFor(tail);
-        const best = findSnap(ghostLeft, ghostTop, dragSession.strandId, sourcePath, isWhole, prevSnapObj(), stackHeight, endsCap);
-        let stackWidth = dragSession.draggedWidth;
-        for (const instruction of tail) {
-            const item = findBlockItem(workspace, instruction.id);
-            if (item) stackWidth = Math.max(stackWidth, item.implicitWidth);
+        const geometry = snapGeometry();
+        if (!geometry.tail) {
+            const tail = listFor(srcStrand, sourcePath.slice(0, -1)).slice(sourcePath[sourcePath.length - 1].index);
+            let width = dragSession.draggedWidth;
+            for (const instruction of tail) {
+                const item = findBlockItem(workspace, instruction.id);
+                if (item) width = Math.max(width, item.implicitWidth);
+            }
+            geometry.tail = { endsCap: tail.length > 0 && isCapBlock(tail[tail.length - 1]), height: contentHeightFor(tail), width: width };
         }
-        applySnap(best, stackWidth, dragSession.draggedHeight, endsCap, stackHeight);
+        const t = geometry.tail;
+        const best = findSnap(ghostLeft, ghostTop, dragSession.strandId, sourcePath, isWhole, prevSnapObj(), t.height, t.endsCap);
+        applySnap(best, t.width, dragSession.draggedHeight, t.endsCap, t.height);
     }
     // Palette (new-block) drags share the same preview: a header prefab can
     // never snap into an existing strand, anything else uses the same
@@ -1391,10 +1431,15 @@ Rectangle {
     function branchColorForStrand(strandId) {
         const strand = strandById(strandId);
         const header = strand && (strand.instructions || [])[0];
-        const definition = header && header.type === "BlockHeader"
-            ? blockDefinitions.find(d => d.id === header.block_id) : null;
+        return branchColorForBlock(header && header.type === "BlockHeader" ? header.block_id : "");
+    }
+    function branchColorForBlock(blockId) {
+        const definition = blockId ? blockDefinitions.find(d => d.id === blockId) : null;
         return definition && definition.color ? definition.color : Theme.accent;
     }
+    // Strand id -> the custom block its header defines (or ""). Replaced
+    // only when that changes, so blocks reading it skip unchanged pushes.
+    property var strandOrigins: ({})
     readonly property color dragBranchColor: branchColorForStrand(dragSession.strandId)
     function parameterOrigin(location) {
         if (!location) return "";
@@ -1402,6 +1447,8 @@ Rectangle {
             const floating = (root.floatingValues || []).find(v => v.id === location.floating_id);
             return floating ? floating.origin_block_id || "" : "";
         }
+        const origin = root.strandOrigins[location.strand_id];
+        if (origin !== undefined) return origin;
         const strand = strandById(location.strand_id);
         const header = strand && (strand.instructions || [])[0];
         return header && header.type === "BlockHeader" ? header.block_id : "";
@@ -1490,10 +1537,12 @@ Rectangle {
     // location on whatever canvas comes next.
     Component.onDestruction: endSettle()
     onStrandsChanged: {
-        // The document already includes the preview gap. Do not animate it again.
-        dragSession.applyingDocument = true;
+        // The document already includes the preview gap. Do not animate it
+        // again. syncStrands raises applyingDocument only if anything changes,
+        // since every block watches it.
         try {
             syncStrands();
+            if (dragSession.settling || valueDrag.settling) dragSession.applyingDocument = true;
             settleOnDocChange();
             if (!dragSession.active && !dragSession.settling) {
                 dragSession.sourceStrandId = ""; dragSession.sourceBasePath = []; dragSession.sourceShrink = 0;
@@ -1696,6 +1745,7 @@ Rectangle {
                     required property string payload
                     required property int index
                     readonly property var blockList: JSON.parse(payload || "[]")
+                    readonly property color branchColor: root.branchColorForBlock(root.strandOrigins[sid] || "")
                     // Blocks are built once the strand comes near the view, or
                     // by the background builder; until then a placeholder of
                     // about the right size stands in.
@@ -1722,12 +1772,16 @@ Rectangle {
                         root.clearStrandWidth(sid);
                         root.clearStrandHeight(sid);
                     }
-                    InstructionList { id:strandBlocks; instructions:strand.built ? strand.blockList : [] }
+                    InstructionList {
+                        id:strandBlocks; instructions:strand.built ? strand.blockList : []
+                        onAboutToInsert: (at, n) => root.bulkInsert(strand, blockRepeater, at, n)
+                    }
                     Item {
                         visible: !strand.built
                         width: root.strandEstW; height: Math.max(58, strand.blockList.length * 50)
                     }
                     Repeater {
+                        id:blockRepeater
                         model:strandBlocks
                         // Far blocks of a long strand stand in as a placeholder
                         // of their estimated size until the builder reaches them.
@@ -1751,7 +1805,7 @@ Rectangle {
                             visible: dragRole !== 0 || root.inCullBand(strand.x + slot.x, strand.y + slot.y + snapShift, Math.max(slot.width, 1), Math.max(slot.height, 1))
                             instruction:JSON.parse(payload); strandId:strand.sid; path:[{index:index}]; tailCount:strandBlocks.count-index; recordingTarget:index===0&&root.recordingTargetId===strand.sid; dragState:dragSession
                             variables:root.variables; lists:root.lists; blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; locked:root.locked
-                            branchColor: root.branchColorForStrand(strand.sid)
+                            branchColor: strand.branchColor
                             onRemoveRequested:(sid,p)=>root.instructionRemoved(sid,p)
                             onDuplicateRequested:(sid,p,i)=>root.instructionDuplicated(sid,p,i)
                             onCommentRequested:i=>root.commentForInstructionRequested(i)

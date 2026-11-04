@@ -7,6 +7,15 @@ QtObject {
     // data: URLs LucideIcon built, by name|color|stroke|filled. Only ever
     // mutated in place, so the icons reading it don't re-evaluate.
     readonly property var sources: ({ urls: {}, count: 0 })
+    // The sharpest screen's pixel ratio. One binding here rather than a
+    // Screen attached object per icon: each of those connects to the
+    // screen, and tearing thousands down one by one took seconds.
+    readonly property real density: {
+        let best = 1;
+        const screens = Qt.application.screens;
+        for (let i = 0; i < screens.length; ++i) best = Math.max(best, screens[i].devicePixelRatio);
+        return best;
+    }
 
     readonly property var paths: ({
         "app-window": "<rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/><path d=\"M10 4v4\"/><path d=\"M2 8h20\"/><path d=\"M6 4v4\"/>",

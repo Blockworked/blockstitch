@@ -76,12 +76,12 @@ Item {
     readonly property bool isWrap: BlockRegistry.isWrap(type)
     readonly property bool isHeader: BlockRegistry.isHeader(type)
     readonly property bool isRecordingTarget: strandId !== "" && BlockRegistry.recordingTargetId === strandId
-    readonly property bool hasComment: !!instruction && BlockRegistry.commentedIds.indexOf(instruction.id) >= 0
-    readonly property string markText: !paletteMode && instruction ? (BlockRegistry.blockMarks[instruction.id] || "") : ""
+    readonly property bool hasComment: !!instruction && BlockRegistry.commentedSet[instruction.id] === true
+    readonly property string markText: !paletteMode && instruction ? (BlockRegistry.marks[instruction.id] || "") : ""
     readonly property bool flashing: !paletteMode && !!instruction && BlockRegistry.flashId === instruction.id
-    readonly property bool running: !paletteMode && !!instruction && BlockRegistry.runningIds.indexOf(instruction.id) >= 0
-    readonly property bool hasBreakpoint: !paletteMode && !!instruction && BlockRegistry.breakpointIds.indexOf(instruction.id) >= 0
-    readonly property bool pausedHere: !paletteMode && !!instruction && BlockRegistry.pausedIds.indexOf(instruction.id) >= 0
+    readonly property bool running: !paletteMode && !!instruction && BlockRegistry.runningSet[instruction.id] === true
+    readonly property bool hasBreakpoint: !paletteMode && !!instruction && BlockRegistry.breakpointSet[instruction.id] === true
+    readonly property bool pausedHere: !paletteMode && !!instruction && BlockRegistry.pausedSet[instruction.id] === true
     readonly property bool isCap: BlockRegistry.isCap(instruction, blockDefinitions)
     // The host's declarative row for this type, if it registered one.
     readonly property var rowSpec: (type === "CallBlock" || type === "BranchCallBlock")
@@ -164,13 +164,15 @@ Item {
     opacity: dragRole === 1 && dragState && ((dragState.active && dragState.externalPreview) || (!dragState.active && dragState.settling && dragState.settleHidden)) ? 0 : 1
     readonly property real dragOffsetX: {
         if (!dragState || dragRole !== 1) return 0;
-        if (dragState.active) return dragState.dx;
+        // An overlay draws the moving tail and this copy is hidden, so it
+        // stays put rather than moving every block of a long tail each step.
+        if (dragState.active) return dragState.externalPreview ? 0 : dragState.dx;
         if (dragState.settling) return dragState.settleDx;
         return 0;
     }
     readonly property real dragOffsetY: {
         if (!dragState || dragRole !== 1) return 0;
-        if (dragState.active) return dragState.dy;
+        if (dragState.active) return dragState.externalPreview ? 0 : dragState.dy;
         if (dragState.settling) return dragState.settleDy;
         return 0;
     }

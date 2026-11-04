@@ -244,11 +244,20 @@ Item {
         visible: !!root.canvas && root.canvas.dragging
         property point pos: visible ? root.mapFromItem(null, root.canvas.dragGhostX, root.canvas.dragGhostY) : Qt.point(0, 0)
         x: pos.x; y: pos.y; opacity: 0.92
+        // Only the part of a long tail that can fit in the window: the rest
+        // hangs below its bottom edge, and building it took seconds.
+        readonly property var instructions: {
+            const list = root.canvas ? root.canvas.dragInstructions : [];
+            const room = (root.height + 200) / Math.max(0.1, root.canvas ? root.canvas.zoom : 1);
+            let used = 0, n = 0;
+            while (n < list.length && used < room) used += root.canvas.blockHeight(list[n++]) - 8;
+            return n === list.length ? list : list.slice(0, n);
+        }
         Column {
             visible: !root.canvas || !root.canvas.dragIsValue
             spacing: -8; scale: root.canvas ? root.canvas.zoom : 1; transformOrigin: Item.TopLeft
             Repeater {
-                model: canvasGhost.visible && !root.canvas.dragIsValue ? root.canvas.dragInstructions : []
+                model: canvasGhost.visible && !root.canvas.dragIsValue ? canvasGhost.instructions : []
                 delegate: InstructionBlock {
                     required property var modelData
                     instruction: modelData; paletteMode: true; locked: true
