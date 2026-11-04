@@ -894,7 +894,7 @@ Item {
     // Recording target: the Record button's dot as a badge on the block's icon.
     component RecordBadge: Rectangle {
         visible: root.recordingTarget && !root.paletteMode
-        x: 9; y: -4; width: 10; height: 10; radius: 5
+        x: 12; y: -8; width: 10; height: 10; radius: 5
         color: Theme.danger; border.width: 2; border.color: root.displayColor
         ToolTip.visible: recordHover.hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Recording target")
         HoverHandler { id: recordHover; margin: 3 }
