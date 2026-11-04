@@ -37,7 +37,10 @@ Item {
         }
         // Spinning the wheel keeps an even pace: a notch mid-glide neither
         // stalls the view nor kicks it to several times its speed.
-        function test_notchesMidGlideKeepTheSpeed() {
+        function test_notchesMidGlideKeepTheSpeed_data() {
+            return [{ tag: "fast spin", gap: 80 }, { tag: "slow spin", gap: 150 }];
+        }
+        function test_notchesMidGlideKeepTheSpeed(data) {
             let peak = 0, low = Infinity, last = 0;
             for (let i = 0; i < 8; ++i) {
                 smooth.scrollBy(0, -72, true);
@@ -48,7 +51,7 @@ Item {
                     verify(smooth.velocityY <= before * 2.5 + 1);
                 }
                 const t = Date.now();
-                while (Date.now() - t < 80) {
+                while (Date.now() - t < data.gap) {
                     wait(8);
                     if (i >= 3) {
                         peak = Math.max(peak, smooth.velocityY);

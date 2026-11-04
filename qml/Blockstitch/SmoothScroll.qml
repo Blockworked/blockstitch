@@ -17,10 +17,12 @@ QtObject {
     readonly property real velocityX: _speed(_gx)
     readonly property real velocityY: _speed(_gy)
 
-    // A glide from rest is an ease-out over glideTime. One that starts moving
-    // keeps its speed: the curve f(s) = m s + (3 - 2m) s^2 + (m - 2) s^3 starts
-    // at slope m and stops at 1, and m = 3 is OutCubic.
-    readonly property real glideTime: Motion.dur(150) / 1000
+    // A glide follows f(s) = m s + (3 - 2m) s^2 + (m - 2) s^3, which starts
+    // at slope m and stops at 1. From rest m = 2, a plain quadratic ease-out:
+    // OutCubic (m = 3) moved a third of a notch in the first frame and read as
+    // a jump with a tail. The glide outlasts the gap between notches of a
+    // normal spin, so the view keeps moving instead of stopping at each one.
+    readonly property real glideTime: Motion.dur(220) / 1000
     property var _gx: null
     property var _gy: null
     property real _clock: 0
@@ -32,12 +34,12 @@ QtObject {
     }
     function _glide(from, to, v0) {
         const d = to - from;
-        let time = glideTime, m = 3;
+        let time = glideTime, m = 2;
         if (v0 * d > 0) {
-            // Arrive sooner when already moving fast, so the curve never has
-            // to slow down first; slower than OutCubic's start only gently.
-            time = Math.min(glideTime, Math.max(glideTime * 0.4, 3 * d / v0));
-            m = Math.max(1.5, Math.min(3, v0 * time / d));
+            // Mid-glide, start at the current speed: arrive sooner when
+            // already moving fast, or speed up gently when slow.
+            time = Math.min(glideTime, Math.max(glideTime * 0.4, 2 * d / v0));
+            m = Math.max(1, Math.min(2, v0 * time / d));
         }
         return { from: from, to: to, m: m, time: time, start: _clock };
     }
