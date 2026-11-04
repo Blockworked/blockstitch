@@ -471,6 +471,7 @@ Item {
                 delegate: BwMenuItem {
                     required property var modelData
                     iconName: modelData.icon || ""; text: modelData.text; danger: !!modelData.danger
+                    visible: root.paletteMode || typeof modelData.when !== "function" || !!modelData.when(root.instruction, root.strandId, root.path)
                     onTriggered: !root.paletteMode ? root.menuActionRequested(modelData.id, root.strandId, root.path, root.instruction) : modelData.id === "details" ? root.detailsRequested(root.isCustomBlock && root.instruction ? root.instruction.block_id : root.type) : root.extraMenuTriggered(modelData.id)
                 }
                 onObjectAdded: (index, object) => root.paletteMode ? menu.addItem(object) : menu.insertItem(index, object)

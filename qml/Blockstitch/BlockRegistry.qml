@@ -47,7 +47,9 @@ QtObject {
     function flash(id) { flashId = id; flashTimer.restart(); }
     property var flashTimer: Timer { interval: 1600; onTriggered: registry.flashId = "" }
     // Extra right-click entries a host adds: [{id, text, icon, danger}]. A
-    // choice comes back as BlockCanvas.blockMenuAction / canvasMenuAction.
+    // block entry may add `when(instruction, strandId, path)` to show only
+    // where it returns true. A choice comes back as
+    // BlockCanvas.blockMenuAction / canvasMenuAction.
     property var blockMenu: []
     property var canvasMenu: []
 

@@ -123,6 +123,17 @@ impl<K> BlockGraph<K> {
         Ok(trimmed)
     }
 
+    /// Sets a declared variable's stored value.
+    pub fn set_variable_value(&mut self, name: &str, value: Evaluated) -> Result<(), String> {
+        let var = self
+            .variables
+            .iter_mut()
+            .find(|v| v.name == name)
+            .ok_or_else(|| format!("There's no variable named \"{name}\""))?;
+        var.value = value;
+        Ok(())
+    }
+
     /// Removes `name` from the declared variables. Existing references are
     /// left in place - `Value::resolve_vars` defaults an unknown name to `0`.
     pub fn remove_variable(&mut self, name: &str) {

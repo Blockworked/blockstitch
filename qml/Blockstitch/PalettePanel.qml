@@ -54,6 +54,9 @@ Rectangle {
     signal browseBlocksRequested()
     signal shareBlockRequested(var definition)
     signal renameVariableRequested(string name)
+    // Adds "Set value" to a variable's menu; the host answers setVariableValueRequested.
+    property bool offerSetVariableValue: false
+    signal setVariableValueRequested(string name)
     signal deleteVariableRequested(string name)
     signal editBlockRequested(var definition)
     signal deleteBlockRequested(string blockId)
@@ -353,8 +356,8 @@ Rectangle {
                                                 visible:!root.searching || root.matches(modelData)
                                                 valueData:({kind:"Var",name:modelData}); editable:false; spec:({kind:"value",value:valueData})
                                                 blockDefinitions:root.blockDefinitions
-                                                extraMenu:[{id:"rename",text:qsTr("Rename variable"),icon:"equal"},{id:"delete",text:qsTr("Delete variable"),icon:"trash",danger:true}]
-                                                onExtraMenuTriggered:id=>id==="rename"?root.renameVariableRequested(modelData):root.deleteVariableRequested(modelData)
+                                                extraMenu:(root.offerSetVariableValue?[{id:"set",text:qsTr("Set value"),icon:"pencil"}]:[]).concat([{id:"rename",text:qsTr("Rename variable"),icon:"equal"},{id:"delete",text:qsTr("Delete variable"),icon:"trash",danger:true}])
+                                                onExtraMenuTriggered:id=>id==="set"?root.setVariableValueRequested(modelData):id==="rename"?root.renameVariableRequested(modelData):root.deleteVariableRequested(modelData)
                                                 onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                                                 onActivated:root.valueActivated(valueData)
                                             }
