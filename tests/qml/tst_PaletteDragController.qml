@@ -133,6 +133,30 @@ Item {
             const during = target.mapToItem(null, 0, 0);
             fuzzyCompare(during.y, before.y, 0.01);
         }
+        // A block with a boxed row is taller than one row: the gap and the
+        // stack's bottom connector follow the ghost, not a one-row guess.
+        function test_tall_block_previews_its_own_height() {
+            BlockRegistry.registerRows({ TestTall: { icon: "cloud", head: [
+                { kind: "label", text: "send" },
+                { kind: "value", key: "body", field: "TallBody", box: true, boxLabel: "body" }] } });
+            const spec = { kind: "instruction", instruction: { id: "palette", type: "TestTall", body: { kind: "Text", value: "" } } };
+            controller.begin(spec, 1000, 60, 6, 6);
+            const height = ghost().height;
+            verify(height > canvas.blockHeight({ id: "x", type: "Wait" }) + 20, "two rows: " + height);
+            controller.cancel();
+            const w1 = block("w1");
+            const top = w1.mapToItem(null, 0, 0);
+            dragTo(spec, top.x, top.y - height + 8);
+            verify(canvas.paletteSnapValid);
+            compare(canvas.paletteSnapPath[0].index, 0);
+            const preview = all(canvas).find(o => o.objectName === "snapPreview");
+            verify(preview.visible);
+            fuzzyCompare(preview.height, height, 0.01);
+            controller.end(top.x + 6, top.y - height + 8 + 6);
+            wait(20);
+            compare(scene.edits.length, 1);
+            compare(scene.edits[0].targetY, scene.pristine[0].y - Math.round(height) + 8);
+        }
         function test_top_level_gap() {
             drop(waitSpec, below("if1").x + 2, below("if1").y + 4);
             compare(scene.edits.length, 1);

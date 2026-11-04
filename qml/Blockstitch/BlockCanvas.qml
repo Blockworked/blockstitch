@@ -1208,7 +1208,9 @@ Rectangle {
         const si = shapeInfoFor(instruction);
         dragSession.draggedShape = si.shape; dragSession.draggedMouths = si.mouths; dragSession.draggedFlat = si.flat;
         dragSession.draggedIsCap = isCapBlock(instruction);
-        dragSession.draggedWidth = w || 200; dragSession.draggedHeight = blockHeight(instruction) || h || 58;
+        // The ghost's measured height wins: blockHeight only estimates blocks
+        // that aren't on the canvas, and calls every plain block one row.
+        dragSession.draggedWidth = w || 200; dragSession.draggedHeight = h > 0 ? h : (blockHeight(instruction) || 58);
         const best = findSnap(ghostLeft + root.originOffsetX, ghostTop + root.originOffsetY, null, [], false, prevSnapObj(), dragSession.draggedHeight, dragSession.draggedIsCap);
         applySnap(best, dragSession.draggedWidth, dragSession.draggedHeight, dragSession.draggedIsCap);
     }
@@ -1929,6 +1931,7 @@ Rectangle {
             // real layout room, not an overlay on top.
             Item {
                 id: snapPreview
+                objectName: "snapPreview"
                 visible: dragSession.snapValid && !dragSession.settling
                 x: dragSession.snapX; y: dragSession.snapY
                 width: Math.max(120, dragSession.snapWidth); height: Math.max(20, dragSession.snapHeight)

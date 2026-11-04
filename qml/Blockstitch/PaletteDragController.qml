@@ -83,8 +83,9 @@ Item {
         drag = { spec: spec, entry: entry, offsetX: ox, offsetY: oy };
         ghost.instruction = spec.instruction || entry.instruction || null;
         ghost.spec = spec;
-        move(sx, sy);
+        // Shown first, so the first snap already has the ghost's real size.
         ghost.visible = true;
+        move(sx, sy);
     }
     function move(sx, sy) {
         if (!drag) return;
