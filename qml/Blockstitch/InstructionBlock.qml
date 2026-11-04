@@ -410,6 +410,15 @@ Item {
         pvPieceMax = m;
     }
 
+    // Breakpoint: a red bar in the head row's left padding; click removes it.
+    Rectangle {
+        visible: root.hasBreakpoint
+        z: 30; width: 4; radius: 2; color: Theme.danger
+        x: 5; height: 22; y: Math.round(Math.min(root.headHeight, root.height - root.tabDepth) / 2 - height / 2)
+        ToolTip.visible: breakpointHover.hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Breakpoint: runs pause here. Click to remove.")
+        HoverHandler { id: breakpointHover; cursorShape: Qt.PointingHandCursor; margin: 4 }
+        TapHandler { margin: 4; onTapped: BlockRegistry.breakpointClicked(root.instruction.id) }
+    }
     BlockSurface {
         id: surface
         anchors.fill: parent
@@ -882,9 +891,19 @@ Item {
         }
         }
     }
+    // Recording target: the Record button's dot as a badge on the block's icon.
+    component RecordBadge: Rectangle {
+        visible: root.recordingTarget && !root.paletteMode
+        x: 12; y: -8; width: 10; height: 10; radius: 5
+        color: Theme.danger; border.width: 2; border.color: root.displayColor
+        ToolTip.visible: recordHover.hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Recording target")
+        HoverHandler { id: recordHover; margin: 3 }
+    }
     Row {
         id: fields; visible: !root.isWrap; x: root.hasBranchHeader ? 32 + root.pvPadX : 14; y: (root.hasBranchHeader ? root.pvTop + root.pvPadY : 0) + Math.round((root.rowHeight-height-8)/2); spacing: root.type === "RunBranch" ? 6 : 7
-        LucideIcon { visible: !root.isWrap; name: root.isWrap ? "" : root.iconFor(root.type); color: root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : root.isHeader ? Theme.accent : Theme.text; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
+        LucideIcon { visible: !root.isWrap; name: root.isWrap ? "" : root.iconFor(root.type); color: root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : root.isHeader ? Theme.accent : Theme.text; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter
+            RecordBadge {}
+        }
         Loader {
             active: !!root.type && !root.isWrap && !root.rowSpec && !root.isCustomBlock && root.type !== "RunBranch"; visible: active; anchors.verticalCenter: parent.verticalCenter
             sourceComponent: root.fieldsComponent(root.type)
@@ -961,7 +980,9 @@ Item {
     // Head bar content, then one mouth per body (nested blocks) with separator bars between them.
     Row {
         id:headContent; visible:root.isWrap; x:14; y:Math.round((root.headHeight-height)/2); spacing:7
-        LucideIcon { visible:root.isWrap; name:root.isWrap?root.iconFor(root.type):""; color:root.isCustomBlock?root.customColor:Theme.text; width:16;height:16; anchors.verticalCenter:parent.verticalCenter }
+        LucideIcon { visible:root.isWrap; name:root.isWrap?root.iconFor(root.type):""; color:root.isCustomBlock?root.customColor:Theme.text; width:16;height:16; anchors.verticalCenter:parent.verticalCenter
+            RecordBadge {}
+        }
         Loader {
             active: root.isWrap && !root.rowSpec && root.type !== "BranchCallBlock"; visible: active; anchors.verticalCenter: parent.verticalCenter
             sourceComponent: Row {
@@ -1088,7 +1109,7 @@ Item {
             id: piece
             required property var modelData
             readonly property string kind: modelData.kind
-            anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+            anchors.verticalCenter: parent.verticalCenter
             sourceComponent: kind === "label" ? labelPiece : kind === "value" ? valuePiece : kind === "dropdown" ? dropdownPiece : kind === "button" ? buttonPiece
                 : kind === "component" ? componentPiece : kind === "addComponent" ? addComponentPiece : kind === "removeComponent" ? removeComponentPiece : textPiece
             Component {
@@ -1261,24 +1282,6 @@ Item {
                 }
             }
         }
-    }
-
-    Rectangle {
-        visible: root.recordingTarget && !root.paletteMode
-        z: 20; width: 8; height: 8; radius: 4; color: Theme.danger
-        anchors.top: parent.top; anchors.topMargin: 6; anchors.right: parent.right; anchors.rightMargin: 8
-        ToolTip.visible: dotHover.hovered; ToolTip.text: qsTr("Recording target")
-        HoverHandler { id: dotHover }
-    }
-
-    Rectangle {
-        visible: root.hasBreakpoint
-        z: 30; width: 14; height: 14; radius: 7; color: Theme.danger
-        border.width: 2; border.color: Theme.canvas
-        x: -7; y: Math.max(4, Math.min(root.headHeight, root.height) / 2 - 7)
-        ToolTip.visible: breakpointHover.hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Breakpoint: runs pause here. Click to remove.")
-        HoverHandler { id: breakpointHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: BlockRegistry.breakpointClicked(root.instruction.id) }
     }
 
     Rectangle {
