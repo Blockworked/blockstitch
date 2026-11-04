@@ -383,6 +383,8 @@ Item {
         TapHandler {
             enabled: !root.emptyBoolean
             acceptedButtons: Qt.RightButton
+            // Exclusive, so only the innermost chip under the pointer opens a menu.
+            gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: eventPoint => {
                 if (!menuArea.menu) menuArea.menu = valueMenu.createObject(menuArea);
                 menuArea.menu.popup(eventPoint.position.x, eventPoint.position.y);
