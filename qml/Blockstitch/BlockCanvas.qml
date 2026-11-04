@@ -222,9 +222,12 @@ Rectangle {
     property var _resizeViewY: null
     property real _resizeScrollX: NaN
     property real _resizeScrollY: NaN
+    property real _resizeSpeedX: 0
+    property real _resizeSpeedY: 0
     function pauseResizeScroll() {
-        if (canvasScroll.animX.running) _resizeScrollX = canvasScroll.targetX;
-        if (canvasScroll.animY.running) _resizeScrollY = canvasScroll.targetY;
+        // Keep the glide's speed so it carries on without a hitch.
+        if (canvasScroll.glidingX) { _resizeScrollX = canvasScroll.targetX; _resizeSpeedX = canvasScroll.velocityX; }
+        if (canvasScroll.glidingY) { _resizeScrollY = canvasScroll.targetY; _resizeSpeedY = canvasScroll.velocityY; }
         canvasScroll.stop();
     }
     // Apply after Flickable updates its bounds, including automatic clamping.
@@ -239,7 +242,9 @@ Rectangle {
         }
         const tx = _resizeScrollX, ty = _resizeScrollY;
         _resizeScrollX = NaN; _resizeScrollY = NaN;
-        if (!isNaN(tx) || !isNaN(ty)) canvasScroll.scrollTo(tx, ty, true);
+        const vx = _resizeSpeedX, vy = _resizeSpeedY;
+        _resizeSpeedX = 0; _resizeSpeedY = 0;
+        if (!isNaN(tx) || !isNaN(ty)) canvasScroll.scrollTo(tx, ty, true, vx, vy);
     }
     // Drag anchors share workspace coordinates with the moving world origin.
     function shiftDragAnchors(dx, dy) {
