@@ -36,6 +36,7 @@
     "NameDialog.qml",
     "BlockDefinitionEditor.qml",
     "PalettePanel.qml",
+    "SnapGeometry.qml",
     "PaletteDragController.qml",
     "BlockCanvas.qml"
   ]
