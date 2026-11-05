@@ -1,7 +1,6 @@
 //! Native Qt/QML frontend components for Blockstitch.
 //!
-//! The browser/Vue frontend remains in `src/`. Native consumers call [`init`]
-//! before constructing their QML engine.
+//! Native consumers call [`init`] before constructing their QML engine.
 
 pub const QML_URI: &str = "com.blockworked.Blockstitch";
 

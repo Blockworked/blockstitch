@@ -1,6 +1,6 @@
 //! The backend half of blockstitch: the document model, value system and
-//! editing operations behind a Scratch-style block editor. The Vue
-//! components in this repo render a canvas; this crate is what it edits.
+//! editing operations behind a Scratch-style block editor. The QML module in
+//! `qml/Blockstitch` renders the canvas; this crate is what it edits.
 //!
 //! A host brings an instruction enum implementing [`graph::BlockKind`], a
 //! document owning a [`graph::BlockGraph`], and optionally its own operators
