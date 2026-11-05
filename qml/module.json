@@ -37,6 +37,7 @@
     "BlockDefinitionEditor.qml",
     "PalettePanel.qml",
     "SnapGeometry.qml",
+    "ValueDropTargets.qml",
     "PaletteDragController.qml",
     "BlockCanvas.qml"
   ]
