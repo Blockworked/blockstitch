@@ -256,15 +256,21 @@ Rectangle {
         {id:"system",name:qsTr("System"),icon:"settings"}
     ].concat(Array.from(appCategories || [])).concat([{id:"custom",name:qsTr("Custom"),icon:"blocks"}]).concat(root.blockLibraryEnabled?[{id:"community",name:qsTr("Community"),icon:"package"}]:[])
     readonly property var systemOperators: ["CurrentTime"]
+    // Each name a host section lists -> that section's category (the first wins).
+    readonly property var sectionCategories: {
+        const out={};
+        for(const s of sections||[]) for(const name of s.items||[]) if(!out[name]) out[name]=s.category;
+        return out;
+    }
+    // extraCategories, then the host's sections, then blockstitch's own guesses.
     function instructionCategory(type) {
         if(extraCategories[type]) return extraCategories[type];
+        if(sectionCategories[type]) return sectionCategories[type];
         if(type.indexOf("When")===0) return "events";
-        if(["Text","Key","Button","MoveMouse","Scroll"].indexOf(type)>=0) return "input";
         if(["Wait","If","IfElse","Repeat","Forever","While","EscapeLoop","ContinueLoop","Return"].indexOf(type)>=0) return "control";
-        if(["Command","OpenApp","CloseApp"].indexOf(type)>=0) return "system";
         return "data";
     }
-    function operatorCategory(op) { return extraCategories[op] || (systemOperators.indexOf(op)>=0 ? "system" : "operators"); }
+    function operatorCategory(op) { return extraCategories[op] || sectionCategories[op] || (systemOperators.indexOf(op)>=0 ? "system" : "operators"); }
     function humanize(s) { return String(s).replace(/([a-z0-9])([A-Z])/g,"$1 $2").toLowerCase(); }
     function matches(label) { return humanize(label).indexOf(searchText.trim().toLowerCase())>=0; }
     // Palette blocks still building in the background (see the entry Loader).

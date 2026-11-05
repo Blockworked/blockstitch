@@ -445,12 +445,7 @@ Item {
         }
     }
 
-    function uuid() {
-        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-            const r = Math.random() * 16 | 0;
-            return (c === "x" ? r : (r & 3 | 8)).toString(16);
-        });
-    }
+    function uuid() { return BlockRegistry.newId(); }
     // Starts editing `def` (a definition as the host's state holds it).
     function load(def) {
         blockId = def.id || "";

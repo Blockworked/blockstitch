@@ -16,6 +16,10 @@ QtObject {
     property var dictNames: []
     // Bump to re-evaluate option lists that read host state through a function.
     property int revision: 0
+    // A host's summary of the state its option lists read (names, say). Bind
+    // it and the registry bumps `revision` whenever it changes.
+    property string optionKey: ""
+    onOptionKeyChanged: revision++
     // Whether block menus offer "Set Recording Target". Off unless the host has recording.
     property bool recordingTargets: false
     // Kept in step with the canvas so block menus can label themselves.
@@ -494,6 +498,13 @@ QtObject {
         return type === "IfElse" ? "else" : "";
     }
 
+    // A random v4-style id for a new block, piece or strand.
+    function newId() {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === "x" ? r : (r & 3 | 8)).toString(16);
+        });
+    }
     // A fresh instruction of `type` for the palette, or null when the host
     // registered none.
     function prefab(type) {

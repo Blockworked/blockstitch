@@ -51,7 +51,7 @@ Item {
     readonly property bool holding: ghostHeld
     readonly property bool overTrash: canvasGhost.overTrash
 
-    function newId() { return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); }); }
+    function newId() { return BlockRegistry.newId(); }
     function copy(v) { return v === undefined ? v : JSON.parse(JSON.stringify(v)); }
     // A palette spec as what it drops: an instruction or a value.
     function entryFor(spec) {

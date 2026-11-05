@@ -62,6 +62,24 @@ Item {
             palette.sections = [];
         }
 
+        function test_sectionsDecideCategories() {
+            palette.sections = [{ category: "input", title: "Keyboard", items: ["Key"] }];
+            compare(palette.instructionCategory("Key"), "input");
+            compare(palette.instructionCategory("SetClipboard"), "system", "extraCategories still win");
+            palette.sections = [];
+            compare(palette.instructionCategory("Key"), "data", "no host words built in");
+        }
+
+        function test_registryIdsAndOptionKey() {
+            const a = BlockRegistry.newId(), b = BlockRegistry.newId();
+            verify(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(a));
+            verify(a !== b);
+            const before = BlockRegistry.revision;
+            BlockRegistry.optionKey = "names:" + a;
+            compare(BlockRegistry.revision, before + 1);
+            BlockRegistry.optionKey = "";
+        }
+
         function test_hostActionButton() {
             palette.sections = [{ category: "data", title: "Globals", action: "makeGlobal", actionText: "Make a Global", items: ["Wait"] }];
             const section = palette.resolvedSections.find(s => s.action === "makeGlobal");
