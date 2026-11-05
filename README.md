@@ -11,6 +11,5 @@ The block editor shared by Blockwork, Blockloom and the website.
 | `rust/lib.rs`, `build.rs` | The cxx-qt crate that statically links the QML module |
 | `tests/qml` | QML tests (`QMLTESTRUNNER=qmltestrunner tests/qml/run.sh`) |
 | `docs/hosting.md` | How a host app puts the editor on its own blocks |
-| `vue/` | The legacy Vue library, unused |
 
 Core tests: `cd crates/blockstitch-core && cargo test`.
