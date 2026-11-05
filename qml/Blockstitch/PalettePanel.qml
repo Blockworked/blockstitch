@@ -12,6 +12,9 @@ Rectangle {
     }
     property var instructionTypes: []
     property var listInstructionTypes: []
+    // When set, every section item that isn't "@..." or a reporter is an
+    // instruction type too, so a host lists each block once, in `sections`.
+    property bool sectionsListBlocks: false
     property var variables: []
     property var lists: []
     // Dicts are opt-in: a host shows the section once its backend has dict commands.
@@ -25,6 +28,19 @@ Rectangle {
     // Host type/op -> category id, checked before the built-in rules.
     property var extraCategories: ({})
     readonly property var allOperators: operators.concat(Array.from(extraOperators || []))
+    // instructionTypes plus, with sectionsListBlocks, the ones only sections name.
+    readonly property var allInstructionTypes: {
+        const out=Array.from(instructionTypes||[]);
+        if(!sectionsListBlocks) return out;
+        const skip={};
+        for(const o of allOperators.concat(listOperators,dictOperators)) skip[o[0]]=true;
+        for(const t of [].concat(Array.from(listInstructionTypes||[]),Array.from(dictInstructionTypes||[]),out)) skip[t]=true;
+        for(const s of sections||[]) for(const name of s.items||[]) {
+            if(String(name).indexOf("@")===0 || skip[name]) continue;
+            skip[name]=true; out.push(name);
+        }
+        return out;
+    }
     property var keyCapture: null
     property string standaloneKey: ""
     property bool trashActive: false  // a canvas block or value is being dragged
@@ -199,7 +215,7 @@ Rectangle {
     readonly property var resolvedSections: {
         const known={}, order=[];
         const add=(name,kind,spec,category)=>{ if(!known[name]){ known[name]={kind:kind,name:name,spec:spec,category:category}; order.push(name); } };
-        for(const t of instructionTypes||[]) add(t,"instruction",null,instructionCategory(t));
+        for(const t of allInstructionTypes) add(t,"instruction",null,instructionCategory(t));
         for(const o of allOperators) add(o[0],"operator",o,operatorCategory(o[0]));
         for(const o of listOperators) add(o[0],"operator",o,"data");
         for(const t of listInstructionTypes||[]) add(t,"instruction",null,"data");
@@ -278,7 +294,7 @@ Rectangle {
     readonly property bool searching: searchText.trim().length>0
     readonly property bool noResults: {
         if(!searching) return false;
-        const labels=[].concat(Array.from(instructionTypes||[]),Array.from(listInstructionTypes||[]),
+        const labels=[].concat(allInstructionTypes,Array.from(listInstructionTypes||[]),
             dictsEnabled?Array.from(dictInstructionTypes||[]):[],
             allOperators.map(o=>o[0]),listOperators.map(o=>o[0]),dictsEnabled?dictOperators.map(o=>o[0]):[],
             Array.from(variables||[]),Array.from(blockDefinitions||[]).map(d=>customLabel(d)),communityPacks.map(p=>p.name));

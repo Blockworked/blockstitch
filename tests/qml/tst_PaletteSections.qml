@@ -70,6 +70,19 @@ Item {
             compare(palette.instructionCategory("Key"), "data", "no host words built in");
         }
 
+        function test_sectionsCanListTheBlocks() {
+            palette.sections = [{ category: "input", title: "Keyboard", items: ["Key", "Typing", "Add", "ListItem", "AddToList", "@variables"] }];
+            compare(Array.from(palette.allInstructionTypes), Array.from(palette.instructionTypes), "off by default");
+            palette.sectionsListBlocks = true;
+            const all = Array.from(palette.allInstructionTypes);
+            verify(all.indexOf("Typing") >= 0);
+            compare(all.filter(t => t === "Key").length, 1);
+            verify(all.indexOf("Add") < 0 && all.indexOf("ListItem") < 0 && all.indexOf("AddToList") < 0 && all.indexOf("@variables") < 0);
+            compare(names(sectionsOf("input")[0]), ["Key", "Typing", "Add", "ListItem", "AddToList", "@variables"]);
+            palette.sectionsListBlocks = false;
+            palette.sections = [];
+        }
+
         function test_registryIdsAndOptionKey() {
             const a = BlockRegistry.newId(), b = BlockRegistry.newId();
             verify(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(a));
