@@ -231,9 +231,9 @@ the graph between `open_reporter_branches` (each branch becomes a temporary
 strand; the host's closure reads its saved JSON body as instructions) and
 `close_reporter_branches` (writes each back into its reporter's
 `branches[slot]`, and refuses a header there or a reporter moved into its own
-branch). Commit the clone only when closing succeeds. Blockwork's desktop app
-does this in `blockwork-app/src/reporter_branches.rs`; its website build does
-not yet.
+branch). Commit the clone only when closing succeeds. Blockwork does this in
+`blockwork-core/src/frontend/reporter_branches.rs`, which its desktop app and
+its website build both call.
 
 ## Pins
 
