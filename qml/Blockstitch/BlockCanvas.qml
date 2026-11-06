@@ -328,7 +328,7 @@ Rectangle {
             shiftDragAnchors(shift, 0);
             pauseResizeScroll();
             _resizeScrollX += shift * root.zoom;
-            root._zoomAnchorX += shift;
+            zoomer.anchorX += shift;
             _resizeViewX = (_resizeViewX ?? flick.contentX) + shift * root.zoom;
             Qt.callLater(root.applyWorldResize);
         }
@@ -340,93 +340,42 @@ Rectangle {
             shiftDragAnchors(0, shift);
             pauseResizeScroll();
             _resizeScrollY += shift * root.zoom;
-            root._zoomAnchorY += shift;
+            zoomer.anchorY += shift;
             _resizeViewY = (_resizeViewY ?? flick.contentY) + shift * root.zoom;
             Qt.callLater(root.applyWorldResize);
         }
         _prevWorldTop = worldTop;
     }
     property bool _centered: false
-    // Zooming keeps one workspace point (the anchor) under one viewport point,
-    // also on every frame of a glide, so the view never drifts while it scales.
-    // A glide can also carry the anchor to another viewport point (resetView).
-    property real _zoomAnchorX: 0
-    property real _zoomAnchorY: 0
-    property real _zoomFromViewX: 0
-    property real _zoomFromViewY: 0
-    property real _zoomViewX: 0
-    property real _zoomViewY: 0
-    property real _zoomFrom: 1
-    property real _zoomTarget: 1
-    property real _zoomProgress: 1
-    NumberAnimation {
-        id: zoomGlide
-        target: root
-        property: "_zoomProgress"
-        from: 0
-        to: 1
-        duration: Motion.scroll
-        easing.type: Easing.OutCubic
-    }
-    on_ZoomProgressChanged: if (zoomGlide.running)
-        _applyZoom(_zoomProgress)
-    function _applyZoom(t) {
-        const z = root._zoomFrom + (root._zoomTarget - root._zoomFrom) * t;
-        const vx = root._zoomFromViewX + (root._zoomViewX - root._zoomFromViewX) * t;
-        const vy = root._zoomFromViewY + (root._zoomViewY - root._zoomFromViewY) * t;
-        root.zoom = z;
-        flick.contentX = Math.max(0, Math.min(Math.max(0, flick.contentWidth - flick.width), root._zoomAnchorX * z - vx));
-        flick.contentY = Math.max(0, Math.min(Math.max(0, flick.contentHeight - flick.height), root._zoomAnchorY * z - vy));
-    }
-    // Zooms to newZoom while moving workspace point (ax, ay) to viewport
-    // point (vx, vy). With smooth, it glides there, over ms if given.
-    function _zoomTo(ax, ay, vx, vy, newZoom, smooth, ms) {
-        zoomGlide.stop();
-        canvasScroll.stop();
-        root._zoomAnchorX = ax;
-        root._zoomAnchorY = ay;
-        root._zoomFromViewX = ax * root.zoom - flick.contentX;
-        root._zoomFromViewY = ay * root.zoom - flick.contentY;
-        root._zoomViewX = vx;
-        root._zoomViewY = vy;
-        root._zoomFrom = root.zoom;
-        root._zoomTarget = newZoom;
-        if (!smooth || !Motion.enabled) {
-            _applyZoom(1);
-            return;
-        }
-        zoomGlide.duration = ms !== undefined ? Motion.dur(ms) : Motion.scroll;
-        root._zoomProgress = 0;
-        zoomGlide.start();
+    CanvasZoom {
+        id: zoomer
+        canvas: root
+        flick: flick
+        scroll: canvasScroll
     }
     // Zoom around a viewport point (vx, vy in Flickable viewport pixels) so
     // that point stays visually still. With smooth, the zoom glides there
     // (over ms if given).
     function zoomAt(vx, vy, newZoom, smooth, ms) {
-        newZoom = Math.max(0.5, Math.min(1.8, newZoom));
-        if (!isFinite(vx) || !isFinite(vy))
-            return;
-        if (newZoom === (zoomGlide.running ? root._zoomTarget : root.zoom))
-            return;
-        _zoomTo((flick.contentX + vx) / root.zoom, (flick.contentY + vy) / root.zoom, vx, vy, newZoom, smooth, ms);
+        zoomer.zoomAt(vx, vy, newZoom, smooth, ms);
     }
     // Scales the zoom by factor around a viewport point. Steps that land
     // mid-glide build on the glide's target, like wheel scrolling does.
     function zoomBy(vx, vy, factor, smooth, ms) {
-        zoomAt(vx, vy, (zoomGlide.running ? root._zoomTarget : root.zoom) * factor, smooth, ms);
+        zoomAt(vx, vy, zoomer.target * factor, smooth, ms);
     }
     // Touchpad zoom (pinch, Ctrl+two-finger scroll) arrives as a stream of
     // small steps; a short glide per step smooths it without trailing behind.
     readonly property int _touchpadZoomMs: 80
     // Zoom around the middle of the view, by step (the zoom buttons).
     function stepZoom(step) {
-        zoomAt(flick.width / 2, flick.height / 2, (zoomGlide.running ? root._zoomTarget : root.zoom) + step, true);
+        zoomAt(flick.width / 2, flick.height / 2, zoomer.target + step, true);
     }
     function setZoom(newZoom) {
         zoomAt(flick.width / 2, flick.height / 2, newZoom);
     }
     function centerOnOrigin() {
-        zoomGlide.stop();
+        zoomer.stop();
         canvasScroll.stop();
         flick.contentX = Math.max(0, Math.min(flick.contentWidth - flick.width, root.originOffsetX * root.zoom - flick.width / 2));
         flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, root.originOffsetY * root.zoom - flick.height / 2));
@@ -439,7 +388,7 @@ Rectangle {
     }
     // Glides back to 100% with the workspace origin in the middle of the view.
     function resetView() {
-        _zoomTo(root.originOffsetX, root.originOffsetY, flick.width / 2, flick.height / 2, 1, true);
+        zoomer.zoomTo(root.originOffsetX, root.originOffsetY, flick.width / 2, flick.height / 2, 1, true);
     }
     // The block showing instruction `id` under `item`. Every non-palette
     // InstructionBlock indexes itself in BlockRegistry, so this checks a few
@@ -498,7 +447,7 @@ Rectangle {
         }
         return Qt.point(x, y);
     }
-    // Strands far from the view build their blocks later (see strandBuilder).
+    // Strands far from the view build their blocks later (see StrandBuilder.qml).
     property bool lazyStrands: true
     property int builtStrands: 0
     readonly property real _viewMargin: 400
@@ -552,142 +501,21 @@ Rectangle {
     function inCullBand(x, y, w, h) {
         return !cullBlocks || (x < cullRight && x + w > cullLeft && y < cullBottom && y + h > cullTop);
     }
-    function buildStrand(strand) {
-        if (!strand || strand.built)
-            return;
-        strand.loading = true;
-        strand.estY = 0;
-        strand.built = true;
-        // A strand made with the canvas fills its blocks a little later.
-        Qt.callLater(() => {
-            if (strand)
-                strand.loading = false;
-        });
-        builtStrands++;
+    StrandBuilder {
+        id: builder
+        canvas: root
+        flick: flick
+        strands: strandRepeater
     }
-    // Many blocks joining a built strand at once (an attach) build like a
-    // new strand: what's near the view now, the rest in the background.
-    function bulkInsert(strand, repeater, at, n) {
-        if (!lazyStrands || n < 20 || !strand.built || strand.loading)
-            return;
-        const next = repeater.itemAt(at), prev = at > 0 ? repeater.itemAt(at - 1) : null;
-        strand.estY = next ? next.y : prev ? prev.y + prev.height - 8 : 0;
-        strand.loading = true;
-        Qt.callLater(() => {
-            if (strand)
-                strand.loading = false;
-        });
-    }
-    // A top-level block slot of a strand. While the strand is first being
-    // filled, only slots near the view build; later ones (edits) build at once.
-    property var _waitingSlots: []
-    function slotCreated(strand, slot, estH) {
-        const y = strand.estY;
-        strand.estY += estH - 8;
-        if (!lazyStrands || !strand.loading || nearView(strand.x, strand.y + y, strandEstW, estH)) {
-            slot.built = true;
-            return;
-        }
-        _waitingSlots.push(slot);
-        _queueDirty = true;
-        strandBuilder.start();
-    }
-    function waitingSlots() {
-        _waitingSlots = _waitingSlots.filter(s => s && s.built === false);
-        return _waitingSlots;
-    }
+    function buildStrand(strand) { builder.buildStrand(strand); }
+    function bulkInsert(strand, repeater, at, n) { builder.bulkInsert(strand, repeater, at, n); }
+    function slotCreated(strand, slot, estH) { builder.slotCreated(strand, slot, estH); }
     // How many strands still wait for their blocks.
-    function pendingStrands() {
-        let n = 0;
-        for (let i = 0; i < strandRepeater.count; ++i)
-            if (strandRepeater.itemAt(i) && !strandRepeater.itemAt(i).built)
-                ++n;
-        return n;
-    }
+    function pendingStrands() { return builder.pendingStrands(); }
     // Strands and top-level blocks still waiting to be built.
-    function pendingBuilds() {
-        return pendingStrands() + waitingSlots().length;
-    }
+    function pendingBuilds() { return builder.pendingBuilds(); }
     // Builds every strand now, for callers that need each block to exist.
-    function buildAllStrands() {
-        for (let i = 0; i < strandRepeater.count; ++i)
-            buildStrand(strandRepeater.itemAt(i));
-        for (const s of waitingSlots())
-            s.built = true;
-        _waitingSlots = [];
-        strandBuilder.stop();
-        builtStrands++;
-    }
-    // Builds what waits, nearest to the view first: one strand a pass, or
-    // blocks of long strands for a few milliseconds, so the view shows up
-    // before blocks nobody is looking at yet.
-    Timer {
-        id: strandBuilder
-        interval: 0
-        onTriggered: {
-            const z = root.zoom || 1;
-            const cx = (flick.contentX + flick.width / 2) / z, cy = (flick.contentY + flick.height / 2) / z;
-            const dist = (x, y, w, h) => {
-                const dx = Math.max(x - cx, 0, cx - x - w), dy = Math.max(y - cy, 0, cy - y - h);
-                return dx * dx + dy * dy;
-            };
-            let best = null, bestD = Infinity;
-            for (let i = 0; i < strandRepeater.count; ++i) {
-                const s = strandRepeater.itemAt(i);
-                if (!s || s.built)
-                    continue;
-                const d = dist(s.x, s.y, s.width, s.height);
-                if (d < bestD) {
-                    bestD = d;
-                    best = s;
-                }
-            }
-            if (best) {
-                root.buildStrand(best);
-                start();
-                return;
-            }
-            // Ordered once, and again only when the view moves or slots
-            // join; a long strand would otherwise lay out and sort each pass.
-            const key = Math.round(cx / 200) + "," + Math.round(cy / 200);
-            let queue = root._waitingSlots;
-            if (queue.length && (root._queueKey !== key || root._queueDirty)) {
-                queue = queue.filter(s => s && s.built === false);
-                const strands = new Set();
-                for (const s of queue)
-                    if (!strands.has(s.strandItem)) {
-                        strands.add(s.strandItem);
-                        s.strandItem.forceLayout();
-                    }
-                // Bucketed by distance in 100px rings rather than sorted: a
-                // JS comparator costs a call per comparison, seconds in all.
-                const rings = {};
-                for (const s of queue) {
-                    const r = Math.min(Math.floor(Math.sqrt(dist(s.strandItem.x + s.x, s.strandItem.y + s.y, s.width, s.height)) / 100), 1e6);
-                    (rings[r] || (rings[r] = [])).push(s);
-                }
-                queue = [];
-                for (const r of Object.keys(rings).map(Number).sort((a, b) => a - b))
-                    queue = queue.concat(rings[r]);
-                root._queueKey = key;
-                root._queueDirty = false;
-            }
-            const t0 = Date.now();
-            let i = 0;
-            while (i < queue.length && Date.now() - t0 < 30) {
-                const s = queue[i++];
-                if (s && s.built === false)
-                    s.built = true;
-            }
-            root._waitingSlots = queue.slice(i);
-            if (i)
-                root.builtStrands++;
-            if (root._waitingSlots.length)
-                start();
-        }
-    }
-    property string _queueKey: ""
-    property bool _queueDirty: false
+    function buildAllStrands() { builder.buildAllStrands(); }
     // Scrolls the block with this instruction id into view and outlines it.
     function revealInstruction(id) {
         if (!findBlockItem(workspace, id))
@@ -698,7 +526,7 @@ Rectangle {
         const p = item.mapToItem(workspace, 0, 0);
         const cx = (p.x + Math.min(item.width, flick.width / root.zoom) / 2) * root.zoom;
         const cy = (p.y + Math.min(item.height, 60) / 2) * root.zoom;
-        zoomGlide.stop();
+        zoomer.stop();
         canvasScroll.scrollTo(cx - flick.width / 2, cy - flick.height / 2, true);
         BlockRegistry.flash(id);
         return true;
@@ -1677,7 +1505,7 @@ Rectangle {
             flickable: flick
         }
         // A drag or flick takes over from a zoom glide in progress.
-        onMovementStarted: zoomGlide.stop()
+        onMovementStarted: zoomer.stop()
         // Dragging the canvas with a mouse stops where it's let go: the
         // release fling read as the view sliding away on its own. Touch
         // screens keep their momentum.
@@ -1735,7 +1563,7 @@ Rectangle {
                     event.accepted = true;
                     return;
                 }
-                zoomGlide.stop();
+                zoomer.stop();
                 // A mouse wheel gets Qt's own Flickable step per notch (angleDelta 120,
                 // less on hi-res wheels) with no acceleration; a touchpad gets the
                 // accelerated pan. pixelDelta is truncated to ints on touchpads;
@@ -1881,7 +1709,7 @@ Rectangle {
                         if (nearView || !root.lazyStrands)
                             root.buildStrand(strand);
                         else
-                            strandBuilder.start();
+                            builder.start();
                         root.noteStrandWidth(sid, implicitWidth);
                         root.noteStrandHeight(sid, implicitHeight);
                     }
