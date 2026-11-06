@@ -32,6 +32,7 @@ is added to `module.json` and nowhere else.
 | `BlockDrag.qml`, `SnapGeometry.qml` | A dragged block or tail: pick-up, attach preview, drop, and where it would snap. |
 | `ValueDrag.qml`, `ValueDropTargets.qml` | A dragged reporter and the slot it would drop into. |
 | `CanvasZoom.qml`, `StrandBuilder.qml` | The canvas's zoom, and building strands near the view first. |
+| `CommentCard.qml` | One comment on the canvas, with its line to the block it is attached to. |
 | `InstructionBlock.qml`, `ValueChip.qml`, `BooleanSlot.qml` | One block, one reporter, one boolean slot. |
 | `BlockPiece.qml`, `BlockMenu.qml` | One piece of a block's row, and a block's right-click menu (built the first time it opens). |
 | `PalettePanel.qml`, `PaletteDragController.qml` | The sidebar and dragging out of it. |

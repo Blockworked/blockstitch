@@ -44,6 +44,7 @@
     "PalettePanel.qml",
     "SnapGeometry.qml",
     "CanvasZoom.qml",
+    "CommentCard.qml",
     "StrandBuilder.qml",
     "ValueDrag.qml",
     "BlockDrag.qml",
