@@ -39,6 +39,7 @@
     "SnapGeometry.qml",
     "CanvasZoom.qml",
     "StrandBuilder.qml",
+    "ValueDrag.qml",
     "ValueDropTargets.qml",
     "PaletteDragController.qml",
     "BlockCanvas.qml"

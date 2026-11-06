@@ -635,32 +635,9 @@ Rectangle {
     // ---- value (operator) drag session ----
     // Separate from the block/strand drag above: values can only land in
     // value slots (fields) or as new floating blocks, never in a strand.
-    QtObject {
+    ValueDrag {
         id: valueDrag
-        property bool active: false
-        property var sourceLocation: null
-        property var sourceValue: null
-        property string sourceOrigin: ""
-        property real startX: 0
-        property real startY: 0
-        property real originX: 0
-        property real originY: 0
-        property real dx: 0
-        property real dy: 0
-        property real sceneX: 0
-        property real sceneY: 0
-        property real draggedWidth: 120
-        property real draggedHeight: 32
-        property var target: null
-        property bool targetValid: false
-        property var highlightItem: null
-        // After a drop the ghost stays at the landing spot (or hidden, for a
-        // trash) and the source stays blank until the new state arrives.
-        property bool settling: false
-        property bool settleHidden: false
-        property real settleX: 0
-        property real settleY: 0
-        property var settleSource: null
+        canvas: root
     }
     property string _lastDrop: ""
     // Highlight set by the sidebar while a fresh palette value hovers the
@@ -1220,18 +1197,8 @@ Rectangle {
     function resolveValueSlot(gx, gy, gw, gh, px, py) {
         return valueTargets.resolve(gx, gy, gw, gh, px, py);
     }
-    function clearValueTarget() {
-        valueDrag.target = null;
-        valueDrag.targetValid = false;
-        setValueHighlight(null);
-    }
-    function setValueHighlight(item) {
-        if (valueDrag.highlightItem && valueDrag.highlightItem !== item && valueDrag.highlightItem.dropHighlighted !== undefined)
-            valueDrag.highlightItem.dropHighlighted = false;
-        valueDrag.highlightItem = item;
-        if (item && item.dropHighlighted !== undefined)
-            item.dropHighlighted = true;
-    }
+    function clearValueTarget() { valueDrag.clearTarget(); }
+    function setValueHighlight(item) { valueDrag.setHighlight(item); }
     function setPaletteValueTarget(loc) {
         paletteValueTarget = loc ? JSON.parse(JSON.stringify(loc)) : null;
     }
@@ -1263,114 +1230,11 @@ Rectangle {
         const header = strand && (strand.instructions || [])[0];
         return header && header.type === "BlockHeader" ? header.block_id : "";
     }
-    function beginValueDrag(location, value, sx, sy, ox, oy, w, h) {
-        if (root.locked)
-            return;
-        cancelDrag();
-        endSettle();
-        const p = workspace.mapFromItem(null, sx, sy);
-        valueDrag.sourceLocation = JSON.parse(JSON.stringify(location));
-        valueDrag.sourceValue = JSON.parse(JSON.stringify(value));
-        valueDrag.sourceOrigin = parameterOrigin(location);
-        valueDrag.startX = p.x;
-        valueDrag.startY = p.y;
-        valueDrag.originX = p.x - ox;
-        valueDrag.originY = p.y - oy;
-        valueDrag.dx = 0;
-        valueDrag.dy = 0;
-        valueDrag.sceneX = sx;
-        valueDrag.sceneY = sy;
-        valueDrag.draggedWidth = w || 120;
-        valueDrag.draggedHeight = h || 32;
-        valueDrag.active = true;
-        clearValueTarget();
-        clearPaletteHighlight();
-        updateValueTarget(sx, sy);
-    }
-    function updateValueTarget(sx, sy) {
-        if (!valueDrag.active)
-            return;
-        valueDrag.sceneX = sx;
-        valueDrag.sceneY = sy;
-        const p = workspace.mapFromItem(null, sx, sy);
-        valueDrag.dx = p.x - valueDrag.startX;
-        valueDrag.dy = p.y - valueDrag.startY;
-        if (!root.contains(root.mapFromItem(null, sx, sy))) {
-            clearValueTarget();
-            return;
-        }
-        // Ghost rect in workspace coordinates (draggedWidth/Height are item
-        // pixels, so normalize by zoom); the drop target is the nearest slot
-        // to this rect, not the item exactly under the cursor.
-        const z = Math.max(0.01, root.zoom);
-        const gx = valueDrag.originX + valueDrag.dx, gy = valueDrag.originY + valueDrag.dy;
-        const gw = (valueDrag.draggedWidth || 0) / z, gh = (valueDrag.draggedHeight || 0) / z;
-        const found = resolveValueSlot(gx, gy, gw, gh, p.x, p.y);
-        if (!found) {
-            clearValueTarget();
-            return;
-        }
-        const t = JSON.parse(JSON.stringify(found.loc));
-        // Dropping back onto the exact source slot, or into its own
-        // descendant, is never a move - keep the highlight for the
-        // exact-source no-op, clear it for a true self-nesting.
-        if (valueLocationsEqual(t, valueDrag.sourceLocation)) {
-            valueDrag.target = t;
-            valueDrag.targetValid = true;
-            setValueHighlight(found.item);
-            return;
-        }
-        if (isValueDescendantOrSelf(t, valueDrag.sourceLocation)) {
-            clearValueTarget();
-            return;
-        }
-        valueDrag.target = t;
-        valueDrag.targetValid = true;
-        setValueHighlight(found.item);
-    }
-    function moveValueDrag(sx, sy) {
-        updateValueTarget(sx, sy);
-    }
-    function endValueDrag(sx, sy) {
-        if (!valueDrag.active)
-            return;
-        updateValueTarget(sx, sy);
-        const source = valueDrag.sourceLocation ? JSON.parse(JSON.stringify(valueDrag.sourceLocation)) : null;
-        const value = valueDrag.sourceValue ? JSON.parse(JSON.stringify(valueDrag.sourceValue)) : null;
-        const target = valueDrag.targetValid && valueDrag.target ? JSON.parse(JSON.stringify(valueDrag.target)) : null;
-        const targetItem = valueDrag.highlightItem;
-        const gx = valueDrag.originX + valueDrag.dx, gy = valueDrag.originY + valueDrag.dy;
-        valueDrag.active = false;
-        clearValueTarget();
-        root._lastDrop = "value";
-        valueDrag.settleSource = source;
-        if (!source || !value)
-            return;
-        if (!root.contains(root.mapFromItem(null, sx, sy))) {
-            root.valueDragOutside(source, value, sx, sy);
-            return;
-        }
-        if (target) {
-            if (valueLocationsEqual(target, source))
-                return; // no-op put-back
-            const p = targetItem ? workspace.mapFromItem(targetItem, 0, 0) : Qt.point(gx, gy);
-            settleValue(source, p.x, p.y, false);
-            root.valueMoveRequested(source, target, 0, 0, "");
-            return;
-        }
-        // Open canvas: lands where the ghost is. A whole floating block just
-        // moves; anything pulled out of a field becomes a new floating block.
-        const fx = Math.round(gx - root.originOffsetX), fy = Math.round(gy - root.originOffsetY);
-        settleValue(source, gx, gy, false);
-        if (source.kind === "Floating" && !(source.path && source.path.length))
-            root.floatingValueMoved(source.floating_id, fx, fy);
-        else
-            root.valueMoveRequested(source, null, fx, fy, valueDrag.sourceOrigin);
-    }
-    function cancelValueDrag() {
-        valueDrag.active = false;
-        clearValueTarget();
-    }
+    function beginValueDrag(location, value, sx, sy, ox, oy, w, h) { valueDrag.begin(location, value, sx, sy, ox, oy, w, h); }
+    function updateValueTarget(sx, sy) { valueDrag.update(sx, sy); }
+    function moveValueDrag(sx, sy) { valueDrag.update(sx, sy); }
+    function endValueDrag(sx, sy) { valueDrag.end(sx, sy); }
+    function cancelValueDrag() { valueDrag.cancel(); }
     // A settle ends once the document differs from the drop moment; other
     // state pushes (run log, debugger) reassign it unchanged and must not.
     property string _settleDoc: ""
