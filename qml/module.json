@@ -46,6 +46,8 @@
     "CanvasZoom.qml",
     "CommentCard.qml",
     "StrandBuilder.qml",
+    "StrandModel.qml",
+    "DropSettle.qml",
     "ValueDrag.qml",
     "BlockDrag.qml",
     "ValueDropTargets.qml",

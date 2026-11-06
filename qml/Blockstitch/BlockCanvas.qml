@@ -772,18 +772,7 @@ Rectangle {
     }
     function applySnap(best, w, h, droppedIsCap, stackHeight) { dragSession.applySnap(best, w, h, droppedIsCap, stackHeight); }
     function clearSnap() { dragSession.clearSnap(); }
-    // Stable strand model: a plain `Repeater { model: root.strands }` over a
-    // JS array destroys and recreates *every* strand delegate whenever the
-    // array identity changes (which is every host state push when the
-    // host re-parses its state from JSON). That reads as all blocks flickering
-    // at once. Syncing into a ListModel keyed by strand id instead keeps
-    // untouched strands' delegates (and their nested blocks) alive: moves
-    // only touch x/y roles, content changes only touch that strand.
-    // NOTE: the instruction list is stored as a JSON *string* role. Storing
-    // the raw JS array in a ListModel role does not round-trip: reads come
-    // back as non-array sequences (no .length, Array.isArray false) and
-    // setProperty with an array wipes the role, emptying every strand.
-    ListModel {
+    StrandModel {
         id: strandModel
     }
     function syncStrands() {
@@ -801,90 +790,19 @@ Rectangle {
         }
         if (originsChanged || Object.keys(root.strandOrigins).length !== list.length)
             root.strandOrigins = origins;
-        for (let i = strandModel.count - 1; i >= 0; --i) {
-            const sid = strandModel.get(i).sid;
-            let alive = false;
-            for (let j = 0; j < list.length; ++j)
-                if (list[j].id === sid) {
-                    alive = true;
-                    break;
-                }
-            if (!alive) {
-                changing();
-                strandModel.remove(i);
-            }
-        }
-        for (let j = 0; j < list.length; ++j) {
-            const s = list[j];
-            const payload = JSON.stringify(s.instructions || []);
-            let at = -1;
-            for (let i = 0; i < strandModel.count; ++i)
-                if (strandModel.get(i).sid === s.id) {
-                    at = i;
-                    break;
-                }
-            if (at === -1) {
-                changing();
-                strandModel.insert(j, {
-                    sid: s.id,
-                    sx: s.x,
-                    sy: s.y,
-                    payload: payload
-                });
-            } else {
-                if (at !== j) {
-                    changing();
-                    strandModel.move(at, j, 1);
-                    at = j;
-                }
-                const row = strandModel.get(at);
-                if (row.sx !== s.x) {
-                    changing();
-                    strandModel.setProperty(at, "sx", s.x);
-                }
-                if (row.sy !== s.y) {
-                    changing();
-                    strandModel.setProperty(at, "sy", s.y);
-                }
-                if (row.payload !== payload) {
-                    changing();
-                    strandModel.setProperty(at, "payload", payload);
-                }
-            }
-        }
-        while (strandModel.count > list.length) {
-            changing();
-            strandModel.remove(strandModel.count - 1);
-        }
+        strandModel.sync(list, changing);
     }
     function beginDrag(strandId, path, tailCount, sx, sy, ox, oy, bw, bh) { dragSession.begin(strandId, path, tailCount, sx, sy, ox, oy, bw, bh); }
     function moveDrag(sx, sy) { dragSession.move(sx, sy); }
     function updateSnap() { dragSession.updateSnap(); }
     function updatePaletteSnap(ghostLeft, ghostTop, instruction, w, h) { dragSession.updatePaletteSnap(ghostLeft, ghostTop, instruction, w, h); }
     function endDrag(sx, sy) { dragSession.end(sx, sy); }
-    // Hides the block or value just dropped outside the canvas until its removal lands.
-    function settleTrashed() {
-        if (root._lastDrop === "value") {
-            if (valueDrag.active || !valueDrag.settleSource)
-                return;
-            settleValue(valueDrag.settleSource, 0, 0, true);
-            return;
-        }
-        if (dragSession.active)
-            return;
-        dragSession.settleHidden = true;
-        dragSession.settling = true;
-        armSettle();
+    // ---- drop settling: DropSettle.qml; these forward for the drags, hosts and tests ----
+    readonly property DropSettle dropSettle: DropSettle {
+        canvas: root
     }
-    // Keeps a palette drop's attach gap open until the new block lands.
-    function settlePaletteDrop() {
-        if (dragSession.active || !dragSession.snapValid)
-            return;
-        dragSession.settleStrandId = "";
-        dragSession.settlePath = [];
-        dragSession.settling = true;
-        armSettle();
-    }
+    function settleTrashed() { dropSettle.settleTrashed(); }
+    function settlePaletteDrop() { dropSettle.settlePaletteDrop(); }
     // Scene point where a palette drop will land (value slot or attach gap), or null.
     function paletteDropScenePoint() {
         if (paletteHighlightItem)
@@ -893,26 +811,9 @@ Rectangle {
             return workspace.mapToItem(null, dragSession.snapX, dragSession.snapY);
         return null;
     }
-    function settleValue(source, x, y, hidden) {
-        valueDrag.settleX = x;
-        valueDrag.settleY = y;
-        valueDrag.settleHidden = hidden;
-        valueDrag.settling = true;
-        BlockRegistry.settlingValueKey = BlockRegistry.locationKey(source);
-        armSettle();
-    }
-    function endSettle() {
-        if (valueDrag.settling) {
-            valueDrag.settling = false;
-            valueDrag.settleHidden = false;
-            BlockRegistry.settlingValueKey = "";
-        }
-        if (!dragSession.settling)
-            return;
-        dragSession.settling = false;
-        dragSession.settleHidden = false;
-        clearSnap();
-    }
+    function settleValue(source, x, y, hidden) { dropSettle.settleValue(source, x, y, hidden); }
+    function endSettle() { dropSettle.endSettle(); }
+    function armSettle() { dropSettle.armSettle(); }
     function cancelDrag() { dragSession.cancel(); }
     // ---- value (operator) drag: hit-testing in ValueDropTargets.qml, the session here ----
     readonly property ValueDropTargets valueTargets: ValueDropTargets {
@@ -966,27 +867,7 @@ Rectangle {
     function moveValueDrag(sx, sy) { valueDrag.update(sx, sy); }
     function endValueDrag(sx, sy) { valueDrag.end(sx, sy); }
     function cancelValueDrag() { valueDrag.cancel(); }
-    // A settle ends once the document differs from the drop moment; other
-    // state pushes (run log, debugger) reassign it unchanged and must not.
-    property string _settleDoc: ""
-    function docKey() {
-        return JSON.stringify([root.strands, root.floatingValues]);
-    }
-    function armSettle() {
-        _settleDoc = docKey();
-        settleTimer.restart();
-    }
-    function settleOnDocChange() {
-        if ((dragSession.settling || valueDrag.settling) && docKey() === _settleDoc)
-            return;
-        endSettle();
-    }
-    onFloatingValuesChanged: settleOnDocChange()
-    Timer {
-        id: settleTimer
-        interval: 1500
-        onTriggered: root.endSettle()
-    }
+    onFloatingValuesChanged: dropSettle.settleOnDocChange()
     // The settling key lives in the shared registry; don't leave it naming a
     // location on whatever canvas comes next.
     Component.onDestruction: endSettle()
@@ -998,7 +879,7 @@ Rectangle {
             syncStrands();
             if (dragSession.settling || valueDrag.settling)
                 dragSession.applyingDocument = true;
-            settleOnDocChange();
+            dropSettle.settleOnDocChange();
             if (!dragSession.active && !dragSession.settling) {
                 dragSession.sourceStrandId = "";
                 dragSession.sourceBasePath = [];

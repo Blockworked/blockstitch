@@ -31,7 +31,8 @@ is added to `module.json` and nowhere else.
 | `ListEditorCard.qml`, `DictEditorCard.qml` | A list's or dict's floating editor card on the canvas. |
 | `BlockDrag.qml`, `SnapGeometry.qml` | A dragged block or tail: pick-up, attach preview, drop, and where it would snap. |
 | `ValueDrag.qml`, `ValueDropTargets.qml` | A dragged reporter and the slot it would drop into. |
-| `CanvasZoom.qml`, `StrandBuilder.qml` | The canvas's zoom, and building strands near the view first. |
+| `DropSettle.qml` | Holds a dropped block or value where it landed until the new document arrives. |
+| `CanvasZoom.qml`, `StrandBuilder.qml`, `StrandModel.qml` | The canvas's zoom, building strands near the view first, and the strand list that keeps unchanged strands alive. |
 | `CommentCard.qml` | One comment on the canvas, with its line to the block it is attached to. |
 | `InstructionBlock.qml`, `ValueChip.qml`, `BooleanSlot.qml` | One block, one reporter, one boolean slot. |
 | `BlockPiece.qml`, `BlockMenu.qml` | One piece of a block's row, and a block's right-click menu (built the first time it opens). |
