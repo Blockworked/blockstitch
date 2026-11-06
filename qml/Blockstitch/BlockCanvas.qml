@@ -28,10 +28,24 @@ Rectangle {
     property string clearText: qsTr("Delete all blocks")
     property string clearIcon: "trash"
     property bool canPaste: false
-    Binding {
-        target: BlockRegistry
-        property: "commentedIds"
-        value: (root.comments || []).filter(c => c.attached_to).map(c => c.attached_to)
+    // Run and debug marks from the host: instruction ids its strands are on,
+    // with a breakpoint, or paused at, and id -> message markers (an error
+    // from the last run, say). Clicking a breakpoint dot or a marker emits
+    // breakpointClicked / markClicked.
+    property var runningIds: []
+    property var breakpointIds: []
+    property var pausedIds: []
+    property var blockMarks: ({})
+    signal markClicked(string instructionId)
+    signal breakpointClicked(string instructionId)
+    readonly property CanvasState canvasState: CanvasState {
+        runningIds: root.runningIds
+        breakpointIds: root.breakpointIds
+        pausedIds: root.pausedIds
+        blockMarks: root.blockMarks
+        commentedIds: (root.comments || []).filter(c => c.attached_to).map(c => c.attached_to)
+        onMarkClicked: id => root.markClicked(id)
+        onBreakpointClicked: id => root.breakpointClicked(id)
     }
     property real zoom: 1.0
     signal strandMoved(string strandId, int x, int y)
@@ -523,7 +537,7 @@ Rectangle {
         const cy = (p.y + Math.min(item.height, 60) / 2) * root.zoom;
         zoomer.stop();
         canvasScroll.scrollTo(cx - flick.width / 2, cy - flick.height / 2, true);
-        BlockRegistry.flash(id);
+        canvasState.flash(id);
         return true;
     }
 
@@ -1246,6 +1260,7 @@ Rectangle {
                                     variables: root.variables
                                     lists: root.lists
                                     blockDefinitions: root.blockDefinitions
+                                    canvasState: root.canvasState
                                     keyCapture: root.keyCapture
                                     locked: root.locked
                                     branchColor: strand.branchColor
@@ -1284,6 +1299,7 @@ Rectangle {
                             })
                         boxed: true
                         blockDefinitions: root.blockDefinitions
+                        canvasState: root.canvasState
                         onEditRequested: (l, t) => root.valueEdited(l, t)
                         onDetailsRequested: kind => root.detailsRequested(kind)
                         onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.beginValueDrag(loc, val, sx, sy, ox, oy, w, h)
@@ -1360,6 +1376,7 @@ Rectangle {
                     originBlockId: valueDrag.sourceOrigin
                     dragPreview: true
                     blockDefinitions: root.blockDefinitions
+                    canvasState: root.canvasState
                 }
             }
         }

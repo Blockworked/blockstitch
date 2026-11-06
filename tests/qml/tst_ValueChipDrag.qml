@@ -7,6 +7,7 @@ Item {
 
     ValueChip {
         id: chip
+        canvasState: CanvasState { id: chipState }
         x: 30; y: 30
         width: implicitWidth; height: implicitHeight
         location: ({ kind: "Field", strand_id: "s1", index: [{ index: 0 }], field_id: "TextValue", path: [] })
@@ -20,14 +21,14 @@ Item {
         when: windowShown
 
         function init() {
-            BlockRegistry.settlingValueKey = "";
+            chipState.settlingValueKey = "";
             chip.location = { kind: "Field", strand_id: "s1", index: [{ index: 0 }], field_id: "TextValue", path: [] };
             chip.valueData = { kind: "Op", op: "Join", args: [{ kind: "Text", value: "long first input" }, { kind: "Text", value: "long second input" }], saved: { kind: "Text", value: "hello" } };
             began.clear(); moved.clear(); ended.clear();
         }
         function cleanup() {
             mouseRelease(chip, 5, 5);
-            BlockRegistry.settlingValueKey = "";
+            chipState.settlingValueKey = "";
         }
         function startDrag() {
             waitForRendering(chip);
@@ -96,10 +97,10 @@ Item {
             compare(restored().item, null);
         }
         function test_settlingKeepsSavedValueVisible() {
-            BlockRegistry.settlingValueKey = BlockRegistry.locationKey(chip.location);
+            chipState.settlingValueKey = BlockRegistry.locationKey(chip.location);
             tryCompare(chip, "draggedOut", true);
             compare(restored().item.valueData.value, "hello");
-            BlockRegistry.settlingValueKey = "";
+            chipState.settlingValueKey = "";
             compare(chip.draggedOut, false);
             compare(restored().item, null);
         }

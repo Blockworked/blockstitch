@@ -31,6 +31,7 @@ is added to `module.json` and nowhere else.
 | `ListEditorCard.qml`, `DictEditorCard.qml` | A list's or dict's floating editor card on the canvas. |
 | `BlockDrag.qml`, `SnapGeometry.qml` | A dragged block or tail: pick-up, attach preview, drop, and where it would snap. |
 | `ValueDrag.qml`, `ValueDropTargets.qml` | A dragged reporter and the slot it would drop into. |
+| `CanvasState.qml` | One canvas's run and debug marks, comment dots, reveal flash and settling value, handed to its blocks. |
 | `DropSettle.qml` | Holds a dropped block or value where it landed until the new document arrives. |
 | `CanvasZoom.qml`, `StrandBuilder.qml`, `StrandModel.qml` | The canvas's zoom, building strands near the view first, and the strand list that keeps unchanged strands alive. |
 | `CommentCard.qml` | One comment on the canvas, with its line to the block it is attached to. |
@@ -144,8 +145,8 @@ of an array held under its `key` instead of the key itself.
 
 The same goes for an operator many app-defined reporters share: `layout` is an
 array (or a function of the value) of `{label, arg: -1}` and `{arg, bool}` pieces, and
-the args it does not name are not drawn, so a generic `PluginRead(plugin,
-block, ...slots)` can show only its label and slots. `result` may likewise be a
+the args it does not name are not drawn, so a generic `Ext(name, ...slots)`
+reporter can show only its label and slots. `result` may likewise be a
 function of the value, so such a reporter takes the boolean shape when its
 block answers true or false.
 

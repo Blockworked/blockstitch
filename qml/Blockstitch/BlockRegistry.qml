@@ -24,45 +24,6 @@ QtObject {
     // The badge on the marked strand's first block (BlockCanvas.markedStrandId):
     // its tooltip, and a color ("" for Theme.danger).
     property var strandMark: ({ text: "", color: "" })
-    property var commentedIds: []
-    // Host markers on canvas blocks, instruction id -> message (an error
-    // from the last run, say). Clicking one emits markClicked.
-    property var blockMarks: ({})
-    signal markClicked(string instructionId)
-    // Instruction ids the host's running strands are on, outlined live.
-    property var runningIds: []
-    // Debugger: blocks with a breakpoint get a dot (clicking it emits
-    // breakpointClicked), and blocks a strand is paused at get an outline.
-    property var breakpointIds: []
-    property var pausedIds: []
-    signal breakpointClicked(string instructionId)
-    // Id lookups the blocks read. A host republishes equal lists on every
-    // state push; these only change when the ids do, so thousands of blocks
-    // don't re-evaluate for nothing.
-    property var commentedSet: ({})
-    property var runningSet: ({})
-    property var breakpointSet: ({})
-    property var pausedSet: ({})
-    property var marks: ({})
-    function _idSet(ids, old) {
-        const set = {};
-        for (const id of ids || []) set[id] = true;
-        const keys = Object.keys(set);
-        if (keys.length === Object.keys(old).length && keys.every(k => old[k] === true)) return old;
-        return set;
-    }
-    onCommentedIdsChanged: commentedSet = _idSet(commentedIds, commentedSet)
-    onRunningIdsChanged: runningSet = _idSet(runningIds, runningSet)
-    onBreakpointIdsChanged: breakpointSet = _idSet(breakpointIds, breakpointSet)
-    onPausedIdsChanged: pausedSet = _idSet(pausedIds, pausedSet)
-    onBlockMarksChanged: {
-        const next = blockMarks || {};
-        const keys = Object.keys(next);
-        if (keys.length !== Object.keys(marks).length || keys.some(k => marks[k] !== next[k])) marks = Object.assign({}, next);
-    }
-    // JSON of the value location just dropped elsewhere; that chip stays
-    // blank until the new state arrives.
-    property string settlingValueKey: ""
     // Key-order-independent JSON for a value location, so copies compare equal.
     function locationKey(loc) {
         const canon = v => Array.isArray(v) ? v.map(canon)
@@ -70,10 +31,6 @@ QtObject {
             : v;
         return JSON.stringify(canon(loc));
     }
-    // Outlined for a moment after BlockCanvas.revealInstruction.
-    property string flashId: ""
-    function flash(id) { flashId = id; flashTimer.restart(); }
-    property var flashTimer: Timer { interval: 1600; onTriggered: registry.flashId = "" }
     // Extra right-click entries a host adds: [{id, text, icon, danger}]. A
     // block entry may add `when(instruction, strandId, path)` to show only
     // where it returns true, and its `text` may be a function of the same

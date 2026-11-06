@@ -98,20 +98,30 @@ Item {
         }
 
         function test_equalIdListsKeepTheirLookups() {
-            BlockRegistry.runningIds = ["a", "b"];
-            const running = BlockRegistry.runningSet;
+            const state = canvas.canvasState;
+            canvas.runningIds = ["a", "b"];
+            const running = state.runningSet;
             verify(running.a && running.b);
-            BlockRegistry.runningIds = ["b", "a"];
-            verify(BlockRegistry.runningSet === running);
-            BlockRegistry.runningIds = ["a"];
-            verify(BlockRegistry.runningSet !== running);
-            verify(!BlockRegistry.runningSet.b);
-            BlockRegistry.blockMarks = { a: "oops" };
-            const marks = BlockRegistry.marks;
-            BlockRegistry.blockMarks = { a: "oops" };
-            verify(BlockRegistry.marks === marks);
-            BlockRegistry.runningIds = [];
-            BlockRegistry.blockMarks = {};
+            canvas.runningIds = ["b", "a"];
+            verify(state.runningSet === running);
+            canvas.runningIds = ["a"];
+            verify(state.runningSet !== running);
+            verify(!state.runningSet.b);
+            canvas.blockMarks = { a: "oops" };
+            const marks = state.marks;
+            canvas.blockMarks = { a: "oops" };
+            verify(state.marks === marks);
+            canvas.runningIds = [];
+            canvas.blockMarks = {};
+        }
+
+        function test_eachCanvasKeepsItsOwnMarks() {
+            const other = Qt.createQmlObject("import com.blockworked.Blockstitch 1.0; BlockCanvas {}", canvas.parent);
+            canvas.runningIds = ["a"];
+            verify(canvas.canvasState.runningSet.a);
+            verify(!other.canvasState.runningSet.a);
+            canvas.runningIds = [];
+            other.destroy();
         }
 
         function test_aHoveredBlockStacksOverTheNext() {

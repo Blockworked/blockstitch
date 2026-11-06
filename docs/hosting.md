@@ -107,7 +107,12 @@ Item {
         onDragEnded: (sx, sy) => drags.end(sx, sy)
         onDragCanceled: drags.cancel()
     }
-    BlockCanvas { id: canvas /* strands, floatingValues, ... from the host's state */ }
+    BlockCanvas {
+        id: canvas
+        // strands, floatingValues, ... from the host's state. Optional run
+        // marks: runningIds, breakpointIds, pausedIds, blockMarks ({id: text}),
+        // answered by onMarkClicked / onBreakpointClicked.
+    }
     PaletteDragController {
         id: drags
         anchors.fill: parent
@@ -266,6 +271,7 @@ committing.
 | Battery/clipboard reporters, recording menu and automation icons in the shared registry | registered by Blockwork (`registerIcons`, `blockMenu`, `strandMark` with `BlockCanvas.markedStrandId`) |
 | Icons only Blockwork's blocks drew (battery, clipboard, terminal, ...) in `Icons.qml` | the host passes its own set to `Icons.add` |
 | `reporter_branch_ids(&args)` guessing Blockwork's argument names | `reporter_branch_ids(&args, BranchArgKeys { .. })` |
+| `BlockRegistry.runningIds`, `breakpointIds`, `pausedIds`, `blockMarks`, `markClicked`, `breakpointClicked` | the same names on `BlockCanvas` (held per canvas in its `CanvasState`) |
 | Each app's palette drag code | `PaletteDragController` |
 | Each app's Make a Block dialog | `BlockDefinitionEditor` |
 | Each app's custom-call argument builder | `BlockRegistry.freshCallArgs` |
@@ -279,9 +285,10 @@ without them load.
 
 ## Known limits
 
-- `BlockRegistry` is a singleton that still holds per-canvas state (running,
-  breakpoint and paused ids, the settling preview), so
-  two live canvases in one QML engine share it.
+- `BlockRegistry` is one per QML engine, so two canvases in one engine share
+  their vocabulary, menus, the list/variable names dropdowns offer, and
+  click-to-preview (each request is keyed, so answers reach the right chip).
+  Run and debug marks are per canvas (`CanvasState`).
 - `Value::Call::branches` is opaque JSON; ids inside it aren't renamed on
   paste, and a host has to route reporter-branch edits itself (see above).
 - A panic in the browser core aborts the module; the page offers a reload.

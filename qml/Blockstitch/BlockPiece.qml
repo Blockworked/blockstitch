@@ -72,6 +72,7 @@ Loader {
             keyCapturing: !!piece.modelData.keyCapture && block.isCapturingKey()
             onKeyCaptureRequested: block.keyCaptureRequested(block.strandId, block.path)
             blockDefinitions: block.blockDefinitions
+            canvasState: block.canvasState
             onEditRequested: (l, t) => block.valueEdited(l, t)
             onLeafEdited: (p, leaf) => block.setLeaf(piece.modelData.key, p, leaf, piece.modelData.index)
             onDetailsRequested: kind => block.detailsRequested(kind)

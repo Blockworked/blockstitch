@@ -49,6 +49,7 @@
     "StrandBuilder.qml",
     "StrandModel.qml",
     "DropSettle.qml",
+    "CanvasState.qml",
     "ValueDrag.qml",
     "BlockDrag.qml",
     "ValueDropTargets.qml",

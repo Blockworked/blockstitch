@@ -33,14 +33,14 @@ Item {
         canvas.valueDragState.settleY = y;
         canvas.valueDragState.settleHidden = hidden;
         canvas.valueDragState.settling = true;
-        BlockRegistry.settlingValueKey = BlockRegistry.locationKey(source);
+        canvas.canvasState.settlingValueKey = BlockRegistry.locationKey(source);
         armSettle();
     }
     function endSettle() {
         if (canvas.valueDragState.settling) {
             canvas.valueDragState.settling = false;
             canvas.valueDragState.settleHidden = false;
-            BlockRegistry.settlingValueKey = "";
+            canvas.canvasState.settlingValueKey = "";
         }
         if (!canvas.branchDragState.settling)
             return;

@@ -11,6 +11,7 @@ Item {
     property string callDisplayLabel: qsTr("custom block")
     property bool boxed: !!valueData && ["Op", "Var", "Param", "Call"].indexOf(valueData.kind) >= 0
     property var blockDefinitions: []
+    property CanvasState canvasState: null
     property bool dropHighlighted: false
     property bool paletteMode: false
     // Bare Number/Text field without its own box, for a host that draws the slot.
@@ -190,7 +191,7 @@ Item {
     readonly property color refColor: callDef && callDef.color ? callDef.color : referenceColor
     readonly property color quietRefColor: Qt.rgba(refColor.r * .3 + Theme.border.r * .7, refColor.g * .3 + Theme.border.g * .7, refColor.b * .3 + Theme.border.b * .7, 1)
     // Show the displaced value while the ghost carries this block.
-    readonly property bool draggedOut: valueGrab.dragging || (BlockRegistry.settlingValueKey !== "" && !!location && BlockRegistry.settlingValueKey === BlockRegistry.locationKey(location))
+    readonly property bool draggedOut: valueGrab.dragging || (!!canvasState && canvasState.settlingValueKey !== "" && !!location && canvasState.settlingValueKey === BlockRegistry.locationKey(location))
     readonly property bool inSlot: !!location && (location.kind === "Field" || (location.path || []).length > 0)
     readonly property bool hovered: (valueGrab.hovered && !valueGrab.dragging) || paletteHover.hovered
     // Sidebar prefabs have no location (so valueGrab never arms), but still
@@ -300,6 +301,7 @@ Item {
         item.editable = Qt.binding(() => root.editable);
         item.boxed = !!data && ["Op", "Var", "Param", "Call"].indexOf(data.kind) >= 0;
         item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
+        item.canvasState = Qt.binding(() => root.canvasState);
         item.originBlockId = Qt.binding(() => root.originBlockId);
         item.dropHighlighted = root.dropHighlighted;
         item.editRequested.connect((where, text) => root.editRequested(where, text));
@@ -400,6 +402,7 @@ Item {
             item.pickAction = Qt.binding(() => root.pickAction);
             item.pickOnClick = Qt.binding(() => root.pickOnClick);
             item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
+            item.canvasState = Qt.binding(() => root.canvasState);
             item.originBlockId = Qt.binding(() => root.originBlockId);
         }
     }
@@ -611,6 +614,7 @@ Item {
                                     ]);
                                 item.tailCount = Qt.binding(() => branchBlocks.count - branchChild.index);
                                 item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
+                                item.canvasState = Qt.binding(() => root.canvasState);
                                 item.paletteMode = Qt.binding(() => root.paletteMode || root.dragPreview || !root.editable);
                                 if (root.branchCanvas)
                                     root.branchCanvas.wireInstruction(item);

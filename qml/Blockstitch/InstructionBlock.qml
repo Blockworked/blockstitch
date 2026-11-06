@@ -14,6 +14,8 @@ Item {
     property var variables: []
     property var lists: []
     property var blockDefinitions: []
+    // The canvas's CanvasState: run marks, comments, flash. Null in the palette.
+    property CanvasState canvasState: null
     property var keyCapture: null
     property bool paletteMode: false
     property bool locked: false
@@ -77,12 +79,12 @@ Item {
     readonly property string type: instruction ? instruction.type : ""
     readonly property bool isWrap: BlockRegistry.isWrap(type)
     readonly property bool isHeader: BlockRegistry.isHeader(type)
-    readonly property bool hasComment: !!instruction && BlockRegistry.commentedSet[instruction.id] === true
-    readonly property string markText: !paletteMode && instruction ? (BlockRegistry.marks[instruction.id] || "") : ""
-    readonly property bool flashing: !paletteMode && !!instruction && BlockRegistry.flashId === instruction.id
-    readonly property bool running: !paletteMode && !!instruction && BlockRegistry.runningSet[instruction.id] === true
-    readonly property bool hasBreakpoint: !paletteMode && !!instruction && BlockRegistry.breakpointSet[instruction.id] === true
-    readonly property bool pausedHere: !paletteMode && !!instruction && BlockRegistry.pausedSet[instruction.id] === true
+    readonly property bool hasComment: !!instruction && !!canvasState && canvasState.commentedSet[instruction.id] === true
+    readonly property string markText: !paletteMode && instruction ? (canvasState && canvasState.marks[instruction.id] || "") : ""
+    readonly property bool flashing: !paletteMode && !!instruction && !!canvasState && canvasState.flashId === instruction.id
+    readonly property bool running: !paletteMode && !!instruction && !!canvasState && canvasState.runningSet[instruction.id] === true
+    readonly property bool hasBreakpoint: !paletteMode && !!instruction && !!canvasState && canvasState.breakpointSet[instruction.id] === true
+    readonly property bool pausedHere: !paletteMode && !!instruction && !!canvasState && canvasState.pausedSet[instruction.id] === true
     readonly property bool isCap: BlockRegistry.isCap(instruction, blockDefinitions)
     // The host's declarative row for this type, if it registered one.
     readonly property var rowSpec: (type === "CallBlock" || type === "BranchCallBlock") ? BlockRegistry.customCallRow(defFor(instruction.block_id)) || BlockRegistry.row(type) : BlockRegistry.row(type)
@@ -664,7 +666,7 @@ Item {
         }
         TapHandler {
             margin: 4
-            onTapped: BlockRegistry.breakpointClicked(root.instruction.id)
+            onTapped: root.canvasState.breakpointClicked(root.instruction.id)
         }
     }
     BlockSurface {
@@ -925,6 +927,7 @@ Item {
                             anchors.centerIn: parent
                             onEditRequested: (l, t) => root.valueEdited(l, t)
                             blockDefinitions: root.blockDefinitions
+                            canvasState: root.canvasState
                             onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)
                             onValueDragMoved: (sx, sy) => root.valueDragMoved(sx, sy)
                             onValueDragEnded: (sx, sy) => root.valueDragEnded(sx, sy)
@@ -1080,6 +1083,7 @@ Item {
                     boxed: true
                     onEditRequested: (l, t) => root.valueEdited(l, t)
                     blockDefinitions: root.blockDefinitions
+                    canvasState: root.canvasState
                     onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)
                     onValueDragMoved: (sx, sy) => root.valueDragMoved(sx, sy)
                     onValueDragEnded: (sx, sy) => root.valueDragEnded(sx, sy)
@@ -1109,6 +1113,7 @@ Item {
                             boxed: false
                             onEditRequested: (l, t) => root.valueEdited(l, t)
                             blockDefinitions: root.blockDefinitions
+                            canvasState: root.canvasState
                             onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)
                             onValueDragMoved: (sx, sy) => root.valueDragMoved(sx, sy)
                             onValueDragEnded: (sx, sy) => root.valueDragEnded(sx, sy)
@@ -1165,6 +1170,7 @@ Item {
                     anchors.centerIn: parent
                     onEditRequested: (l, t) => root.valueEdited(l, t)
                     blockDefinitions: root.blockDefinitions
+                    canvasState: root.canvasState
                     onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)
                     onValueDragMoved: (sx, sy) => root.valueDragMoved(sx, sy)
                     onValueDragEnded: (sx, sy) => root.valueDragEnded(sx, sy)
@@ -1245,6 +1251,7 @@ Item {
                             variables: Qt.binding(() => root.variables),
                             lists: Qt.binding(() => root.lists),
                             blockDefinitions: Qt.binding(() => root.blockDefinitions),
+                            canvasState: Qt.binding(() => root.canvasState),
                             branchColor: Qt.binding(() => root.branchColor),
                             keyCapture: Qt.binding(() => root.keyCapture),
                             locked: Qt.binding(() => root.locked),
@@ -1318,7 +1325,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
         }
         TapHandler {
-            onTapped: BlockRegistry.markClicked(root.instruction.id)
+            onTapped: root.canvasState.markClicked(root.instruction.id)
         }
     }
 
