@@ -686,7 +686,8 @@ impl<K: BlockKind> BlockGraph<K> {
     }
 
     /// Updates a block's prototype, reconciling call-site `args` and branch
-    /// bodies to the new pieces and renaming body params that only changed name.
+    /// bodies to the new pieces and renaming body params and branch runs that
+    /// only changed name.
     pub fn update_block(
         &mut self,
         block_id: &str,
@@ -703,6 +704,9 @@ impl<K: BlockKind> BlockGraph<K> {
 
         for (old_name, new_name) in input_renames(&old_pieces, &new_pieces) {
             self.rename_block_input_body(block_id, &old_name, &new_name);
+        }
+        for (old_name, new_name) in branch_renames(&old_pieces, &new_pieces) {
+            self.rename_block_branch_body(block_id, &old_name, &new_name);
         }
         self.reconcile_block_call_args(block_id, &old_pieces, &new_pieces);
         self.reconcile_block_call_branches(block_id, &old_pieces, &new_pieces);
@@ -731,6 +735,23 @@ fn input_renames(old_pieces: &[BlockPiece], new_pieces: &[BlockPiece]) -> Vec<(S
                 BlockPiece::Input {
                     id: old_id, name, ..
                 } if old_id == id => Some(name),
+                _ => None,
+            })?;
+            (old_name != new_name).then(|| (old_name.clone(), new_name.clone()))
+        })
+        .collect()
+}
+
+/// Branches that kept their piece id but changed name, as `(old, new)`.
+fn branch_renames(old_pieces: &[BlockPiece], new_pieces: &[BlockPiece]) -> Vec<(String, String)> {
+    new_pieces
+        .iter()
+        .filter_map(|new_piece| {
+            let BlockPiece::Branch { id, name: new_name } = new_piece else {
+                return None;
+            };
+            let old_name = old_pieces.iter().find_map(|piece| match piece {
+                BlockPiece::Branch { id: old_id, name } if old_id == id => Some(name),
                 _ => None,
             })?;
             (old_name != new_name).then(|| (old_name.clone(), new_name.clone()))

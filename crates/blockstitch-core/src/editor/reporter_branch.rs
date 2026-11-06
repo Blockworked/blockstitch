@@ -53,7 +53,10 @@ fn collect_ids(args: &Json, ids: &mut Vec<String>) {
     if let Json::Object(fields) = args {
         for (key, value) in fields {
             if ID_KEYS.contains(&key.as_str()) {
-                if let Some(id) = value.as_str().filter(|id| id.starts_with(REPORTER_BRANCH_PREFIX)) {
+                if let Some(id) = value
+                    .as_str()
+                    .filter(|id| id.starts_with(REPORTER_BRANCH_PREFIX))
+                {
                     ids.push(id.to_string());
                 }
             } else if LOCATION_KEYS.contains(&key.as_str()) {
@@ -96,14 +99,25 @@ impl<K: BlockKind> BlockGraph<K> {
         }
         let address: BranchAddress = serde_json::from_str(encoded).map_err(|e| e.to_string())?;
         // A reporter inside another branch: open that one first.
-        let owner = if let ValueLocation::Field { strand_id, index, .. } = &address.location {
+        let owner = if let ValueLocation::Field {
+            strand_id, index, ..
+        } = &address.location
+        {
             self.open_branch(strand_id, read, open)?;
-            Some(self.instruction_at(strand_id, index).ok_or("Reporter owner is missing")?.id.clone())
+            Some(
+                self.instruction_at(strand_id, index)
+                    .ok_or("Reporter owner is missing")?
+                    .id
+                    .clone(),
+            )
         } else {
             None
         };
-        let Value::Call { branches: bodies, .. } =
-            self.value_at_mut(&address.location).ok_or("Reporter is missing")?
+        let Value::Call {
+            branches: bodies, ..
+        } = self
+            .value_at_mut(&address.location)
+            .ok_or("Reporter is missing")?
         else {
             return Err("The value is not a custom reporter".into());
         };
@@ -112,8 +126,17 @@ impl<K: BlockKind> BlockGraph<K> {
         }
         bodies.resize_with(bodies.len().max(address.slot + 1), Vec::new);
         let instructions = read(&bodies[address.slot])?;
-        self.strands.push(Strand { id: id.into(), x: 0, y: 0, instructions });
-        open.push(Branch { id: id.into(), address, owner });
+        self.strands.push(Strand {
+            id: id.into(),
+            x: 0,
+            y: 0,
+            instructions,
+        });
+        open.push(Branch {
+            id: id.into(),
+            address,
+            owner,
+        });
         Ok(())
     }
 
@@ -132,34 +155,53 @@ impl<K: BlockKind> BlockGraph<K> {
         Ok(())
     }
 
-    fn close_branch(&mut self, branch: Branch, write: &dyn Fn(&Instruction<K>) -> Result<Json, String>) -> Result<(), String> {
+    fn close_branch(
+        &mut self,
+        branch: Branch,
+        write: &dyn Fn(&Instruction<K>) -> Result<Json, String>,
+    ) -> Result<(), String> {
         let instructions = match self.strands.iter().position(|s| s.id == branch.id) {
             Some(index) => self.strands.remove(index).instructions,
             None => Vec::new(),
         };
-        if instructions.iter().any(|instruction| instruction.kind.is_header()) {
+        if instructions
+            .iter()
+            .any(|instruction| instruction.kind.is_header())
+        {
             return Err("A header block can't be placed in a reporter branch".into());
         }
-        let body = instructions.iter().map(write).collect::<Result<Vec<_>, _>>()?;
+        let body = instructions
+            .iter()
+            .map(write)
+            .collect::<Result<Vec<_>, _>>()?;
         let mut restored = false;
-        if let (Some(owner), ValueLocation::Field { field_id, path, .. }) = (branch.owner, &branch.address.location) {
+        if let (Some(owner), ValueLocation::Field { field_id, path, .. }) =
+            (branch.owner, &branch.address.location)
+        {
             // The owner may have moved, so find it by id.
             self.walk_instructions_mut(&mut |instruction| {
                 if instruction.id == owner
-                    && let Some(Value::Call { branches, .. }) =
-                        instruction.kind.value_slot_mut(field_id).and_then(|v| v.get_mut(path))
+                    && let Some(Value::Call { branches, .. }) = instruction
+                        .kind
+                        .value_slot_mut(field_id)
+                        .and_then(|v| v.get_mut(path))
                     && let Some(slot) = branches.get_mut(branch.address.slot)
                 {
                     *slot = body.clone();
                     restored = true;
                 }
             });
-        } else if let Some(Value::Call { branches, .. }) = self.value_at_mut(&branch.address.location)
+        } else if let Some(Value::Call { branches, .. }) =
+            self.value_at_mut(&branch.address.location)
             && let Some(slot) = branches.get_mut(branch.address.slot)
         {
             *slot = body;
             restored = true;
         }
-        if restored { Ok(()) } else { Err("Can't move a reporter into its own branch".into()) }
+        if restored {
+            Ok(())
+        } else {
+            Err("Can't move a reporter into its own branch".into())
+        }
     }
 }

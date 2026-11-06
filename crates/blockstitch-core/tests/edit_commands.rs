@@ -547,12 +547,13 @@ fn empty_boolean_slots_cannot_be_extracted_or_moved() {
     assert!(g.put_value(&location, Value::Bool));
     let before = snapshot(&g);
     assert_eq!(g.take_value(&location), None);
-    assert!(g
-        .prepare_edit(
+    assert!(
+        g.prepare_edit(
             move_to(location.clone(), field(&strand, 2, "Wait", vec![])),
             &ctx(),
         )
-        .is_err());
+        .is_err()
+    );
     assert_eq!(snapshot(&g), before);
 
     let reporter = Value::Op {

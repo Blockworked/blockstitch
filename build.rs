@@ -14,10 +14,19 @@ fn main() {
             .as_array()
             .unwrap_or_else(|| panic!("qml/module.json: `{key}` must be a list"))
             .iter()
-            .map(|v| v.as_str().expect("qml/module.json: lists hold strings").to_owned())
+            .map(|v| {
+                v.as_str()
+                    .expect("qml/module.json: lists hold strings")
+                    .to_owned()
+            })
             .collect()
     };
-    let field = |key: &str| manifest[key].as_str().unwrap_or_else(|| panic!("qml/module.json: `{key}` missing")).to_owned();
+    let field = |key: &str| {
+        manifest[key]
+            .as_str()
+            .unwrap_or_else(|| panic!("qml/module.json: `{key}` missing"))
+            .to_owned()
+    };
 
     let dir = format!("qml/{}", field("dir"));
     println!("cargo:rerun-if-changed={dir}");
@@ -31,11 +40,17 @@ fn main() {
         .expect("qml/module.json: `version` must be MAJOR.MINOR");
     let module = files.iter().fold(
         QmlModule::new(field("uri").as_str()).version(major, minor),
-        |module, name| module.qml_file(QmlFile::from(format!("{dir}/{name}")).singleton(singletons.contains(name))),
+        |module, name| {
+            module.qml_file(
+                QmlFile::from(format!("{dir}/{name}")).singleton(singletons.contains(name)),
+            )
+        },
     );
     strings("qt_modules")
         .iter()
-        .fold(CxxQtBuilder::new_qml_module(module), |builder, qt| builder.qt_module(qt))
+        .fold(CxxQtBuilder::new_qml_module(module), |builder, qt| {
+            builder.qt_module(qt)
+        })
         .build();
 }
 
@@ -48,10 +63,20 @@ fn check_listing(dir: &str, files: &[String], singletons: &[String]) {
         .filter_map(|e| e.file_name().into_string().ok())
         .filter(|name| name.ends_with(".qml"))
         .collect();
-    let unlisted: Vec<_> = on_disk.iter().filter(|n| !listed.contains(n.as_str())).collect();
+    let unlisted: Vec<_> = on_disk
+        .iter()
+        .filter(|n| !listed.contains(n.as_str()))
+        .collect();
     let missing: Vec<_> = listed.iter().filter(|n| !on_disk.contains(**n)).collect();
-    let stray: Vec<_> = singletons.iter().filter(|n| !listed.contains(n.as_str())).collect();
-    if !unlisted.is_empty() || !missing.is_empty() || !stray.is_empty() || listed.len() != files.len() {
+    let stray: Vec<_> = singletons
+        .iter()
+        .filter(|n| !listed.contains(n.as_str()))
+        .collect();
+    if !unlisted.is_empty()
+        || !missing.is_empty()
+        || !stray.is_empty()
+        || listed.len() != files.len()
+    {
         panic!(
             "qml/module.json is out of step with {dir}: not listed {unlisted:?}, missing {missing:?}, \
              singletons not in files {stray:?}, duplicates {}",

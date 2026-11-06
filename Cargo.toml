@@ -1,3 +1,9 @@
+# One workspace: the root package is the QML crate (needs Qt), so a plain
+# `cargo test` runs only the two crates that don't.
+[workspace]
+members = [".", "crates/blockstitch-core", "crates/blockstitch-ffi"]
+default-members = ["crates/blockstitch-core", "crates/blockstitch-ffi"]
+
 [package]
 name = "blockstitch-qml"
 version = "0.1.0"

@@ -291,5 +291,4 @@ impl Value {
     pub fn eval_text(&self) -> Result<String, String> {
         Ok(self.eval()?.as_text())
     }
-
 }

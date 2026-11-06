@@ -469,7 +469,8 @@ fn registered_ext_operator_evaluates_and_joins_the_palette() {
 
 #[test]
 fn unregistered_ext_operator_round_trips_but_errs_on_eval() {
-    let json = r#"{"kind":"Op","op":"NeverRegistered","args":[],"saved":{"kind":"Number","value":0.0}}"#;
+    let json =
+        r#"{"kind":"Op","op":"NeverRegistered","args":[],"saved":{"kind":"Number","value":0.0}}"#;
     let v: Value = serde_json::from_str(json).unwrap();
     assert_eq!(serde_json::to_string(&v).unwrap(), json);
     assert!(v.eval().is_err());

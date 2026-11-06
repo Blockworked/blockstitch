@@ -87,6 +87,12 @@ pub trait BlockKind:
         None
     }
 
+    /// The branch name this kind runs inside a custom block's body (a "run
+    /// branch" block), so renaming the block's branch piece follows it.
+    fn branch_ref_mut(&mut self) -> Option<&mut String> {
+        None
+    }
+
     /// The value tree a field id names on this kind, so a drag or a typed
     /// edit reaches the right slot. Field ids are opaque strings.
     fn value_slot_mut(&mut self, _field: &str) -> Option<&mut Value> {

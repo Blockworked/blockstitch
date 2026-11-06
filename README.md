@@ -13,8 +13,10 @@ The block editor shared by Blockwork, Blockloom and the website.
 | `docs/hosting.md` | How a host app puts the editor on its own blocks |
 
 Tests: `just test` (or `just test-core`, which needs no Qt, and `just test-qml`). CI runs both (`.github/workflows/checks.yml`).
-The two crates under `crates/` are standalone workspaces with their own
-lockfiles, so a plain `cargo test` at the root only builds the QML crate.
+The repo is one Cargo workspace. A plain `cargo test` runs the two crates
+under `crates/`; the root package is the QML crate (`blockstitch-qml`, Rust
+glue in `rust/lib.rs`), which needs Qt, so build it with `just build`.
+`just fmt` formats the Rust as CI checks it.
 
 Hosts pin all three crates to one commit and move them together (see
 "Pins" in `docs/hosting.md`).

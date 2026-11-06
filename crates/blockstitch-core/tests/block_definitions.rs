@@ -20,6 +20,7 @@ enum Block {
         args: Vec<Value>,
         branches: Vec<Vec<Instruction<Block>>>,
     },
+    RunBranch(String),
 }
 
 impl BlockKind for Block {
@@ -30,7 +31,7 @@ impl BlockKind for Block {
             Block::Say(v) => f(v, InputValueType::Any),
             Block::Repeat { count, .. } => f(count, InputValueType::Any),
             Block::Call { args, .. } => args.iter_mut().for_each(|a| f(a, InputValueType::Any)),
-            Block::Header(_) => {}
+            Block::Header(_) | Block::RunBranch(_) => {}
         }
     }
     fn is_header(&self) -> bool {
@@ -70,6 +71,12 @@ impl BlockKind for Block {
     fn block_header_id(&self) -> Option<&str> {
         match self {
             Block::Header(id) => Some(id),
+            _ => None,
+        }
+    }
+    fn branch_ref_mut(&mut self) -> Option<&mut String> {
+        match self {
+            Block::RunBranch(name) => Some(name),
             _ => None,
         }
     }
@@ -421,7 +428,11 @@ fn details_are_kept_by_a_prototype_edit() {
 fn adding_a_component_reconciles_calls_and_undo_restores_the_definition() {
     use blockstitch_core::editor::History;
     let mut graph = BlockGraph::<Block>::default();
-    let id = make(&mut graph, vec![label("name", "example")], BlockShape::Normal);
+    let id = make(
+        &mut graph,
+        vec![label("name", "example")],
+        BlockShape::Normal,
+    );
     graph.add_strand(0, 0, vec![call(&id, vec![], vec![])]);
     let before = graph.clone();
     let mut history = History::new(8);
@@ -431,8 +442,12 @@ fn adding_a_component_reconciles_calls_and_undo_restores_the_definition() {
         {"kind":"Input","id":"enabled","name":"timeout","value_type":"Bool","component":true},
         {"kind":"Input","id":"duration","name":"duration","default_value":{"kind":"Number","value":100}}
     ])).unwrap();
-    graph.update_block(&id, pieces, BlockShape::Normal, "#4C97FF").unwrap();
-    let Block::Call { args, .. } = &graph.strands.last().unwrap().instructions[0].kind else { panic!("call") };
+    graph
+        .update_block(&id, pieces, BlockShape::Normal, "#4C97FF")
+        .unwrap();
+    let Block::Call { args, .. } = &graph.strands.last().unwrap().instructions[0].kind else {
+        panic!("call")
+    };
     assert_eq!(args[0].eval(), Ok(Evaluated::Bool(false)));
     assert_eq!(args[1], Value::number(100.0));
     let after = graph.clone();
@@ -441,7 +456,10 @@ fn adding_a_component_reconciles_calls_and_undo_restores_the_definition() {
     graph = history.redo(graph).unwrap();
     assert_eq!(graph, after);
     let saved = serde_json::to_value(&graph).unwrap();
-    assert_eq!(serde_json::from_value::<BlockGraph<Block>>(saved).unwrap(), after);
+    assert_eq!(
+        serde_json::from_value::<BlockGraph<Block>>(saved).unwrap(),
+        after
+    );
 }
 
 #[test]
@@ -507,4 +525,52 @@ fn a_multiline_input_starts_as_empty_text() {
         multiline: true,
     };
     assert_eq!(boxed.input_default(), Some(Value::text("")));
+}
+
+#[test]
+fn renaming_a_branch_follows_its_runs_in_the_body() {
+    let mut g = BlockGraph::new();
+    let id = make(
+        &mut g,
+        vec![label("l", "twice"), branch("b", "action")],
+        BlockShape::Normal,
+    );
+    let run = |name: &str| Instruction::new(Block::RunBranch(name.into()));
+    let body = g
+        .strands
+        .iter_mut()
+        .find(|s| s.block_header_id() == Some(id.as_str()))
+        .unwrap();
+    body.instructions.push(Instruction::new(Block::Repeat {
+        count: Value::number(2.0),
+        body: vec![run("action")],
+    }));
+    // Someone else's body keeps its own branch of the same name.
+    g.add_strand(0, 0, vec![run("action")]);
+
+    g.update_block(
+        &id,
+        vec![label("l", "twice"), branch("b", "step")],
+        BlockShape::Normal,
+        "#4C97FF",
+    )
+    .unwrap();
+    let body = g
+        .strands
+        .iter()
+        .find(|s| s.block_header_id() == Some(id.as_str()))
+        .unwrap();
+    let Block::Repeat { body: inner, .. } = &body.instructions[1].kind else {
+        panic!("repeat stays put")
+    };
+    assert_eq!(inner[0].kind, Block::RunBranch("step".into()));
+    let other = g
+        .strands
+        .iter()
+        .find(|s| s.block_header_id().is_none())
+        .unwrap();
+    assert_eq!(
+        other.instructions[0].kind,
+        Block::RunBranch("action".into())
+    );
 }

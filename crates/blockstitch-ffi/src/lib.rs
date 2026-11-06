@@ -63,7 +63,9 @@ pub fn respond(result: Result<Json, String>) -> *mut c_char {
         Ok(result) => json!({ "ok": true, "result": result, "error": null }),
         Err(error) => json!({ "ok": false, "result": null, "error": error }),
     };
-    CString::new(body.to_string()).unwrap_or_default().into_raw()
+    CString::new(body.to_string())
+        .unwrap_or_default()
+        .into_raw()
 }
 
 /// Parses a command line and runs it on `host`. A panic becomes an error

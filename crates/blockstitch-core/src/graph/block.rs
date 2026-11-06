@@ -238,7 +238,12 @@ impl BlockDef {
                     "Input \"{name}\" can't be a multi-line box: it's a boolean"
                 ));
             }
-            if let BlockPiece::Input { component: true, value_type, .. } = piece {
+            if let BlockPiece::Input {
+                component: true,
+                value_type,
+                ..
+            } = piece
+            {
                 if *value_type != InputValueType::Bool {
                     return Err("A component must have a boolean enabled parameter".to_string());
                 }
@@ -329,13 +334,20 @@ mod tests {
             {"kind":"Label","id":"name","text":"example"},
             {"kind":"Input","id":"enabled","name":"timeout","value_type":"Bool","component":true},
             {"kind":"Input","id":"duration","name":"duration"}
-        ])).unwrap();
+        ]))
+        .unwrap();
         BlockDef::validate_pieces(&pieces).unwrap();
-        assert_eq!(pieces[1].input_default().unwrap().eval(), Ok(Evaluated::Bool(false)));
+        assert_eq!(
+            pieces[1].input_default().unwrap().eval(),
+            Ok(Evaluated::Bool(false))
+        );
         let encoded = serde_json::to_value(&pieces).unwrap();
         assert_eq!(encoded[1]["component"], true);
         assert!(encoded[2].get("component").is_none());
-        assert_eq!(serde_json::from_value::<Vec<BlockPiece>>(encoded).unwrap(), pieces);
+        assert_eq!(
+            serde_json::from_value::<Vec<BlockPiece>>(encoded).unwrap(),
+            pieces
+        );
         if let BlockPiece::Input { value_type, .. } = &mut pieces[1] {
             *value_type = InputValueType::Any;
         }
@@ -343,7 +355,13 @@ mod tests {
         if let BlockPiece::Input { value_type, .. } = &mut pieces[1] {
             *value_type = InputValueType::Bool;
         }
-        pieces.insert(1, BlockPiece::Branch { id: "branch".into(), name: "body".into() });
+        pieces.insert(
+            1,
+            BlockPiece::Branch {
+                id: "branch".into(),
+                name: "body".into(),
+            },
+        );
         assert!(BlockDef::validate_input_defaults(&pieces).is_err());
     }
 

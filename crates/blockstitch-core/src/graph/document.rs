@@ -462,6 +462,24 @@ impl<K: BlockKind> BlockGraph<K> {
         }
     }
 
+    /// Renames `old` to `new` in every [`BlockKind::branch_ref_mut`] inside
+    /// the block's own body, so a renamed branch piece keeps running.
+    pub fn rename_block_branch_body(&mut self, block_id: &str, old: &str, new: &str) {
+        for strand in &mut self.strands {
+            if strand.block_header_id() == Some(block_id) {
+                for ins in &mut strand.instructions {
+                    ins.walk_mut(&mut |child| {
+                        if let Some(name) = child.kind.branch_ref_mut()
+                            && name == old
+                        {
+                            *name = new.to_string();
+                        }
+                    });
+                }
+            }
+        }
+    }
+
     /// Rebuilds every call site's `args` for `new_pieces`, carrying values
     /// over by [`BlockPiece::id`] so a rename keeps them; new inputs get the
     /// declared default or typed blank. Call before overwriting the pieces.
