@@ -206,11 +206,13 @@ must use these names (the `type` tag) and field keys for them:
 | `Forever` | wrap | `body` |
 | `Return`, `EscapeLoop`, `ContinueLoop` | cap (nothing snaps under) | `value` (`Return`) |
 | `SetVariable`, `ChangeVariable` | the Variables palette section | `name`, `value` |
+| `AddToList`, `DeleteOfList`, `DeleteAllOfList`, `ShiftList`, `InsertIntoList`, `ReplaceItemOfList`, `ReverseList` | the list blocks (rows in `defaultRows`) | `name` (the list), `value`, `index`, `amount` |
 | `BlockHeader` | a custom block's definition hat | `block_id` |
 | `CallBlock`, `BranchCallBlock` | a call, the second with mouths | `block_id`, `args`, `branches` |
 | `RunBranch` | a call's branch placeholder | `name` |
 
-Any other type whose name starts with `When` is a header (a hat with nothing
+`Wait` only gets a default icon and the "control" category; a host that has
+one draws its row. Any other type whose name starts with `When` is a header (a hat with nothing
 above it). Everything else comes from the host's rows in `BlockRegistry`.
 Reporters `Text`, `Number`, `Bool` and `Op` are the `Value` kinds from
 `blockstitch-core`.

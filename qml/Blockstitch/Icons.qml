@@ -2,8 +2,8 @@ pragma Singleton
 import QtQuick
 
 // Exact SVG geometry from Lucide (lucide.dev), keyed by its kebab-case names.
-// A host's registered icons must be in here too, since the blocks draw with
-// this set; an unknown name draws as "info".
+// The blocks draw with this set; a host adds the icons it registers that are
+// missing with add(). An unknown name draws as "info".
 QtObject {
     // data: URLs LucideIcon built, by name|color|stroke|filled. Only ever
     // mutated in place, so the icons reading it don't re-evaluate.
@@ -18,6 +18,14 @@ QtObject {
         return best;
     }
 
+    // Adds a host's icons (name -> SVG body) this set lacks. Call it before
+    // the blocks draw: an icon already drawn doesn't change.
+    function add(extra) {
+        for (const name in extra) {
+            if (!(name in paths))
+                paths[name] = extra[name];
+        }
+    }
     readonly property var paths: ({
         "aperture": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m14.31 8 5.74 9.94\"/><path d=\"M9.69 8h11.48\"/><path d=\"m7.38 12 5.74-9.94\"/><path d=\"M9.69 16 3.95 6.06\"/><path d=\"M14.31 16H2.83\"/><path d=\"m16.62 12-5.74 9.94\"/>",
         "app-window": "<rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/><path d=\"M10 4v4\"/><path d=\"M2 8h20\"/><path d=\"M6 4v4\"/>",
