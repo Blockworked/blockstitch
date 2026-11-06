@@ -39,7 +39,7 @@ A gesture that should be one undo step goes through `editor::EditCommand`
 (move a value, type into a field, delete a tail, insert a block, paste a
 copied fragment, duplicate a block):
 
-```rust
+```rust,ignore
 let prepared = graph.prepare_edit(command, &EditContext::default())?; // reads only
 if prepared.changes() {
     history.checkpoint(snapshot(), prepared.coalesce().cloned());
@@ -70,22 +70,29 @@ host JSON inside a kind is left alone. The kind must serialize as an object
 
 ## Example
 
+A small host, compiled and run as this crate's doctest:
+
 ```rust
-use blockstitch_core::graph::{BlockGraph, BlockKind, InputValueType, Instruction};
+use blockstitch_core::editor::{EditCommand, EditContext, PathStep, ValueLocation};
+use blockstitch_core::graph::{BlockGraph, BlockKind, InputValueType, Instruction, RefKind};
 use blockstitch_core::value::Value;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(tag = "type")]
 enum Block {
     Start,
-    Say(Value),
+    Say { text: Value },
+    SetVariable { name: String, value: Value },
     Repeat { count: Value, body: Vec<Instruction<Block>> },
 }
 
 impl BlockKind for Block {
+    // Every value slot the block owns (not those in its bodies).
     fn visit_values_mut(&mut self, f: &mut dyn FnMut(&mut Value, InputValueType)) {
         match self {
-            Block::Say(value) => f(value, InputValueType::Any),
+            Block::Say { text } => f(text, InputValueType::Any),
+            Block::SetVariable { value, .. } => f(value, InputValueType::Any),
             Block::Repeat { count, .. } => f(count, InputValueType::Any),
             Block::Start => {}
         }
@@ -93,16 +100,63 @@ impl BlockKind for Block {
     fn is_header(&self) -> bool {
         matches!(self, Block::Start)
     }
+    // Nested bodies: `body` for walks and copies, `body_mut` for edits.
+    fn body(&self, slot: u8) -> Option<&Vec<Instruction<Block>>> {
+        match (self, slot) {
+            (Block::Repeat { body, .. }, 0) => Some(body),
+            _ => None,
+        }
+    }
     fn body_mut(&mut self, slot: u8) -> Option<&mut Vec<Instruction<Block>>> {
         match (self, slot) {
             (Block::Repeat { body, .. }, 0) => Some(body),
             _ => None,
         }
     }
+    // The field ids the QML rows name, so typing and drops reach the slot.
+    fn value_slot_mut(&mut self, field: &str) -> Option<&mut Value> {
+        match (self, field) {
+            (Block::Say { text }, "SayText") => Some(text),
+            (Block::SetVariable { value, .. }, "SetVariableValue") => Some(value),
+            (Block::Repeat { count, .. }, "RepeatCount") => Some(count),
+            _ => None,
+        }
+    }
+    // Names held as text, so renames reach them.
+    fn visit_refs_mut(&mut self, f: &mut dyn FnMut(RefKind, &mut String)) {
+        if let Block::SetVariable { name, .. } = self {
+            f(RefKind::Variable, name);
+        }
+    }
 }
+
+let mut graph: BlockGraph<Block> = BlockGraph::new();
+graph.create_variable("score").unwrap();
+let strand = graph.add_strand(0, 0, vec![
+    Instruction::new(Block::Start),
+    Instruction::new(Block::Repeat {
+        count: Value::number(3.0),
+        body: vec![Instruction::new(Block::SetVariable { name: "score".into(), value: Value::number(0.0) })],
+    }),
+]);
+
+// Typing into the repeat's count is one edit command (one undo step).
+let count = ValueLocation::Field {
+    strand_id: strand.clone(),
+    index: vec![PathStep::at(1)],
+    field_id: "RepeatCount".into(),
+    path: vec![],
+};
+let edit = EditCommand::EditFieldText { location: count.clone(), text: "5".into() };
+graph.apply_edit(edit, &EditContext::default()).unwrap();
+assert_eq!(graph.value_at(&count), Some(Value::number(5.0)));
+
+// A rename reaches the block inside the loop's body.
+graph.rename_variable("score", "points").unwrap();
+let json = serde_json::to_string(&graph).unwrap();
+assert!(json.contains("\"points\"") && !json.contains("\"score\""));
 ```
 
-That's the whole contract. `BlockGraph<Block>` is now a working canvas. A
-block that holds a variable, list or dict name as text also reports it from
-`visit_refs_mut`, so renames reach it. `docs/hosting.md` walks through a
-full desktop and browser host.
+`BlockKind` has defaults for the rest (custom block calls, integer-only
+fields, ...); `src/graph/instruction.rs` documents each. `docs/hosting.md`
+(at the repo root) walks through a full desktop and browser host.

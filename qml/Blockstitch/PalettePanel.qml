@@ -11,6 +11,10 @@ Rectangle {
         color:Theme.textDim; font.pixelSize:13; font.weight:Font.DemiBold
     }
     property var instructionTypes: []
+    // What Details says about a custom block; a host whose documents aren't
+    // macros words it its own way.
+    property string customBlockDetails: qsTr("A custom block defined in this macro.")
+    property string customReporterDetails: qsTr("A custom reporter block defined in this macro.")
     property var listInstructionTypes: []
     // When set, every section item that isn't "@..." or a reporter is an
     // instruction type too, so a host lists each block once, in `sections`.
@@ -422,7 +426,7 @@ Rectangle {
                                 variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; blockColor:customItem.modelData.color||Theme.block
                                 onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                                 onActivated:root.customBlockActivated(customItem.modelData)
-                                onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,qsTr("A custom block defined in this macro."))
+                                onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,root.customBlockDetails)
                                 extraMenu:root.customMenu
                                 onExtraMenuTriggered:id=>root.customMenuAction(id,customItem.modelData)
                             }
@@ -435,7 +439,7 @@ Rectangle {
                                 spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,label:callLabel})
                                 onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                                 onActivated:root.valueActivated(valueData)
-                                onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,qsTr("A custom reporter block defined in this macro."))
+                                onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,root.customReporterDetails)
                                 extraMenu:root.customMenu
                                 onExtraMenuTriggered:id=>root.customMenuAction(id,customItem.modelData)
                             }
@@ -479,7 +483,7 @@ Rectangle {
                                         variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; blockColor:communityItem.modelData.color||Theme.block
                                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                                         onActivated:root.customBlockActivated(communityItem.modelData)
-                                        onDetailsRequested:root.detailsRequested(root.customLabel(communityItem.modelData),communityItem.modelData.id,qsTr("A custom block defined in this macro."))
+                                        onDetailsRequested:root.detailsRequested(root.customLabel(communityItem.modelData),communityItem.modelData.id,root.customBlockDetails)
                                         extraMenu:[{id:"details",text:qsTr("Details"),icon:"info"}]
                                         onExtraMenuTriggered:id=>root.customMenuAction(id,communityItem.modelData)
                                     }
@@ -492,7 +496,7 @@ Rectangle {
                                         spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,label:callLabel})
                                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                                         onActivated:root.valueActivated(valueData)
-                                        onDetailsRequested:root.detailsRequested(root.customLabel(communityItem.modelData),communityItem.modelData.id,qsTr("A custom reporter block defined in this macro."))
+                                        onDetailsRequested:root.detailsRequested(root.customLabel(communityItem.modelData),communityItem.modelData.id,root.customReporterDetails)
                                         extraMenu:[{id:"details",text:qsTr("Details"),icon:"info"}]
                                         onExtraMenuTriggered:id=>root.customMenuAction(id,communityItem.modelData)
                                     }

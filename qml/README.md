@@ -39,9 +39,10 @@ BlockRegistry.registerOperators({ MyReporter: { prefix: "my reporter", result: "
 BlockRegistry.registerPrefabs({ Say: () => ({ text: { kind: "Text", value: "Hello" } }) });
 ```
 
-Blockstitch only ships rows for its own control and data blocks (`If`,
-`Repeat`, `Forever`, `While`, `Return`, the loop exits and the variable and
-list blocks, in `BlockRegistry.defaultRows`), so a
+Blockstitch draws its own control and data blocks: the variable and list
+blocks, `Return` and the loop exits have rows in `BlockRegistry.defaultRows`,
+and `If`, `IfElse`, `Repeat`, `Forever` and `While` are drawn by
+`InstructionBlock` itself (`docs/hosting.md` lists these names). A
 host registers a row for every other type; one without a row draws as its
 icon alone. A value piece's `unit` frames the slot with a caption (`"ms"`),
 and `keyCapture: true` turns a click on its text into `keyCaptureRequested`

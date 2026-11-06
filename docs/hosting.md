@@ -18,7 +18,8 @@ that reads the machine or the game world stay in the host.
 
 ## A minimal desktop host
 
-Rust side: a vocabulary and a document.
+Rust side: a vocabulary and a document. The crate README has the same
+host as a compiled doctest.
 
 ```rust
 use blockstitch_core::editor::{EditCommand, EditContext, History};
@@ -30,7 +31,7 @@ use blockstitch_core::value::Value;
 enum Block {
     Start,
     Say { text: Value },
-    SetVar { name: String, value: Value },
+    SetVariable { name: String, value: Value },
     Repeat { count: Value, body: Vec<Instruction<Block>> },
 }
 
@@ -38,7 +39,7 @@ impl BlockKind for Block {
     fn visit_values_mut(&mut self, f: &mut dyn FnMut(&mut Value, InputValueType)) {
         match self {
             Block::Say { text } => f(text, InputValueType::Any),
-            Block::SetVar { value, .. } => f(value, InputValueType::Any),
+            Block::SetVariable { value, .. } => f(value, InputValueType::Any),
             Block::Repeat { count, .. } => f(count, InputValueType::Any),
             Block::Start => {}
         }
@@ -50,9 +51,18 @@ impl BlockKind for Block {
     fn body_mut(&mut self, slot: u8) -> Option<&mut Vec<Instruction<Block>>> {
         match (self, slot) { (Block::Repeat { body, .. }, 0) => Some(body), _ => None }
     }
+    // The field ids the QML rows below name, so typing and drops reach the slot.
+    fn value_slot_mut(&mut self, field: &str) -> Option<&mut Value> {
+        match (self, field) {
+            (Block::Say { text }, "SayText") => Some(text),
+            (Block::SetVariable { value, .. }, "SetVariableValue") => Some(value),
+            (Block::Repeat { count, .. }, "RepeatCount") => Some(count),
+            _ => None,
+        }
+    }
     // Every name held as text: renames, packs and usage scans read this.
     fn visit_refs_mut(&mut self, f: &mut dyn FnMut(RefKind, &mut String)) {
-        if let Block::SetVar { name, .. } = self { f(RefKind::Variable, name) }
+        if let Block::SetVariable { name, .. } = self { f(RefKind::Variable, name) }
     }
 }
 
