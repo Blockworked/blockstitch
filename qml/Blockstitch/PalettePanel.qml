@@ -13,10 +13,9 @@ Rectangle {
         font.weight: Font.DemiBold
     }
     property var instructionTypes: []
-    // What Details says about a custom block; a host whose documents aren't
-    // macros words it its own way.
-    property string customBlockDetails: qsTr("A custom block defined in this macro.")
-    property string customReporterDetails: qsTr("A custom reporter block defined in this macro.")
+    // What Details says about a custom block; a host names its own documents.
+    property string customBlockDetails: qsTr("A custom block defined here.")
+    property string customReporterDetails: qsTr("A custom reporter block defined here.")
     property var listInstructionTypes: []
     // When set, every section item that isn't "@..." or a reporter is an
     // instruction type too, so a host lists each block once, in `sections`.

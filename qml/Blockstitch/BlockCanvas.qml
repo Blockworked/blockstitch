@@ -80,7 +80,7 @@ Rectangle {
         BlockRegistry.listNames = (lists || []).map(l => l.name);
         syncListEditors();
     }
-    // Keep the popup and its pointer grab alive across daemon updates.
+    // Keep the popup and its pointer grab alive across host state updates.
     ListModel {
         id: listEditorModel
     }
@@ -529,7 +529,7 @@ Rectangle {
 
     // Drag session for blocks picked up on the canvas. Blocks read this to follow the pointer.
     // After a drop we keep a "settle" offset so the dragged blocks stay at
-    // the drop point until the daemon round trip confirms the move. Without
+    // the drop point until the host's next state confirms the move. Without
     // this the transform snaps back to 0 on drop (visible revert) and the
     // block only teleports to its new position once the new state arrives.
     // snap* is the webapp-style attach preview: the nearest legal insertion
@@ -772,8 +772,8 @@ Rectangle {
     function clearSnap() { dragSession.clearSnap(); }
     // Stable strand model: a plain `Repeater { model: root.strands }` over a
     // JS array destroys and recreates *every* strand delegate whenever the
-    // array identity changes (which is every daemon state push, since
-    // appState is re-parsed from JSON). That reads as all blocks flickering
+    // array identity changes (which is every host state push when the
+    // host re-parses its state from JSON). That reads as all blocks flickering
     // at once. Syncing into a ListModel keyed by strand id instead keeps
     // untouched strands' delegates (and their nested blocks) alive: moves
     // only touch x/y roles, content changes only touch that strand.

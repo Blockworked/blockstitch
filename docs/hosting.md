@@ -1,7 +1,7 @@
 # Hosting the block editor
 
-How an app puts blockstitch's editor on its own blocks, and what moved here
-from Blockwork, Blockloom and the website during the shared-editor refactor.
+How an app puts blockstitch's editor on its own blocks, and which host
+features now live here (see Migration notes).
 The core's own contract is in `crates/blockstitch-core/README.md`; the QML
 module's in `qml/README.md`.
 
@@ -272,7 +272,7 @@ without them load.
 ## Known limits
 
 - `BlockRegistry` is a singleton that still holds per-canvas state (running,
-  breakpoint and paused ids, the recording target, the settling preview), so
+  breakpoint and paused ids, the settling preview), so
   two live canvases in one QML engine share it.
 - `Value::Call::branches` is opaque JSON; ids inside it aren't renamed on
   paste, and a host has to route reporter-branch edits itself (see above).

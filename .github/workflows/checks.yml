@@ -35,3 +35,9 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends libgl-dev libxkbcommon0 libegl1
       - run: tests/qml/run.sh
+      # Hosts compile the module with qmlcachegen; catch its errors here
+      # rather than after a pin bump.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build the QML crate
+        run: QMAKE="$(dirname "$(command -v qmltestrunner)")/qmake" cargo build -p blockstitch-qml

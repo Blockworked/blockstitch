@@ -131,7 +131,7 @@ Item {
     readonly property real emptyMouth: 26
     readonly property bool hovered: grab.hovered && !grab.dragging
     // 0: unaffected, 1: moves with the dragged block (it or a later sibling), 2: contains the dragged block.
-    // While `settling` (dropped, waiting for the daemon round trip) the tail
+    // While `settling` (dropped, waiting for the host's next state) the tail
     // keeps its drop offset so it doesn't visibly snap back and teleport.
     readonly property int dragRole: {
         const d = dragState;
@@ -1334,7 +1334,7 @@ Item {
             return keyCapture.kind === "Standalone";
         return keyCapture.kind === "Strand" && keyCapture.strand_id === strandId && samePath(keyCapture.index, path);
     }
-    // Paths from the daemon carry an explicit `slot: null` on every step; ours omit it.
+    // Paths from a host's backend may carry an explicit `slot: null` on every step; ours omit it.
     function samePath(a, b) {
         if (!a || !b || a.length !== b.length)
             return false;
