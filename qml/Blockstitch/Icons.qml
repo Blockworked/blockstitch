@@ -2,8 +2,9 @@ pragma Singleton
 import QtQuick
 
 // Exact SVG geometry from Lucide (lucide.dev), keyed by its kebab-case names.
-// The blocks draw with this set; a host adds the icons it registers that are
-// missing with add(). An unknown name draws as "info".
+// Blockstitch's own blocks and controls, plus the Make a Block icon picker's
+// choices. A host adds the icons its blocks use with add(). An unknown name
+// draws as "info".
 QtObject {
     // data: URLs LucideIcon built, by name|color|stroke|filled. Only ever
     // mutated in place, so the icons reading it don't re-evaluate.

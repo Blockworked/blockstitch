@@ -1,7 +1,8 @@
 //! Edits inside a custom reporter's branch go through a temporary strand.
 
 use blockstitch_core::editor::{
-    EditCommand, EditContext, PathStep, REPORTER_BRANCH_PREFIX, ValueLocation, reporter_branch_ids,
+    BranchArgKeys, EditCommand, EditContext, PathStep, REPORTER_BRANCH_PREFIX, ValueLocation,
+    reporter_branch_ids,
 };
 use blockstitch_core::graph::{BlockGraph, BlockKind, InputValueType, Instruction};
 use blockstitch_core::value::Value;
@@ -70,7 +71,11 @@ fn an_insert_into_a_branch_lands_in_the_reporter() {
         json!({ "location": location, "slot": 0 })
     );
     let args = json!({ "strandId": branch, "path": [{ "index": 0 }] });
-    let ids = reporter_branch_ids(&args);
+    let keys = BranchArgKeys {
+        ids: &["strandId"],
+        locations: &["location"],
+    };
+    let ids = reporter_branch_ids(&args, keys);
     assert_eq!(ids, vec![branch.clone()]);
 
     let open = graph.open_reporter_branches(&ids, &read).unwrap();

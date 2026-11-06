@@ -19,5 +19,6 @@ pub use location::{
 pub use ops::{ValueEdit, apply_value_kind};
 pub use path::{InstrPath, PathStep, resolve_body, resolve_body_mut};
 pub use reporter_branch::{
-    OpenBranches, REPORTER_BRANCH_PREFIX, reporter_branch_ids, targets_reporter_branch,
+    BranchArgKeys, OpenBranches, REPORTER_BRANCH_PREFIX, reporter_branch_ids,
+    targets_reporter_branch,
 };

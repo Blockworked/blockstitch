@@ -17,9 +17,13 @@ pub const REPORTER_BRANCH_PREFIX: &str = "@reporter-branch:";
 /// How deep branches may nest inside each other's reporters.
 const MAX_OPEN: usize = 32;
 
-/// The argument names the canvas puts strand ids and value locations in.
-const ID_KEYS: [&str; 4] = ["strandId", "targetId", "draggedId", "strand_id"];
-const LOCATION_KEYS: [&str; 3] = ["location", "from", "to"];
+/// Where a host's command arguments hold strand ids (`ids`) and value
+/// locations (`locations`). A location's own `strand_id` is always read.
+#[derive(Debug, Clone, Copy)]
+pub struct BranchArgKeys<'a> {
+    pub ids: &'a [&'a str],
+    pub locations: &'a [&'a str],
+}
 
 #[derive(Deserialize)]
 struct BranchAddress {
@@ -38,29 +42,29 @@ struct Branch {
 pub struct OpenBranches(Vec<Branch>);
 
 /// Every reporter-branch strand id in a command's JSON arguments.
-pub fn reporter_branch_ids(args: &Json) -> Vec<String> {
+pub fn reporter_branch_ids(args: &Json, keys: BranchArgKeys<'_>) -> Vec<String> {
     let mut ids = Vec::new();
-    collect_ids(args, &mut ids);
+    collect_ids(args, keys, &mut ids);
     ids
 }
 
 /// Whether a command's arguments name any reporter branch.
-pub fn targets_reporter_branch(args: &Json) -> bool {
-    !reporter_branch_ids(args).is_empty()
+pub fn targets_reporter_branch(args: &Json, keys: BranchArgKeys<'_>) -> bool {
+    !reporter_branch_ids(args, keys).is_empty()
 }
 
-fn collect_ids(args: &Json, ids: &mut Vec<String>) {
+fn collect_ids(args: &Json, keys: BranchArgKeys<'_>, ids: &mut Vec<String>) {
     if let Json::Object(fields) = args {
         for (key, value) in fields {
-            if ID_KEYS.contains(&key.as_str()) {
+            if key == "strand_id" || keys.ids.contains(&key.as_str()) {
                 if let Some(id) = value
                     .as_str()
                     .filter(|id| id.starts_with(REPORTER_BRANCH_PREFIX))
                 {
                     ids.push(id.to_string());
                 }
-            } else if LOCATION_KEYS.contains(&key.as_str()) {
-                collect_ids(value, ids);
+            } else if keys.locations.contains(&key.as_str()) {
+                collect_ids(value, keys, ids);
             }
         }
     }

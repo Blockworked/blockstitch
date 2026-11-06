@@ -228,10 +228,11 @@ A custom reporter with branches (`Value::Call { branches, .. }`) draws each
 branch as a mouth the user can drop blocks into. The canvas has no strand for
 it, so `ValueChip.branchId` names one: `@reporter-branch:` followed by JSON
 `{"location": <the reporter's ValueLocation>, "slot": <branch index>}`. That id
-arrives in the usual `strandId`, `targetId` or `draggedId` argument, or inside a
-`location`, `from` or `to`, of any instruction edit.
+arrives wherever the host's command puts a strand id.
 
-`editor::reporter_branch_ids(&args)` lists them. Run the edit on a clone of
+`editor::reporter_branch_ids(&args, keys)` lists them; `BranchArgKeys` names
+the host's strand id arguments and the arguments that hold a `ValueLocation`
+(Blockwork's are `BRANCH_ARG_KEYS` in the file below). Run the edit on a clone of
 the graph between `open_reporter_branches` (each branch becomes a temporary
 strand; the host's closure reads its saved JSON body as instructions) and
 `close_reporter_branches` (writes each back into its reporter's
@@ -264,6 +265,7 @@ committing.
 | Operator default args in each app's QML | `operator_descriptors()` and generated `BlockRegistry` tables |
 | Battery/clipboard reporters, recording menu and automation icons in the shared registry | registered by Blockwork (`registerIcons`, `blockMenu`, `strandMark` with `BlockCanvas.markedStrandId`) |
 | Icons only Blockwork's blocks drew (battery, clipboard, terminal, ...) in `Icons.qml` | the host passes its own set to `Icons.add` |
+| `reporter_branch_ids(&args)` guessing Blockwork's argument names | `reporter_branch_ids(&args, BranchArgKeys { .. })` |
 | Each app's palette drag code | `PaletteDragController` |
 | Each app's Make a Block dialog | `BlockDefinitionEditor` |
 | Each app's custom-call argument builder | `BlockRegistry.freshCallArgs` |
