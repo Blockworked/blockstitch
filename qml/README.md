@@ -44,7 +44,7 @@ is added to `module.json` and nowhere else.
 | `SmoothScroll.qml`, `WheelPan.qml`, `TextSelectHold.qml` | Wheel scrolling that glides, and holding a view still while text is selected. |
 | `BlockRegistry.qml` | The host's vocabulary: rows, operators, prefabs, icons, descriptors. |
 | `BlockDefinitionEditor.qml` | "Make a Block". |
-| `BlockAppearancePopup.qml`, `BlockIconPopup.qml` | Its color and icon pickers. |
+| `BlockAppearancePopup.qml`, `BlockIconPopup.qml`, `BlockInputsPopup.qml` | Its color and icon pickers, and the Inputs dialog (starting values, multi-line boxes). |
 | `Theme.qml`, `Motion.qml`, `Icons.qml` | Colors and sizes, animation timing, Lucide icon paths. |
 | `Bw*.qml` | The small controls (button, check box, combo box, dialog, menu, slider, switch, text field) every host uses for its own UI too. The `Bw` prefix is historical; they hold nothing Blockwork-specific. |
 
