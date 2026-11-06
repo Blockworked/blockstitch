@@ -217,6 +217,22 @@ above it). Everything else comes from the host's rows in `BlockRegistry`.
 Reporters `Text`, `Number`, `Bool` and `Op` are the `Value` kinds from
 `blockstitch-core`.
 
+## Reporter branches
+
+A custom reporter with branches (`Value::Call { branches, .. }`) draws each
+branch as a mouth the user can drop blocks into. The canvas has no strand for
+it, so `ValueChip.branchId` names one: `@reporter-branch:` followed by JSON
+`{"location": <the reporter's ValueLocation>, "slot": <branch index>}`. That id
+arrives in the usual `strandId`, `targetId` or `draggedId` argument, or inside a
+`location`, `from` or `to`, of any instruction edit.
+
+The host must turn those ids back into the branch: on a clone of the graph,
+add each named branch as a temporary strand (its JSON body read as
+instructions), run the edit, write each strand back into its reporter's
+`branches[slot]`, and refuse the edit if a header ended up in one or a
+reporter was moved into its own branch. Blockwork's desktop app does this in
+`blockwork-app/src/reporter_branches.rs`; its website build does not yet.
+
 ## Pins
 
 A host pins `blockstitch-core`, `blockstitch-qml` (and `blockstitch-ffi` if
@@ -256,5 +272,5 @@ without them load.
   breakpoint and paused ids, the recording target, the settling preview), so
   two live canvases in one QML engine share it.
 - `Value::Call::branches` is opaque JSON; ids inside it aren't renamed on
-  paste.
+  paste, and each host resolves reporter-branch ids itself (see above).
 - A panic in the browser core aborts the module; the page offers a reload.
