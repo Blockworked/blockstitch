@@ -19,6 +19,8 @@
     "BwCheckBox.qml",
     "BwMenuItem.qml",
     "BwMenu.qml",
+    "BlockMenu.qml",
+    "BlockPiece.qml",
     "BwDialog.qml",
     "BwSwitch.qml",
     "BwSlider.qml",
