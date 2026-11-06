@@ -36,6 +36,7 @@ is added to `module.json` and nowhere else.
 | `PalettePanel.qml`, `PaletteDragController.qml` | The sidebar and dragging out of it. |
 | `BlockRegistry.qml` | The host's vocabulary: rows, operators, prefabs, icons, descriptors. |
 | `BlockDefinitionEditor.qml` | "Make a Block". |
+| `BlockAppearancePopup.qml`, `BlockIconPopup.qml` | Its color and icon pickers. |
 | `Theme.qml`, `Motion.qml`, `Icons.qml` | Colors and sizes, animation timing, Lucide icon paths. |
 | `Bw*.qml` | The small controls (button, text field, menu, dialog, ...) every host uses for its own UI too. The `Bw` prefix is historical; they hold nothing Blockwork-specific. |
 

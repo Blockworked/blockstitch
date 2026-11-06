@@ -37,6 +37,8 @@
     "CollectionPanel.qml",
     "NameDialog.qml",
     "BlockDefinitionEditor.qml",
+    "BlockAppearancePopup.qml",
+    "BlockIconPopup.qml",
     "PalettePanel.qml",
     "SnapGeometry.qml",
     "CanvasZoom.qml",
