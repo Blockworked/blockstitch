@@ -10,7 +10,8 @@ Rectangle {
     Accessible.role: Accessible.Grouping
     Accessible.name: qsTr("Block canvas")
     property var strands: []
-    property string recordingTargetId: ""
+    // A strand the host marks with a badge (BlockRegistry.strandMark), like Blockwork's recording target.
+    property string markedStrandId: ""
     property var comments: []
     property Component textMenu: null
     property var floatingValues: []
@@ -29,11 +30,6 @@ Rectangle {
     property bool canPaste: false
     Binding {
         target: BlockRegistry
-        property: "recordingTargetId"
-        value: root.recordingTargetId
-    }
-    Binding {
-        target: BlockRegistry
         property: "commentedIds"
         value: (root.comments || []).filter(c => c.attached_to).map(c => c.attached_to)
     }
@@ -49,7 +45,6 @@ Rectangle {
     signal runBranchRequested(string strandId, var path, string name)
     signal valueEdited(var location, string text)
     signal commentForInstructionRequested(var instruction)
-    signal recordingTargetRequested(string strandId)
     signal canvasNoteRequested(int x, int y)
     signal clearRequested
     signal commentMoved(string commentId, int x, int y)
@@ -1363,7 +1358,7 @@ Rectangle {
                                         }
                                     ]
                                     tailCount: strandBlocks.count - index
-                                    recordingTarget: index === 0 && root.recordingTargetId === strand.sid
+                                    strandMarked: index === 0 && root.markedStrandId === strand.sid
                                     dragState: dragSession
                                     variables: root.variables
                                     lists: root.lists
@@ -1374,7 +1369,6 @@ Rectangle {
                                     onRemoveRequested: (sid, p) => root.instructionRemoved(sid, p)
                                     onDuplicateRequested: (sid, p, i) => root.instructionDuplicated(sid, p, i)
                                     onCommentRequested: i => root.commentForInstructionRequested(i)
-                                    onRecordingTargetRequested: sid => root.recordingTargetRequested(sid)
                                     onKeyCaptureRequested: (sid, p) => root.keyCaptureRequested(sid, p)
                                     onPieceActionRequested: (a, sid, p, i) => root.pieceActionRequested(a, sid, p, i)
                                     onDetailsRequested: type => root.detailsRequested(type)

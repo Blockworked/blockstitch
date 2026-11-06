@@ -15,12 +15,6 @@ BwMenu {
         onTriggered: block.menuActionRequested("edit_block", block.strandId, block.path, block.instruction)
     }
     BwMenuItem {
-        visible: !block.paletteMode && BlockRegistry.recordingTargets
-        iconName: "target"
-        text: block.isRecordingTarget ? qsTr("Recording Target (current)") : qsTr("Set Recording Target")
-        onTriggered: block.recordingTargetRequested(block.strandId)
-    }
-    BwMenuItem {
         visible: !block.paletteMode
         iconName: "copy"
         text: qsTr("Copy block")
@@ -69,7 +63,8 @@ BwMenu {
         delegate: BwMenuItem {
             required property var modelData
             iconName: modelData.icon || ""
-            text: modelData.text
+            // A host item may name itself per block: text(instruction, strandId, path).
+            text: typeof modelData.text === "function" ? modelData.text(block.instruction, block.strandId, block.path) : modelData.text
             danger: !!modelData.danger
             visible: block.paletteMode || typeof modelData.when !== "function" || !!modelData.when(block.instruction, block.strandId, block.path)
             onTriggered: !block.paletteMode ? block.menuActionRequested(modelData.id, block.strandId, block.path, block.instruction) : modelData.id === "details" ? block.detailsRequested(block.isCustomBlock && block.instruction ? block.instruction.block_id : block.type) : block.extraMenuTriggered(modelData.id)

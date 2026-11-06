@@ -21,10 +21,9 @@ QtObject {
     // it and the registry bumps `revision` whenever it changes.
     property string optionKey: ""
     onOptionKeyChanged: revision++
-    // Whether block menus offer "Set Recording Target". Off unless the host has recording.
-    property bool recordingTargets: false
-    // Kept in step with the canvas so block menus can label themselves.
-    property string recordingTargetId: ""
+    // The badge on the marked strand's first block (BlockCanvas.markedStrandId):
+    // its tooltip, and a color ("" for Theme.danger).
+    property var strandMark: ({ text: "", color: "" })
     property var commentedIds: []
     // Host markers on canvas blocks, instruction id -> message (an error
     // from the last run, say). Clicking one emits markClicked.
@@ -77,7 +76,8 @@ QtObject {
     property var flashTimer: Timer { interval: 1600; onTriggered: registry.flashId = "" }
     // Extra right-click entries a host adds: [{id, text, icon, danger}]. A
     // block entry may add `when(instruction, strandId, path)` to show only
-    // where it returns true. A choice comes back as
+    // where it returns true, and its `text` may be a function of the same
+    // three. A choice comes back as
     // BlockCanvas.blockMenuAction / canvasMenuAction.
     property var blockMenu: []
     property var canvasMenu: []

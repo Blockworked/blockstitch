@@ -257,12 +257,13 @@ committing.
 | QML `refreshIds` / `regenerateIds` on paste | `PasteFragment` / `DuplicateInstruction` in the core, fresh ids |
 | JSON heuristics flattening `{id, kind}` objects for the frontend | `graph::to_frontend` / `from_frontend` |
 | Operator default args in each app's QML | `operator_descriptors()` and generated `BlockRegistry` tables |
-| Battery/clipboard reporters, recording menu and automation icons in the shared registry | registered by Blockwork (`registerIcons`, `recordingTargets`) |
+| Battery/clipboard reporters, recording menu and automation icons in the shared registry | registered by Blockwork (`registerIcons`, `blockMenu`, `strandMark` with `BlockCanvas.markedStrandId`) |
 | Each app's palette drag code | `PaletteDragController` |
 | Each app's Make a Block dialog | `BlockDefinitionEditor` |
 | Each app's custom-call argument builder | `BlockRegistry.freshCallArgs` |
 | QML file lists in `build.rs` and the site's CMake | `qml/module.json` |
 | `blockstitch-ffi` ABI v1 (a fixed stand-in document) | ABI v2: `Host` + `export_abi!` |
+| `BlockRegistry.recordingTargets`, `BlockCanvas.recordingTargetId`, `recordingTargetRequested` | a host `blockMenu` item; `BlockCanvas.markedStrandId` + `BlockRegistry.strandMark` for the badge |
 
 Saved files are unchanged except that custom block definitions now always
 carry `identifier`, `description` and `icon` (empty when unset); files

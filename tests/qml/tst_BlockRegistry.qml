@@ -6,7 +6,7 @@ TestCase {
     name: "BlockRegistry"
 
     function test_aNeutralHostAdvertisesNoHostFeatures() {
-        compare(BlockRegistry.recordingTargets, false);
+        compare(BlockRegistry.strandMark.text, "");
         for (const op of ["BatteryPercentage", "PluggedIn", "ClipboardText", "ClipboardHasImage", "ClipboardHasFiles"])
             compare(BlockRegistry.operator(op), null, op);
         compare(BlockRegistry.iconFor("MoveMouse"), "blocks");

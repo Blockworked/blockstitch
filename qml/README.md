@@ -120,9 +120,9 @@ core's default. Labels, layouts and dropdown choices stay in
 
 ### What a neutral host gets
 
-Nothing host-specific: no recording-target menu entry (`recordingTargets` is
-off), no rows or icons beyond the shared control and data blocks, and no
-palette prefabs for host blocks. A host turns its features on and registers
+Nothing host-specific: no marked-strand badge (`strandMark` is empty), no
+rows or icons beyond the shared control and data blocks, and no palette
+prefabs for host blocks. A host turns its features on and registers
 the rest (`registerRows`, `registerPrefabs`, `registerIcons({MoveMouse: "move"})`).
 
 A row whose pieces depend on the instruction (one generic type that many

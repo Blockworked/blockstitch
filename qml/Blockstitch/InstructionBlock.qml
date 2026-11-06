@@ -17,8 +17,8 @@ Item {
     property var keyCapture: null
     property bool paletteMode: false
     property bool locked: false
-    // The first block of the strand new recordings are appended to.
-    property bool recordingTarget: false
+    // The first block of the host's marked strand (BlockCanvas.markedStrandId).
+    property bool strandMarked: false
     property color blockColor: Theme.block
     property color branchColor: Theme.accent
     // shared drag session owned by BlockCanvas (null for palette/preview blocks)
@@ -51,7 +51,6 @@ Item {
     signal removeRequested(string strandId, var path)
     signal duplicateRequested(string strandId, var path, var instruction)
     signal commentRequested(var instruction)
-    signal recordingTargetRequested(string strandId)
     signal instructionEdited(string strandId, var path, var instruction)
     signal valueEdited(var location, string text)
     signal valueDragBegan(var location, var value, real sceneX, real sceneY, real offsetX, real offsetY, real w, real h)
@@ -78,7 +77,6 @@ Item {
     readonly property string type: instruction ? instruction.type : ""
     readonly property bool isWrap: BlockRegistry.isWrap(type)
     readonly property bool isHeader: BlockRegistry.isHeader(type)
-    readonly property bool isRecordingTarget: strandId !== "" && BlockRegistry.recordingTargetId === strandId
     readonly property bool hasComment: !!instruction && BlockRegistry.commentedSet[instruction.id] === true
     readonly property string markText: !paletteMode && instruction ? (BlockRegistry.marks[instruction.id] || "") : ""
     readonly property bool flashing: !paletteMode && !!instruction && BlockRegistry.flashId === instruction.id
@@ -862,22 +860,22 @@ Item {
             }
         }
     }
-    // Recording target: the Record button's dot as a badge on the block's icon.
-    component RecordBadge: Rectangle {
-        visible: root.recordingTarget && !root.paletteMode
+    // The marked strand's badge on the block's icon (BlockRegistry.strandMark).
+    component StrandBadge: Rectangle {
+        visible: root.strandMarked && !root.paletteMode
         x: 12
         y: -8
         width: 10
         height: 10
         radius: 5
-        color: Theme.danger
+        color: BlockRegistry.strandMark.color || Theme.danger
         border.width: 2
         border.color: root.displayColor
-        ToolTip.visible: recordHover.hovered
+        ToolTip.visible: markHover.hovered && !!BlockRegistry.strandMark.text
         ToolTip.delay: 300
-        ToolTip.text: qsTr("Recording target")
+        ToolTip.text: BlockRegistry.strandMark.text || ""
         HoverHandler {
-            id: recordHover
+            id: markHover
             margin: 3
         }
     }
@@ -894,7 +892,7 @@ Item {
             width: 16
             height: 16
             anchors.verticalCenter: parent.verticalCenter
-            RecordBadge {}
+            StrandBadge {}
         }
         // Custom block calls and definitions, drawn from their definition.
         Loader {
@@ -1065,7 +1063,7 @@ Item {
             width: 16
             height: 16
             anchors.verticalCenter: parent.verticalCenter
-            RecordBadge {}
+            StrandBadge {}
         }
         Loader {
             active: root.isWrap && !root.rowSpec && root.type !== "BranchCallBlock"
@@ -1261,7 +1259,6 @@ Item {
                             item.removeRequested.connect((s, p) => root.removeRequested(s, p));
                             item.duplicateRequested.connect((s, p, i) => root.duplicateRequested(s, p, i));
                             item.commentRequested.connect(i => root.commentRequested(i));
-                            item.recordingTargetRequested.connect(s => root.recordingTargetRequested(s));
                             item.instructionEdited.connect((s, p, i) => root.instructionEdited(s, p, i));
                             item.valueEdited.connect((l, t) => root.valueEdited(l, t));
                             item.valueDragBegan.connect((loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h));
