@@ -6,6 +6,7 @@ mod history;
 mod location;
 mod ops;
 mod path;
+mod reporter_branch;
 
 pub use command::{
     BufferEffect, Created, EditCommand, EditContext, EditError, EditOutcome, NumberSpelling,
@@ -17,3 +18,6 @@ pub use location::{
 };
 pub use ops::{ValueEdit, apply_value_kind};
 pub use path::{InstrPath, PathStep, resolve_body, resolve_body_mut};
+pub use reporter_branch::{
+    OpenBranches, REPORTER_BRANCH_PREFIX, reporter_branch_ids, targets_reporter_branch,
+};

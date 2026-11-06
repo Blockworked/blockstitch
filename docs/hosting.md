@@ -226,12 +226,14 @@ it, so `ValueChip.branchId` names one: `@reporter-branch:` followed by JSON
 arrives in the usual `strandId`, `targetId` or `draggedId` argument, or inside a
 `location`, `from` or `to`, of any instruction edit.
 
-The host must turn those ids back into the branch: on a clone of the graph,
-add each named branch as a temporary strand (its JSON body read as
-instructions), run the edit, write each strand back into its reporter's
-`branches[slot]`, and refuse the edit if a header ended up in one or a
-reporter was moved into its own branch. Blockwork's desktop app does this in
-`blockwork-app/src/reporter_branches.rs`; its website build does not yet.
+`editor::reporter_branch_ids(&args)` lists them. Run the edit on a clone of
+the graph between `open_reporter_branches` (each branch becomes a temporary
+strand; the host's closure reads its saved JSON body as instructions) and
+`close_reporter_branches` (writes each back into its reporter's
+`branches[slot]`, and refuses a header there or a reporter moved into its own
+branch). Commit the clone only when closing succeeds. Blockwork's desktop app
+does this in `blockwork-app/src/reporter_branches.rs`; its website build does
+not yet.
 
 ## Pins
 
@@ -272,5 +274,5 @@ without them load.
   breakpoint and paused ids, the recording target, the settling preview), so
   two live canvases in one QML engine share it.
 - `Value::Call::branches` is opaque JSON; ids inside it aren't renamed on
-  paste, and each host resolves reporter-branch ids itself (see above).
+  paste, and a host has to route reporter-branch edits itself (see above).
 - A panic in the browser core aborts the module; the page offers a reload.
