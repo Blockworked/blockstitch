@@ -28,22 +28,26 @@ Item {
     property string _indexedId: ""
     function _reindex() {
         const id = !paletteMode && instruction && instruction.id ? String(instruction.id) : "";
-        if (id === _indexedId) return;
-        if (_indexedId) BlockRegistry.unindexBlock(_indexedId, root);
+        if (id === _indexedId)
+            return;
+        if (_indexedId)
+            BlockRegistry.unindexBlock(_indexedId, root);
         _indexedId = id;
-        if (id) BlockRegistry.indexBlock(id, root);
+        if (id)
+            BlockRegistry.indexBlock(id, root);
     }
     onInstructionChanged: _reindex()
     onPaletteModeChanged: _reindex()
     Component.onCompleted: _reindex()
-    Component.onDestruction: if (_indexedId) BlockRegistry.unindexBlock(_indexedId, root)
+    Component.onDestruction: if (_indexedId)
+        BlockRegistry.unindexBlock(_indexedId, root)
     // number of instructions from this one to the end of its list (inclusive)
     property int tailCount: 1
     signal dragBegan(string strandId, var path, int tailCount, real sceneX, real sceneY, real offsetX, real offsetY, real blockW, real blockH)
     signal dragMoved(real sceneX, real sceneY)
     signal dragEnded(real sceneX, real sceneY)
-    signal dragCanceled()
-    signal activated()
+    signal dragCanceled
+    signal activated
     signal removeRequested(string strandId, var path)
     signal duplicateRequested(string strandId, var path, var instruction)
     signal commentRequested(var instruction)
@@ -53,7 +57,7 @@ Item {
     signal valueDragBegan(var location, var value, real sceneX, real sceneY, real offsetX, real offsetY, real w, real h)
     signal valueDragMoved(real sceneX, real sceneY)
     signal valueDragEnded(real sceneX, real sceneY)
-    signal valueDragCanceled()
+    signal valueDragCanceled
     signal runBranchRequested(string strandId, var path, string name)
     signal keyCaptureRequested(string strandId, var path)
     // A registered row's "button" piece was clicked; `action` names it.
@@ -69,7 +73,7 @@ Item {
     signal paletteDragStarted(var spec, real sceneX, real sceneY, real offsetX, real offsetY)
     signal paletteDragMoved(real sceneX, real sceneY)
     signal paletteDragEnded(real sceneX, real sceneY)
-    signal paletteDragCanceled()
+    signal paletteDragCanceled
 
     readonly property string type: instruction ? instruction.type : ""
     readonly property bool isWrap: BlockRegistry.isWrap(type)
@@ -83,8 +87,7 @@ Item {
     readonly property bool pausedHere: !paletteMode && !!instruction && BlockRegistry.pausedSet[instruction.id] === true
     readonly property bool isCap: BlockRegistry.isCap(instruction, blockDefinitions)
     // The host's declarative row for this type, if it registered one.
-    readonly property var rowSpec: (type === "CallBlock" || type === "BranchCallBlock")
-        ? BlockRegistry.customCallRow(defFor(instruction.block_id)) || BlockRegistry.row(type) : BlockRegistry.row(type)
+    readonly property var rowSpec: (type === "CallBlock" || type === "BranchCallBlock") ? BlockRegistry.customCallRow(defFor(instruction.block_id)) || BlockRegistry.row(type) : BlockRegistry.row(type)
     // A new pieces array rebuilds every control on the row, so it only
     // changes when a different set of pieces shows.
     property var headPieces: []
@@ -94,18 +97,26 @@ Item {
     }
     onWantedPiecesChanged: {
         const a = headPieces, b = wantedPieces;
-        if (a.length === b.length && a.every((p, i) => p === b[i])) return;
+        if (a.length === b.length && a.every((p, i) => p === b[i]))
+            return;
         headPieces = b;
     }
     // Group only the displayed pieces; hidden conditional fields take no space.
     readonly property var headGroups: {
         const groups = [];
         for (const piece of headPieces) {
-            if (piece.kind !== "removeComponent") { groups.push(piece); continue; }
+            if (piece.kind !== "removeComponent") {
+                groups.push(piece);
+                continue;
+            }
             const pieces = [piece], members = piece.component.pieces || [];
             while (groups.length && members.indexOf(groups[groups.length - 1]) >= 0)
                 pieces.unshift(groups.pop());
-            groups.push({ kind: "component", component: piece.component, pieces: pieces });
+            groups.push({
+                kind: "component",
+                component: piece.component,
+                pieces: pieces
+            });
         }
         return isWrap || isHeader ? groups : groups.filter(p => !(p.kind === "value" && p.box));
     }
@@ -126,30 +137,38 @@ Item {
     // keeps its drop offset so it doesn't visibly snap back and teleport.
     readonly property int dragRole: {
         const d = dragState;
-        if (!d) return 0;
+        if (!d)
+            return 0;
         if (d.active && d.strandId === strandId) {
             const a = d.path, b = path;
-            if (b.length > a.length) return 0;
+            if (b.length > a.length)
+                return 0;
             for (let i = 0; i < b.length - 1; ++i)
-                if (b[i].index !== a[i].index || (b[i].slot || 0) !== (a[i].slot || 0)) return 0;
-            if (b.length < a.length) return b[b.length - 1].index === a[b.length - 1].index ? 2 : 0;
+                if (b[i].index !== a[i].index || (b[i].slot || 0) !== (a[i].slot || 0))
+                    return 0;
+            if (b.length < a.length)
+                return b[b.length - 1].index === a[b.length - 1].index ? 2 : 0;
             return b[b.length - 1].index >= a[a.length - 1].index ? 1 : 0;
         }
         if (d.settling && d.settleStrandId === strandId) {
             const a = d.settlePath || [], b = path;
-            if (!a.length || b.length > a.length) return 0;
+            if (!a.length || b.length > a.length)
+                return 0;
             for (let i = 0; i < b.length - 1; ++i)
-                if (b[i].index !== a[i].index || (b[i].slot || 0) !== (a[i].slot || 0)) return 0;
-            if (b.length < a.length) return b[b.length - 1].index === a[b.length - 1].index ? 2 : 0;
+                if (b[i].index !== a[i].index || (b[i].slot || 0) !== (a[i].slot || 0))
+                    return 0;
+            if (b.length < a.length)
+                return b[b.length - 1].index === a[b.length - 1].index ? 2 : 0;
             return b[b.length - 1].index >= a[a.length - 1].index ? 1 : 0;
         }
         return 0;
     }
-    readonly property bool isCustomBlock: ["CallBlock","BranchCallBlock","BlockHeader"].indexOf(type) >= 0
+    readonly property bool isCustomBlock: ["CallBlock", "BranchCallBlock", "BlockHeader"].indexOf(type) >= 0
     readonly property color customColor: {
         if (instruction && isCustomBlock) {
             const d = defFor(instruction.block_id);
-            if (d && d.color) return d.color;
+            if (d && d.color)
+                return d.color;
         }
         return Theme.accent;
     }
@@ -162,17 +181,23 @@ Item {
     // The overlay draws active tails; trashed tails wait for their removal.
     opacity: dragRole === 1 && dragState && ((dragState.active && dragState.externalPreview) || (!dragState.active && dragState.settling && dragState.settleHidden)) ? 0 : 1
     readonly property real dragOffsetX: {
-        if (!dragState || dragRole !== 1) return 0;
+        if (!dragState || dragRole !== 1)
+            return 0;
         // An overlay draws the moving tail and this copy is hidden, so it
         // stays put rather than moving every block of a long tail each step.
-        if (dragState.active) return dragState.externalPreview ? 0 : dragState.dx;
-        if (dragState.settling) return dragState.settleDx;
+        if (dragState.active)
+            return dragState.externalPreview ? 0 : dragState.dx;
+        if (dragState.settling)
+            return dragState.settleDx;
         return 0;
     }
     readonly property real dragOffsetY: {
-        if (!dragState || dragRole !== 1) return 0;
-        if (dragState.active) return dragState.externalPreview ? 0 : dragState.dy;
-        if (dragState.settling) return dragState.settleDy;
+        if (!dragState || dragRole !== 1)
+            return 0;
+        if (dragState.active)
+            return dragState.externalPreview ? 0 : dragState.dy;
+        if (dragState.settling)
+            return dragState.settleDy;
         return 0;
     }
     // Attach preview gap: stationary rows at/after the snap insertion point
@@ -183,32 +208,48 @@ Item {
     }
     readonly property real snapShift: {
         const d = snapLayout();
-        if (!d || !d.snapValid) return 0;
-        if (d.snapTargetId !== strandId) return 0;
-        if (dragRole === 1) return 0;
+        if (!d || !d.snapValid)
+            return 0;
+        if (d.snapTargetId !== strandId)
+            return 0;
+        if (dragRole === 1)
+            return 0;
         const sp = d.snapPath || [];
-        if (!sp.length || sp.length !== path.length) return 0;
+        if (!sp.length || sp.length !== path.length)
+            return 0;
         for (let i = 0; i < path.length - 1; ++i) {
-            if (path[i].index !== sp[i].index) return 0;
+            if (path[i].index !== sp[i].index)
+                return 0;
             const a = (path[i].slot === undefined || path[i].slot === null) ? null : path[i].slot;
             const b = (sp[i].slot === undefined || sp[i].slot === null) ? null : sp[i].slot;
-            if (a !== b) return 0;
+            if (a !== b)
+                return 0;
         }
-        if (path[path.length - 1].index < sp[sp.length - 1].index) return 0;
+        if (path[path.length - 1].index < sp[sp.length - 1].index)
+            return 0;
         return d.snapShiftAmt;
     }
     // Ease layout gaps without delaying the block under the pointer.
     readonly property bool animateLayout: Motion.enabled && !!dragState && !dragState.settling && !dragState.applyingDocument && dragRole !== 1
     Behavior on implicitWidth {
         enabled: root.isWrap && root.animateLayout
-        NumberAnimation { duration: Motion.dur(140); easing.type: Easing.OutCubic }
+        NumberAnimation {
+            duration: Motion.dur(140)
+            easing.type: Easing.OutCubic
+        }
     }
     property real displayedSnapShift: snapShift
     Behavior on displayedSnapShift {
         enabled: root.animateLayout
-        NumberAnimation { duration: Motion.dur(140); easing.type: Easing.OutCubic }
+        NumberAnimation {
+            duration: Motion.dur(140)
+            easing.type: Easing.OutCubic
+        }
     }
-    transform: Translate { x: root.dragOffsetX; y: root.dragOffsetY + root.displayedSnapShift }
+    transform: Translate {
+        x: root.dragOffsetX
+        y: root.dragOffsetY + root.displayedSnapShift
+    }
 
     // Heights/widths of each mouth's nested content, reported by the mouth delegates.
     property var mouthHeights: []
@@ -216,16 +257,21 @@ Item {
     property var flatEnds: []
     function isSnapMouth(k) {
         const d = snapLayout();
-        if (!d || !d.snapValid) return false;
-        if (d.snapTargetId !== strandId) return false;
+        if (!d || !d.snapValid)
+            return false;
+        if (d.snapTargetId !== strandId)
+            return false;
         const sp = d.snapPath || [];
-        if (sp.length !== path.length + 1) return false;
+        if (sp.length !== path.length + 1)
+            return false;
         for (let i = 0; i < path.length; ++i) {
-            if (path[i].index !== sp[i].index) return false;
+            if (path[i].index !== sp[i].index)
+                return false;
             if (i < path.length - 1) {
                 const a = (path[i].slot === undefined || path[i].slot === null) ? null : path[i].slot;
                 const b = (sp[i].slot === undefined || sp[i].slot === null) ? null : sp[i].slot;
-                if (a !== b) return false;
+                if (a !== b)
+                    return false;
             }
         }
         const mouthSlot = (sp[path.length - 1].slot === undefined || sp[path.length - 1].slot === null) ? null : sp[path.length - 1].slot;
@@ -236,19 +282,24 @@ Item {
     // so the bracket shell collapses around the remaining prefix live.
     function isSourceMouth(k) {
         const d = dragState;
-        if (!d || (!d.active && !d.settling)) return false;
-        if (d.sourceStrandId !== strandId) return false;
+        if (!d || (!d.active && !d.settling))
+            return false;
+        if (d.sourceStrandId !== strandId)
+            return false;
         const sp = d.sourceBasePath || [];
         // NOTE: unlike a snap path (container + insertion step), the source
         // base path addresses the container itself, so it is the same length
         // as the owning wrap block's path.
-        if (!sp.length || sp.length !== path.length) return false;
+        if (!sp.length || sp.length !== path.length)
+            return false;
         for (let i = 0; i < path.length; ++i) {
-            if (path[i].index !== sp[i].index) return false;
+            if (path[i].index !== sp[i].index)
+                return false;
             if (i < path.length - 1) {
                 const a = (path[i].slot === undefined || path[i].slot === null) ? null : path[i].slot;
                 const b = (sp[i].slot === undefined || sp[i].slot === null) ? null : sp[i].slot;
-                if (a !== b) return false;
+                if (a !== b)
+                    return false;
             }
         }
         const mouthSlot = (sp[path.length - 1].slot === undefined || sp[path.length - 1].slot === null) ? null : sp[path.length - 1].slot;
@@ -269,37 +320,65 @@ Item {
         }
         return out;
     }
-    readonly property real mouthTotal: { let sum = 0; const e = effMouthHeights; for (let k = 0; k < slotCount(); ++k) sum += e[k] || emptyMouth; return sum; }
+    readonly property real mouthTotal: {
+        let sum = 0;
+        const e = effMouthHeights;
+        for (let k = 0; k < slotCount(); ++k)
+            sum += e[k] || emptyMouth;
+        return sum;
+    }
     readonly property real bodyWidth: mouthWidths.reduce((m, w) => Math.max(m, w), 0)
     function setMouth(i, height, width, flat) {
-        if (mouthHeights[i] === height && mouthWidths[i] === width && flatEnds[i] === flat) return;
+        if (mouthHeights[i] === height && mouthWidths[i] === width && flatEnds[i] === flat)
+            return;
         const h = mouthHeights.slice(), w = mouthWidths.slice(), f = flatEnds.slice();
-        h[i] = height; w[i] = width; f[i] = flat;
-        mouthHeights = h; mouthWidths = w; flatEnds = f;
+        h[i] = height;
+        w[i] = width;
+        f[i] = flat;
+        mouthHeights = h;
+        mouthWidths = w;
+        flatEnds = f;
     }
-    function mouthTop(k) { let y = headHeight; const e = effMouthHeights; for (let i = 0; i < k; ++i) y += (e[i] || emptyMouth) + midHeight; return y; }
-    function lastIsCap(slot) { const b = body(slot); return b.length > 0 && BlockRegistry.isCap(b[b.length - 1], blockDefinitions); }
+    function mouthTop(k) {
+        let y = headHeight;
+        const e = effMouthHeights;
+        for (let i = 0; i < k; ++i)
+            y += (e[i] || emptyMouth) + midHeight;
+        return y;
+    }
+    function lastIsCap(slot) {
+        const b = body(slot);
+        return b.length > 0 && BlockRegistry.isCap(b[b.length - 1], blockDefinitions);
+    }
 
     // Where a press grabs this block: its own bars, spine and connector tabs, but
     // not the hollow mouths (those belong to the blocks nested in them or the canvas).
-    function inRect(x, y, rx, ry, rw, rh) { return x >= rx && x < rx + rw && y >= ry && y < ry + rh; }
+    function inRect(x, y, rx, ry, rw, rh) {
+        return x >= rx && x < rx + rw && y >= ry && y < ry + rh;
+    }
     function hitTest(x, y) {
         const w = width, t = tabDepth;
         if (!isWrap) {
             const bottomTab = !isCap, body = bottomTab ? height - t : height;
-            if (inRect(x, y, 0, 0, w, body)) return !(!isHeader && inRect(x, y, 13, 0, 30, t));
+            if (inRect(x, y, 0, 0, w, body))
+                return !(!isHeader && inRect(x, y, 13, 0, 30, t));
             return bottomTab && inRect(x, y, 13, body, 30, t);
         }
-        if (inRect(x, y, 0, 0, w, headHeight)) return !inRect(x, y, 13, 0, 30, t);
-        if (inRect(x, y, spine + 13, headHeight, 30, t)) return true;
+        if (inRect(x, y, 0, 0, w, headHeight))
+            return !inRect(x, y, 13, 0, 30, t);
+        if (inRect(x, y, spine + 13, headHeight, 30, t))
+            return true;
         const n = slotCount();
         let top = headHeight;
         for (let k = 0; k < n; ++k) {
             const mh = mouthHeights[k] || emptyMouth, barTop = top + mh, foot = k === n - 1;
-            if (inRect(x, y, 0, top, spine, mh)) return true;
+            if (inRect(x, y, 0, top, spine, mh))
+                return true;
             const barH = foot ? footHeight : midHeight;
-            if (inRect(x, y, 0, barTop, w, barH)) return !(inRect(x, y, spine + 13, barTop, 30, t) && !flatEnds[k]);
-            if (!(foot && isCap) && inRect(x, y, foot ? 13 : spine + 13, barTop + barH, 30, t)) return true;
+            if (inRect(x, y, 0, barTop, w, barH))
+                return !(inRect(x, y, spine + 13, barTop, 30, t) && !flatEnds[k]);
+            if (!(foot && isCap) && inRect(x, y, foot ? 13 : spine + 13, barTop + barH, 30, t))
+                return true;
             top = barTop + barH;
         }
         return false;
@@ -308,16 +387,43 @@ Item {
     function iconFor(t) {
         if (isCustomBlock && instruction) {
             const d = defFor(instruction.block_id);
-            if (d && d.icon) return d.icon;
+            if (d && d.icon)
+                return d.icon;
         }
         return BlockRegistry.iconFor(t);
     }
-    function fieldLocation(fieldId) { return {kind:"Field",strand_id:strandId,index:path,field_id:fieldId,path:[]}; }
-    function cloneInstruction() { return JSON.parse(JSON.stringify(instruction)); }
-    function setField(name,value) { const n=cloneInstruction(); n[name]=value; instructionEdited(strandId,path,n); }
-    function childPath(slot,index) { const p=JSON.parse(JSON.stringify(path)); if(p.length) p[p.length-1].slot=slot; p.push({index:index}); return p; }
-    function body(slot) { return BlockRegistry.body(instruction, slot); }
-    function slotCount() { return type === "BranchCallBlock" ? BlockRegistry.slotCount(instruction) : Math.max(1, BlockRegistry.slotCount(instruction)); }
+    function fieldLocation(fieldId) {
+        return {
+            kind: "Field",
+            strand_id: strandId,
+            index: path,
+            field_id: fieldId,
+            path: []
+        };
+    }
+    function cloneInstruction() {
+        return JSON.parse(JSON.stringify(instruction));
+    }
+    function setField(name, value) {
+        const n = cloneInstruction();
+        n[name] = value;
+        instructionEdited(strandId, path, n);
+    }
+    function childPath(slot, index) {
+        const p = JSON.parse(JSON.stringify(path));
+        if (p.length)
+            p[p.length - 1].slot = slot;
+        p.push({
+            index: index
+        });
+        return p;
+    }
+    function body(slot) {
+        return BlockRegistry.body(instruction, slot);
+    }
+    function slotCount() {
+        return type === "BranchCallBlock" ? BlockRegistry.slotCount(instruction) : Math.max(1, BlockRegistry.slotCount(instruction));
+    }
     // Palette prefabs have no strand, so their slots edit the prefab itself.
     // A value piece names its slot by `key`, or by `key` plus `index` when
     // the instruction keeps its slots in an array (a plugin block's args).
@@ -329,61 +435,189 @@ Item {
         const n = cloneInstruction();
         const holder = index === undefined ? n : n[key];
         const slot = index === undefined ? key : index;
-        if (!path.length) holder[slot] = leaf;
-        else { let v = holder[slot]; for (let i = 0; i < path.length - 1; ++i) v = v.args[path[i]]; v.args[path[path.length - 1]] = leaf; }
+        if (!path.length)
+            holder[slot] = leaf;
+        else {
+            let v = holder[slot];
+            for (let i = 0; i < path.length - 1; ++i)
+                v = v.args[path[i]];
+            v.args[path[path.length - 1]] = leaf;
+        }
         instructionEdited(strandId, root.path, n);
     }
-    function pieceOptions(piece) { return BlockRegistry.choices(piece.options, instruction); }
+    function pieceOptions(piece) {
+        return BlockRegistry.choices(piece.options, instruction);
+    }
     // A dropdown or text piece with an `index` edits one entry of the array
     // held under `key`, the way a value piece does.
-    function pieceRaw(piece) { const v = instruction ? instruction[piece.key] : undefined; return piece.index === undefined ? v : (v ? v[piece.index] : undefined); }
-    function pieceValue(piece) { const v = pieceRaw(piece); return piece.decode ? piece.decode(v) : (typeof v === "string" ? v : (v === undefined || v === null ? "" : String(v))); }
+    function pieceRaw(piece) {
+        const v = instruction ? instruction[piece.key] : undefined;
+        return piece.index === undefined ? v : (v ? v[piece.index] : undefined);
+    }
+    function pieceValue(piece) {
+        const v = pieceRaw(piece);
+        return piece.decode ? piece.decode(v) : (typeof v === "string" ? v : (v === undefined || v === null ? "" : String(v)));
+    }
     function setPieceField(piece, value) {
-        if (piece.index === undefined) { setField(piece.key, value); return; }
+        if (piece.index === undefined) {
+            setField(piece.key, value);
+            return;
+        }
         const n = cloneInstruction();
         if (typeof piece.index === "string") {
             // A named entry of an object, a component's own fields say.
-            n[piece.key] = Object.assign({}, n[piece.key] || {}, { [piece.index]: value });
+            n[piece.key] = Object.assign({}, n[piece.key] || {}, {
+                [piece.index]: value
+            });
             instructionEdited(strandId, path, n);
             return;
         }
         const list = Array.isArray(n[piece.key]) ? n[piece.key] : [];
-        while (list.length <= piece.index) list.push("");
+        while (list.length <= piece.index)
+            list.push("");
         list[piece.index] = value;
         n[piece.key] = list;
         instructionEdited(strandId, path, n);
     }
-    function addComponent(component) { instructionEdited(strandId, path, BlockRegistry.withComponent(component, instruction)); }
-    function removeComponent(component) { instructionEdited(strandId, path, BlockRegistry.withoutComponent(component, instruction)); }
-    function setPiece(piece, chosen) { setPieceField(piece, piece.encode ? piece.encode(chosen, instruction) : chosen); }
-    function defFor(id) { for(let i=0;i<(blockDefinitions||[]).length;i++) if(blockDefinitions[i].id===id) return blockDefinitions[i]; return null; }
-    function callLabel() { const d=instruction?defFor(instruction.block_id):null; if(!d) return qsTr("custom block"); return (d.pieces||[]).filter(p=>p.kind!=="Branch").map(p=>p.kind==="Label"?p.text:("("+p.name+")")).join(" "); }
-    function callHeadPieces(){
-        const d=instruction?defFor(instruction.block_id):null;if(!d)return [{kind:"Label",text:qsTr("(deleted block)"),argIndex:-1}];
-        const first=(d.pieces||[]).findIndex(p=>p.kind==="Branch");let arg=0;const out=[];
-        for(let i=0;i<d.pieces.length;i++){const p=d.pieces[i];if(p.kind==="Input"){out.push({kind:"Input",text:p.name,argIndex:arg,bool:p.value_type==="Bool"});arg++;}else if(p.kind==="Label"&&(first<0||i<first))out.push({kind:"Label",text:p.text,argIndex:-1,bool:false});}
+    function addComponent(component) {
+        instructionEdited(strandId, path, BlockRegistry.withComponent(component, instruction));
+    }
+    function removeComponent(component) {
+        instructionEdited(strandId, path, BlockRegistry.withoutComponent(component, instruction));
+    }
+    function setPiece(piece, chosen) {
+        setPieceField(piece, piece.encode ? piece.encode(chosen, instruction) : chosen);
+    }
+    function defFor(id) {
+        for (let i = 0; i < (blockDefinitions || []).length; i++)
+            if (blockDefinitions[i].id === id)
+                return blockDefinitions[i];
+        return null;
+    }
+    function callLabel() {
+        const d = instruction ? defFor(instruction.block_id) : null;
+        if (!d)
+            return qsTr("custom block");
+        return (d.pieces || []).filter(p => p.kind !== "Branch").map(p => p.kind === "Label" ? p.text : ("(" + p.name + ")")).join(" ");
+    }
+    function callHeadPieces() {
+        const d = instruction ? defFor(instruction.block_id) : null;
+        if (!d)
+            return [
+                {
+                    kind: "Label",
+                    text: qsTr("(deleted block)"),
+                    argIndex: -1
+                }
+            ];
+        const first = (d.pieces || []).findIndex(p => p.kind === "Branch");
+        let arg = 0;
+        const out = [];
+        for (let i = 0; i < d.pieces.length; i++) {
+            const p = d.pieces[i];
+            if (p.kind === "Input") {
+                out.push({
+                    kind: "Input",
+                    text: p.name,
+                    argIndex: arg,
+                    bool: p.value_type === "Bool"
+                });
+                arg++;
+            } else if (p.kind === "Label" && (first < 0 || i < first))
+                out.push({
+                    kind: "Label",
+                    text: p.text,
+                    argIndex: -1,
+                    bool: false
+                });
+        }
         return out;
     }
-    function listNames(){return (lists||[]).map(l=>l.name);}
-    function branchSeparator(slot){const d=instruction?defFor(instruction.block_id):null;if(!d)return "";let seen=-1;for(let i=0;i<(d.pieces||[]).length;i++){const p=d.pieces[i];if(p.kind!=="Branch")continue;seen++;if(seen===slot){for(let j=i+1;j<d.pieces.length;j++){if(d.pieces[j].kind==="Branch")break;if(d.pieces[j].kind==="Label")return d.pieces[j].text;}}}return "";}
-    function headerPieces(){const d=instruction?defFor(instruction.block_id):null;if(!d)return [{kind:"Label",text:qsTr("(deleted block)")}];return (d.pieces||[]).filter(p=>p.kind!=="Branch");}
+    function listNames() {
+        return (lists || []).map(l => l.name);
+    }
+    function branchSeparator(slot) {
+        const d = instruction ? defFor(instruction.block_id) : null;
+        if (!d)
+            return "";
+        let seen = -1;
+        for (let i = 0; i < (d.pieces || []).length; i++) {
+            const p = d.pieces[i];
+            if (p.kind !== "Branch")
+                continue;
+            seen++;
+            if (seen === slot) {
+                for (let j = i + 1; j < d.pieces.length; j++) {
+                    if (d.pieces[j].kind === "Branch")
+                        break;
+                    if (d.pieces[j].kind === "Label")
+                        return d.pieces[j].text;
+                }
+            }
+        }
+        return "";
+    }
+    function headerPieces() {
+        const d = instruction ? defFor(instruction.block_id) : null;
+        if (!d)
+            return [
+                {
+                    kind: "Label",
+                    text: qsTr("(deleted block)")
+                }
+            ];
+        return (d.pieces || []).filter(p => p.kind !== "Branch");
+    }
     function headerGroups() {
         const groups = [];
         let current = null;
         const d = instruction ? defFor(instruction.block_id) : null;
-        if (!d) return [{component: false, pieces: [{kind: "Label", text: qsTr("(deleted block)")}]}];
+        if (!d)
+            return [
+                {
+                    component: false,
+                    pieces: [
+                        {
+                            kind: "Label",
+                            text: qsTr("(deleted block)")
+                        }
+                    ]
+                }
+            ];
         for (const p of d.pieces || []) {
-            if (p.kind === "Branch") { current = null; continue; }
-            if (p.component) { current = {component: true, pieces: [p]}; groups.push(current); }
-            else if (current) current.pieces.push(p);
-            else groups.push({component: false, pieces: [p]});
+            if (p.kind === "Branch") {
+                current = null;
+                continue;
+            }
+            if (p.component) {
+                current = {
+                    component: true,
+                    pieces: [p]
+                };
+                groups.push(current);
+            } else if (current)
+                current.pieces.push(p);
+            else
+                groups.push({
+                    component: false,
+                    pieces: [p]
+                });
         }
         return groups;
     }
-    function headerBranches(){const d=instruction?defFor(instruction.block_id):null;return d?(d.pieces||[]).filter(p=>p.kind==="Branch"):[];}
+    function headerBranches() {
+        const d = instruction ? defFor(instruction.block_id) : null;
+        return d ? (d.pieces || []).filter(p => p.kind === "Branch") : [];
+    }
     // A definition header with branches embeds a call-site preview: a C-block whose mouths
     // hold one draggable "run branch" piece each. Keyed by a string so edits elsewhere don't rebuild it.
-    readonly property string branchKey: { blockDefinitions; return type === "BlockHeader" ? JSON.stringify(headerBranches().map((b, i) => ({ n: b.name, s: branchSeparator(i) }))) : "[]"; }
+    readonly property string branchKey: {
+        blockDefinitions;
+        return type === "BlockHeader" ? JSON.stringify(headerBranches().map((b, i) => ({
+                    n: b.name,
+                    s: branchSeparator(i)
+                }))) : "[]";
+    }
     readonly property var branchModel: JSON.parse(branchKey)
     readonly property bool hasBranchHeader: branchModel.length > 0
     readonly property real pvTop: 10
@@ -391,7 +625,11 @@ Item {
     readonly property real pvMouth: 50
     readonly property real pvMid: 34
     readonly property real pvFoot: 26
-    readonly property string pvShape: { blockDefinitions; const d = type === "BlockHeader" && instruction ? defFor(instruction.block_id) : null; return d ? (d.shape || "Normal") : "Normal"; }
+    readonly property string pvShape: {
+        blockDefinitions;
+        const d = type === "BlockHeader" && instruction ? defFor(instruction.block_id) : null;
+        return d ? (d.shape || "Normal") : "Normal";
+    }
     // Operators wear a pill / hexagon shell and have no connectors of their own.
     readonly property bool pvReporter: pvShape === "ReturnsValue" || pvShape === "ReturnsBool"
     readonly property bool pvBool: pvShape === "ReturnsBool"
@@ -405,27 +643,49 @@ Item {
     readonly property real pvOuterWidth: pvWidth + 2 * pvPadX
     function recalcPieceMax() {
         let m = 0;
-        for (let i = 0; i < pvPieces.count; ++i) { const it = pvPieces.itemAt(i); if (it) m = Math.max(m, it.pieceWidth); }
+        for (let i = 0; i < pvPieces.count; ++i) {
+            const it = pvPieces.itemAt(i);
+            if (it)
+                m = Math.max(m, it.pieceWidth);
+        }
         pvPieceMax = m;
     }
 
     // Breakpoint: a red bar in the head row's left padding; click removes it.
     Rectangle {
         visible: root.hasBreakpoint
-        z: 30; width: 4; radius: 2; color: Theme.danger
-        x: 5; height: 22; y: Math.round(Math.min(root.headHeight, root.height - root.tabDepth) / 2 - height / 2)
-        ToolTip.visible: breakpointHover.hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Breakpoint: runs pause here. Click to remove.")
-        HoverHandler { id: breakpointHover; cursorShape: Qt.PointingHandCursor; margin: 4 }
-        TapHandler { margin: 4; onTapped: BlockRegistry.breakpointClicked(root.instruction.id) }
+        z: 30
+        width: 4
+        radius: 2
+        color: Theme.danger
+        x: 5
+        height: 22
+        y: Math.round(Math.min(root.headHeight, root.height - root.tabDepth) / 2 - height / 2)
+        ToolTip.visible: breakpointHover.hovered
+        ToolTip.delay: 300
+        ToolTip.text: qsTr("Breakpoint: runs pause here. Click to remove.")
+        HoverHandler {
+            id: breakpointHover
+            cursorShape: Qt.PointingHandCursor
+            margin: 4
+        }
+        TapHandler {
+            margin: 4
+            onTapped: BlockRegistry.breakpointClicked(root.instruction.id)
+        }
     }
     BlockSurface {
         id: surface
         anchors.fill: parent
         shape: root.isWrap ? "wrap" : root.isHeader ? "header" : root.isCap ? "cap" : "stack"
-        fill: root.displayColor; hovered: root.hovered || root.dragRole === 1 || root.flashing || root.running || root.pausedHere
+        fill: root.displayColor
+        hovered: root.hovered || root.dragRole === 1 || root.flashing || root.running || root.pausedHere
         hoverColor: root.pausedHere ? Theme.warning : root.running ? Theme.running : root.flashing && root.markText ? Theme.danger : root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : Theme.accent
         outlineWidth: root.running || root.pausedHere ? 2.6 : 1.3
-        headHeight: root.headHeight; midHeight: root.midHeight; footHeight: root.footHeight; spine: root.spine
+        headHeight: root.headHeight
+        midHeight: root.midHeight
+        footHeight: root.footHeight
+        spine: root.spine
         mouthHeights: root.isWrap ? root.effMouthHeights : []
         footTab: !(root.isWrap && root.isCap)
         flatEnds: root.flatEnds
@@ -441,10 +701,17 @@ Item {
             strokeWidth: surface.outlineWidth
             joinStyle: ShapePath.RoundJoin
             fillColor: "transparent"
-            PathSvg { path: surface.outlinePath }
+            PathSvg {
+                path: surface.outlinePath
+            }
         }
     }
-    QtObject { id: hitMask; function contains(point: point): bool { return root.hitTest(point.x, point.y); } }
+    QtObject {
+        id: hitMask
+        function contains(point: point): bool {
+            return root.hitTest(point.x, point.y);
+        }
+    }
     BlockDragArea {
         id: grab
         anchors.fill: parent
@@ -460,27 +727,77 @@ Item {
     // Built on first use: a menu per block costs more than the block itself.
     property var contextMenu: null
     function openMenu(x, y) {
-        if (!contextMenu) contextMenu = blockMenuComponent.createObject(grab);
+        if (!contextMenu)
+            contextMenu = blockMenuComponent.createObject(grab);
         contextMenu.popup(x, y);
     }
     Component {
         id: blockMenuComponent
         BwMenu {
             id: menu
-            BwMenuItem { visible: !root.paletteMode && root.isCustomBlock && root.type === "BlockHeader"; iconName: "blocks"; text: qsTr("Edit block"); onTriggered: root.menuActionRequested("edit_block", root.strandId, root.path, root.instruction) }
-            BwMenuItem { visible: !root.paletteMode && BlockRegistry.recordingTargets; iconName: "target"; text: root.isRecordingTarget ? qsTr("Recording Target (current)") : qsTr("Set Recording Target"); onTriggered: root.recordingTargetRequested(root.strandId) }
-            BwMenuItem { visible: !root.paletteMode; iconName: "copy"; text: qsTr("Copy block"); onTriggered: root.menuActionRequested("copy", root.strandId, root.path, root.instruction) }
-            BwMenuItem { visible: !root.paletteMode; iconName: "layers"; text: qsTr("Copy all"); onTriggered: root.menuActionRequested("copy_all", root.strandId, root.path, root.instruction) }
-            BwMenuItem { visible: !root.paletteMode; iconName: "corner-down-right"; text: qsTr("Duplicate block"); onTriggered: root.duplicateRequested(root.strandId, root.path, root.instruction) }
-            BwMenuItem { visible: !root.paletteMode; iconName: "scissors"; text: qsTr("Cut block"); onTriggered: root.menuActionRequested("cut", root.strandId, root.path, root.instruction) }
-            BwMenuItem { visible: !root.paletteMode; iconName: "message-square"; text: root.hasComment ? qsTr("Comment") : qsTr("Add Comment"); onTriggered: root.commentRequested(root.instruction) }
-            BwMenuItem { visible: !root.paletteMode || !root.extraMenu || root.extraMenu.length === 0; iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(root.isCustomBlock && root.instruction ? root.instruction.block_id : root.type) }
-            BwMenuItem { id: deleteItem; visible: !root.paletteMode; iconName: "trash"; danger: true; text: qsTr("Delete block"); onTriggered: root.removeRequested(root.strandId, root.path) }
+            BwMenuItem {
+                visible: !root.paletteMode && root.isCustomBlock && root.type === "BlockHeader"
+                iconName: "blocks"
+                text: qsTr("Edit block")
+                onTriggered: root.menuActionRequested("edit_block", root.strandId, root.path, root.instruction)
+            }
+            BwMenuItem {
+                visible: !root.paletteMode && BlockRegistry.recordingTargets
+                iconName: "target"
+                text: root.isRecordingTarget ? qsTr("Recording Target (current)") : qsTr("Set Recording Target")
+                onTriggered: root.recordingTargetRequested(root.strandId)
+            }
+            BwMenuItem {
+                visible: !root.paletteMode
+                iconName: "copy"
+                text: qsTr("Copy block")
+                onTriggered: root.menuActionRequested("copy", root.strandId, root.path, root.instruction)
+            }
+            BwMenuItem {
+                visible: !root.paletteMode
+                iconName: "layers"
+                text: qsTr("Copy all")
+                onTriggered: root.menuActionRequested("copy_all", root.strandId, root.path, root.instruction)
+            }
+            BwMenuItem {
+                visible: !root.paletteMode
+                iconName: "corner-down-right"
+                text: qsTr("Duplicate block")
+                onTriggered: root.duplicateRequested(root.strandId, root.path, root.instruction)
+            }
+            BwMenuItem {
+                visible: !root.paletteMode
+                iconName: "scissors"
+                text: qsTr("Cut block")
+                onTriggered: root.menuActionRequested("cut", root.strandId, root.path, root.instruction)
+            }
+            BwMenuItem {
+                visible: !root.paletteMode
+                iconName: "message-square"
+                text: root.hasComment ? qsTr("Comment") : qsTr("Add Comment")
+                onTriggered: root.commentRequested(root.instruction)
+            }
+            BwMenuItem {
+                visible: !root.paletteMode || !root.extraMenu || root.extraMenu.length === 0
+                iconName: "info"
+                text: qsTr("Details")
+                onTriggered: root.detailsRequested(root.isCustomBlock && root.instruction ? root.instruction.block_id : root.type)
+            }
+            BwMenuItem {
+                id: deleteItem
+                visible: !root.paletteMode
+                iconName: "trash"
+                danger: true
+                text: qsTr("Delete block")
+                onTriggered: root.removeRequested(root.strandId, root.path)
+            }
             Instantiator {
                 model: root.paletteMode ? root.extraMenu : BlockRegistry.blockMenu
                 delegate: BwMenuItem {
                     required property var modelData
-                    iconName: modelData.icon || ""; text: modelData.text; danger: !!modelData.danger
+                    iconName: modelData.icon || ""
+                    text: modelData.text
+                    danger: !!modelData.danger
                     visible: root.paletteMode || typeof modelData.when !== "function" || !!modelData.when(root.instruction, root.strandId, root.path)
                     onTriggered: !root.paletteMode ? root.menuActionRequested(modelData.id, root.strandId, root.path, root.instruction) : modelData.id === "details" ? root.detailsRequested(root.isCustomBlock && root.instruction ? root.instruction.block_id : root.type) : root.extraMenuTriggered(modelData.id)
                 }
@@ -493,110 +810,209 @@ Item {
     Item {
         id: pvRoot
         visible: root.hasBranchHeader
-        x: 14; y: root.pvTop; width: root.pvOuterWidth; height: root.pvOuterHeight
+        x: 14
+        y: root.pvTop
+        width: root.pvOuterWidth
+        height: root.pvOuterHeight
         Shape {
-            visible: root.pvReporter
             id: pvShell
+            visible: root.pvReporter
             anchors.fill: parent
             preferredRendererType: Shape.CurveRenderer
             readonly property string outline: {
                 const w = width, h = height;
-                if (w <= 0 || h <= 0) return "";
+                if (w <= 0 || h <= 0)
+                    return "";
                 if (root.pvBool) {
                     const n = Math.min(w / 2, h / 2);
                     return "M" + n + " .5 L" + (w - n) + " .5 L" + (w - .5) + " " + h / 2 + " L" + (w - n) + " " + (h - .5) + " L" + n + " " + (h - .5) + " L.5 " + h / 2 + " Z";
                 }
                 const r = Math.min(24, h / 2), R = w - .5, B = h - .5;
-                return "M" + (.5 + r) + " .5 L" + (R - r) + " .5 Q" + R + " .5 " + R + " " + (.5 + r) + " L" + R + " " + (B - r) + " Q" + R + " " + B + " " + (R - r) + " " + B
-                    + " L" + (.5 + r) + " " + B + " Q.5 " + B + " .5 " + (B - r) + " L.5 " + (.5 + r) + " Q.5 .5 " + (.5 + r) + " .5 Z";
+                return "M" + (.5 + r) + " .5 L" + (R - r) + " .5 Q" + R + " .5 " + R + " " + (.5 + r) + " L" + R + " " + (B - r) + " Q" + R + " " + B + " " + (R - r) + " " + B + " L" + (.5 + r) + " " + B + " Q.5 " + B + " .5 " + (B - r) + " L.5 " + (.5 + r) + " Q.5 .5 " + (.5 + r) + " .5 Z";
             }
             ShapePath {
                 strokeColor: Qt.rgba(root.customColor.r * .3 + Theme.border.r * .7, root.customColor.g * .3 + Theme.border.g * .7, root.customColor.b * .3 + Theme.border.b * .7, 1)
                 strokeWidth: 1.3
                 joinStyle: ShapePath.RoundJoin
                 fillColor: Theme.block
-                PathSvg { path: pvShell.outline }
+                PathSvg {
+                    path: pvShell.outline
+                }
             }
         }
         Item {
             id: pvInner
-            x: root.pvPadX; y: root.pvPadY; width: root.pvWidth; height: root.pvHeight
-        BlockSurface {
-            anchors.fill: parent
-            shape: "wrap"; fill: Theme.block; outline: Theme.border; hoverColor: root.customColor
-            headNotch: !root.pvReporter; footTab: !root.pvNoTab
-            headHeight: root.pvHead; midHeight: root.pvMid; footHeight: root.pvFoot; spine: root.spine
-            mouthHeights: root.branchModel.map(() => root.pvMouth)
-        }
-        Repeater {
-            model: root.branchModel
-            delegate: Text {
-                required property var modelData
-                required property int index
-                visible: index < root.branchModel.length - 1 && modelData.s.length > 0
-                x: root.spine + 8; y: root.pvHead + index * (root.pvMouth + root.pvMid) + root.pvMouth + Math.round((root.pvMid - height) / 2)
-                text: modelData.s; color: Theme.text; font.pixelSize: Theme.blockText
+            x: root.pvPadX
+            y: root.pvPadY
+            width: root.pvWidth
+            height: root.pvHeight
+            BlockSurface {
+                anchors.fill: parent
+                shape: "wrap"
+                fill: Theme.block
+                outline: Theme.border
+                hoverColor: root.customColor
+                headNotch: !root.pvReporter
+                footTab: !root.pvNoTab
+                headHeight: root.pvHead
+                midHeight: root.pvMid
+                footHeight: root.pvFoot
+                spine: root.spine
+                mouthHeights: root.branchModel.map(() => root.pvMouth)
             }
-        }
-        Repeater {
-            id: pvPieces
-            model: root.branchModel
-            delegate: Item {
-                id: pv
-                required property var modelData
-                required property int index
-                readonly property real pieceWidth: Math.max(150, pvRow.implicitWidth + 28)
-                onPieceWidthChanged: root.recalcPieceMax()
-                Component.onCompleted: root.recalcPieceMax()
-                x: root.spine; y: root.pvHead + index * (root.pvMouth + root.pvMid)
-                width: pieceWidth; height: root.pvMouth + root.tabDepth
-                BlockSurface {
-                    anchors.fill: parent
-                    shape: "stack"; fill: Theme.panelRaised; outline: Theme.border; hoverColor: root.customColor
-                    hovered: pvDrag.hovered
-                }
-                Row {
-                    id: pvRow
-                    x: 14; y: Math.round((root.pvMouth - height) / 2); spacing: 6
-                    LucideIcon { name: "git-branch"; color: root.customColor; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
-                    Text { text: pv.modelData.n; color: Theme.text; font.pixelSize: Theme.blockText; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
-                }
-                BlockDragArea {
-                    id: pvDrag
-                    anchors.fill: parent
-                    onDragBegan: (sx, sy, ox, oy) => root.paletteDragStarted({ kind: "branch", color: root.customColor, instruction: { id: "palette-branch", type: "RunBranch", name: pv.modelData.n } }, sx, sy, ox, oy)
-                    onDragMoved: (sx, sy) => root.paletteDragMoved(sx, sy)
-                    onDragEnded: (sx, sy) => root.paletteDragEnded(sx, sy)
-                    onDragCanceled: root.paletteDragCanceled()
-                    onTapped: root.runBranchRequested(root.strandId, root.path, pv.modelData.n)
+            Repeater {
+                model: root.branchModel
+                delegate: Text {
+                    required property var modelData
+                    required property int index
+                    visible: index < root.branchModel.length - 1 && modelData.s.length > 0
+                    x: root.spine + 8
+                    y: root.pvHead + index * (root.pvMouth + root.pvMid) + root.pvMouth + Math.round((root.pvMid - height) / 2)
+                    text: modelData.s
+                    color: Theme.text
+                    font.pixelSize: Theme.blockText
                 }
             }
-        }
+            Repeater {
+                id: pvPieces
+                model: root.branchModel
+                delegate: Item {
+                    id: pv
+                    required property var modelData
+                    required property int index
+                    readonly property real pieceWidth: Math.max(150, pvRow.implicitWidth + 28)
+                    onPieceWidthChanged: root.recalcPieceMax()
+                    Component.onCompleted: root.recalcPieceMax()
+                    x: root.spine
+                    y: root.pvHead + index * (root.pvMouth + root.pvMid)
+                    width: pieceWidth
+                    height: root.pvMouth + root.tabDepth
+                    BlockSurface {
+                        anchors.fill: parent
+                        shape: "stack"
+                        fill: Theme.panelRaised
+                        outline: Theme.border
+                        hoverColor: root.customColor
+                        hovered: pvDrag.hovered
+                    }
+                    Row {
+                        id: pvRow
+                        x: 14
+                        y: Math.round((root.pvMouth - height) / 2)
+                        spacing: 6
+                        LucideIcon {
+                            name: "git-branch"
+                            color: root.customColor
+                            width: 16
+                            height: 16
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            text: pv.modelData.n
+                            color: Theme.text
+                            font.pixelSize: Theme.blockText
+                            font.weight: Font.DemiBold
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                    BlockDragArea {
+                        id: pvDrag
+                        anchors.fill: parent
+                        onDragBegan: (sx, sy, ox, oy) => root.paletteDragStarted({
+                                kind: "branch",
+                                color: root.customColor,
+                                instruction: {
+                                    id: "palette-branch",
+                                    type: "RunBranch",
+                                    name: pv.modelData.n
+                                }
+                            }, sx, sy, ox, oy)
+                        onDragMoved: (sx, sy) => root.paletteDragMoved(sx, sy)
+                        onDragEnded: (sx, sy) => root.paletteDragEnded(sx, sy)
+                        onDragCanceled: root.paletteDragCanceled()
+                        onTapped: root.runBranchRequested(root.strandId, root.path, pv.modelData.n)
+                    }
+                }
+            }
         }
     }
     // Recording target: the Record button's dot as a badge on the block's icon.
     component RecordBadge: Rectangle {
         visible: root.recordingTarget && !root.paletteMode
-        x: 12; y: -8; width: 10; height: 10; radius: 5
-        color: Theme.danger; border.width: 2; border.color: root.displayColor
-        ToolTip.visible: recordHover.hovered; ToolTip.delay: 300; ToolTip.text: qsTr("Recording target")
-        HoverHandler { id: recordHover; margin: 3 }
+        x: 12
+        y: -8
+        width: 10
+        height: 10
+        radius: 5
+        color: Theme.danger
+        border.width: 2
+        border.color: root.displayColor
+        ToolTip.visible: recordHover.hovered
+        ToolTip.delay: 300
+        ToolTip.text: qsTr("Recording target")
+        HoverHandler {
+            id: recordHover
+            margin: 3
+        }
     }
     Row {
-        id: fields; visible: !root.isWrap; x: root.hasBranchHeader ? 32 + root.pvPadX : 14; y: (root.hasBranchHeader ? root.pvTop + root.pvPadY : 0) + Math.round((root.rowHeight-height-8)/2); spacing: root.type === "RunBranch" ? 6 : 7
-        LucideIcon { visible: !root.isWrap; name: root.isWrap ? "" : root.iconFor(root.type); color: root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : root.isHeader ? Theme.accent : Theme.text; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter
+        id: fields
+        visible: !root.isWrap
+        x: root.hasBranchHeader ? 32 + root.pvPadX : 14
+        y: (root.hasBranchHeader ? root.pvTop + root.pvPadY : 0) + Math.round((root.rowHeight - height - 8) / 2)
+        spacing: root.type === "RunBranch" ? 6 : 7
+        LucideIcon {
+            visible: !root.isWrap
+            name: root.isWrap ? "" : root.iconFor(root.type)
+            color: root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : root.isHeader ? Theme.accent : Theme.text
+            width: 16
+            height: 16
+            anchors.verticalCenter: parent.verticalCenter
             RecordBadge {}
         }
         // Custom block calls and definitions, drawn from their definition.
         Loader {
-            active: !root.rowSpec && (root.type === "CallBlock" || root.type === "BlockHeader" || root.type === "RunBranch"); visible: active; anchors.verticalCenter: parent.verticalCenter
+            active: !root.rowSpec && (root.type === "CallBlock" || root.type === "BlockHeader" || root.type === "RunBranch")
+            visible: active
+            anchors.verticalCenter: parent.verticalCenter
             sourceComponent: Row {
                 spacing: 7
-                Repeater { model:root.type==="CallBlock"?root.callHeadPieces():[];delegate:Item {
-                    required property var modelData;width:modelData.kind==="Label"?callPieceText.implicitWidth:callPieceValue.implicitWidth;height:30
-                    Text{id:callPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:Theme.blockText;font.weight:Font.DemiBold;anchors.centerIn:parent}
-                    ValueChip{id:callPieceValue;visible:modelData.kind==="Input";valueData:instruction&&(instruction.args||[])[modelData.argIndex]?(instruction.args||[])[modelData.argIndex]:(modelData.bool?{kind:"Bool"}:{kind:"Number",value:0});location:root.fieldLocation("CallArg:"+modelData.argIndex);boxed:!!modelData.bool;anchors.centerIn:parent;onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled()}
-                }}
+                Repeater {
+                    model: root.type === "CallBlock" ? root.callHeadPieces() : []
+                    delegate: Item {
+                        required property var modelData
+                        width: modelData.kind === "Label" ? callPieceText.implicitWidth : callPieceValue.implicitWidth
+                        height: 30
+                        Text {
+                            id: callPieceText
+                            visible: modelData.kind === "Label"
+                            text: modelData.text
+                            color: Theme.text
+                            font.pixelSize: Theme.blockText
+                            font.weight: Font.DemiBold
+                            anchors.centerIn: parent
+                        }
+                        ValueChip {
+                            id: callPieceValue
+                            visible: modelData.kind === "Input"
+                            valueData: instruction && (instruction.args || [])[modelData.argIndex] ? (instruction.args || [])[modelData.argIndex] : (modelData.bool ? {
+                                    kind: "Bool"
+                                } : {
+                                    kind: "Number",
+                                    value: 0
+                                })
+                            location: root.fieldLocation("CallArg:" + modelData.argIndex)
+                            boxed: !!modelData.bool
+                            anchors.centerIn: parent
+                            onEditRequested: (l, t) => root.valueEdited(l, t)
+                            blockDefinitions: root.blockDefinitions
+                            onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)
+                            onValueDragMoved: (sx, sy) => root.valueDragMoved(sx, sy)
+                            onValueDragEnded: (sx, sy) => root.valueDragEnded(sx, sy)
+                            onValueDragCanceled: () => root.valueDragCanceled()
+                        }
+                    }
+                }
                 Repeater {
                     model: root.type === "BlockHeader" ? root.headerGroups() : []
                     delegate: Rectangle {
@@ -617,27 +1033,70 @@ Item {
                             Repeater {
                                 model: headerGroup.modelData.pieces
                                 delegate: Item {
-                                    required property var modelData;width:modelData.kind==="Label"?headerText.implicitWidth:headerParam.implicitWidth;height:30
-                                    Text{id:headerText;visible:modelData.kind==="Label";text:modelData.text||"";color:Theme.text;font.pixelSize:Theme.blockText;font.weight:Font.DemiBold;anchors.centerIn:parent}
-                                    PaletteValue{id:headerParam;visible:modelData.kind==="Input";anchors.centerIn:parent;editable:false;valueData:({kind:"Param",name:modelData.name||""});forceBoolean:modelData.value_type==="Bool";referenceColor:root.customColor;blockDefinitions:root.blockDefinitions
-                                        spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,color:root.customColor,originBlockId:root.instruction?root.instruction.block_id:null})
-                                        onDragStarted:(sp,sx,sy,ox,oy)=>root.paletteDragStarted(sp,sx,sy,ox,oy);onDragMoved:(sx,sy)=>root.paletteDragMoved(sx,sy);onDragEnded:(sx,sy)=>root.paletteDragEnded(sx,sy);onDragCanceled:root.paletteDragCanceled()}
+                                    required property var modelData
+                                    width: modelData.kind === "Label" ? headerText.implicitWidth : headerParam.implicitWidth
+                                    height: 30
+                                    Text {
+                                        id: headerText
+                                        visible: modelData.kind === "Label"
+                                        text: modelData.text || ""
+                                        color: Theme.text
+                                        font.pixelSize: Theme.blockText
+                                        font.weight: Font.DemiBold
+                                        anchors.centerIn: parent
+                                    }
+                                    PaletteValue {
+                                        id: headerParam
+                                        visible: modelData.kind === "Input"
+                                        anchors.centerIn: parent
+                                        editable: false
+                                        valueData: ({
+                                                kind: "Param",
+                                                name: modelData.name || ""
+                                            })
+                                        forceBoolean: modelData.value_type === "Bool"
+                                        referenceColor: root.customColor
+                                        blockDefinitions: root.blockDefinitions
+                                        spec: ({
+                                                kind: "value",
+                                                value: valueData,
+                                                forceBoolean: forceBoolean,
+                                                color: root.customColor,
+                                                originBlockId: root.instruction ? root.instruction.block_id : null
+                                            })
+                                        onDragStarted: (sp, sx, sy, ox, oy) => root.paletteDragStarted(sp, sx, sy, ox, oy)
+                                        onDragMoved: (sx, sy) => root.paletteDragMoved(sx, sy)
+                                        onDragEnded: (sx, sy) => root.paletteDragEnded(sx, sy)
+                                        onDragCanceled: root.paletteDragCanceled()
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                Text { visible:root.type==="RunBranch"; text:instruction?(instruction.name||""):""; color:Theme.text; font.pixelSize:Theme.blockText; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
+                Text {
+                    visible: root.type === "RunBranch"
+                    text: instruction ? (instruction.name || "") : ""
+                    color: Theme.text
+                    font.pixelSize: Theme.blockText
+                    font.weight: Font.DemiBold
+                    anchors.verticalCenter: parent.verticalCenter
+                }
             }
         }
-        Repeater { model: root.isWrap ? [] : root.headGroups; delegate: pieceDelegate }
+        Repeater {
+            model: root.isWrap ? [] : root.headGroups
+            delegate: pieceDelegate
+        }
     }
     // The row's text boxes, one per line, each with its caption.
     Column {
         id: boxes
         objectName: "blockBoxes"
         visible: root.boxPieces.length > 0
-        x: 37; y: root.rowHeight - root.tabDepth - 4; spacing: 6
+        x: 37
+        y: root.rowHeight - root.tabDepth - 4
+        spacing: 6
         Repeater {
             model: root.boxPieces
             delegate: Row {
@@ -647,51 +1106,168 @@ Item {
                 spacing: 8
                 Text {
                     visible: !!boxLine.modelData.boxLabel
-                    text: boxLine.modelData.boxLabel || ""; color: Theme.textDim; font.pixelSize: Theme.blockText - 1
-                    width: visible ? Math.max(captionMetrics.advanceWidth, 46) : 0; topPadding: 6
-                    TextMetrics { id: captionMetrics; font.pixelSize: Theme.blockText - 1; text: boxLine.modelData.boxLabel || "" }
+                    text: boxLine.modelData.boxLabel || ""
+                    color: Theme.textDim
+                    font.pixelSize: Theme.blockText - 1
+                    width: visible ? Math.max(captionMetrics.advanceWidth, 46) : 0
+                    topPadding: 6
+                    TextMetrics {
+                        id: captionMetrics
+                        font.pixelSize: Theme.blockText - 1
+                        text: boxLine.modelData.boxLabel || ""
+                    }
                 }
-                Repeater { model: [boxLine.modelData]; delegate: pieceDelegate }
+                Repeater {
+                    model: [boxLine.modelData]
+                    delegate: pieceDelegate
+                }
             }
         }
     }
 
     // Head bar content, then one mouth per body (nested blocks) with separator bars between them.
     Row {
-        id:headContent; visible:root.isWrap; x:14; y:Math.round((root.headHeight-height)/2); spacing:7
-        LucideIcon { visible:root.isWrap; name:root.isWrap?root.iconFor(root.type):""; color:root.isCustomBlock?root.customColor:Theme.text; width:16;height:16; anchors.verticalCenter:parent.verticalCenter
+        id: headContent
+        visible: root.isWrap
+        x: 14
+        y: Math.round((root.headHeight - height) / 2)
+        spacing: 7
+        LucideIcon {
+            visible: root.isWrap
+            name: root.isWrap ? root.iconFor(root.type) : ""
+            color: root.isCustomBlock ? root.customColor : Theme.text
+            width: 16
+            height: 16
+            anchors.verticalCenter: parent.verticalCenter
             RecordBadge {}
         }
         Loader {
-            active: root.isWrap && !root.rowSpec && root.type !== "BranchCallBlock"; visible: active; anchors.verticalCenter: parent.verticalCenter
+            active: root.isWrap && !root.rowSpec && root.type !== "BranchCallBlock"
+            visible: active
+            anchors.verticalCenter: parent.verticalCenter
             sourceComponent: Row {
                 spacing: 7
-                Text { visible:root.type==="If"||root.type==="IfElse"; text:qsTr("if"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                ValueChip { visible:root.type==="If"||root.type==="IfElse"||root.type==="While"; valueData:instruction?instruction.condition:null; location:root.fieldLocation("Condition"); boxed:true; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                Text { visible:root.type==="If"||root.type==="IfElse"; text:qsTr("then"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                Text { visible:root.type==="Repeat"; text:qsTr("repeat"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                Loader { active:root.type==="Repeat"; visible:active; sourceComponent:Component { ValueChip { valueData:instruction?instruction.count:null; location:root.fieldLocation("RepeatCount"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() } } }
-                Text { visible:root.type==="Forever"; text:qsTr("forever"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                Text { visible:root.type==="While"; text:qsTr("while"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
+                Text {
+                    visible: root.type === "If" || root.type === "IfElse"
+                    text: qsTr("if")
+                    color: Theme.text
+                    font.pixelSize: Theme.blockText
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                ValueChip {
+                    visible: root.type === "If" || root.type === "IfElse" || root.type === "While"
+                    valueData: instruction ? instruction.condition : null
+                    location: root.fieldLocation("Condition")
+                    boxed: true
+                    onEditRequested: (l, t) => root.valueEdited(l, t)
+                    blockDefinitions: root.blockDefinitions
+                    onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)
+                    onValueDragMoved: (sx, sy) => root.valueDragMoved(sx, sy)
+                    onValueDragEnded: (sx, sy) => root.valueDragEnded(sx, sy)
+                    onValueDragCanceled: () => root.valueDragCanceled()
+                }
+                Text {
+                    visible: root.type === "If" || root.type === "IfElse"
+                    text: qsTr("then")
+                    color: Theme.text
+                    font.pixelSize: Theme.blockText
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    visible: root.type === "Repeat"
+                    text: qsTr("repeat")
+                    color: Theme.text
+                    font.pixelSize: Theme.blockText
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Loader {
+                    active: root.type === "Repeat"
+                    visible: active
+                    sourceComponent: Component {
+                        ValueChip {
+                            valueData: instruction ? instruction.count : null
+                            location: root.fieldLocation("RepeatCount")
+                            boxed: false
+                            onEditRequested: (l, t) => root.valueEdited(l, t)
+                            blockDefinitions: root.blockDefinitions
+                            onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)
+                            onValueDragMoved: (sx, sy) => root.valueDragMoved(sx, sy)
+                            onValueDragEnded: (sx, sy) => root.valueDragEnded(sx, sy)
+                            onValueDragCanceled: () => root.valueDragCanceled()
+                        }
+                    }
+                }
+                Text {
+                    visible: root.type === "Forever"
+                    text: qsTr("forever")
+                    color: Theme.text
+                    font.pixelSize: Theme.blockText
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    visible: root.type === "While"
+                    text: qsTr("while")
+                    color: Theme.text
+                    font.pixelSize: Theme.blockText
+                    anchors.verticalCenter: parent.verticalCenter
+                }
             }
         }
-        Repeater { model: root.isWrap ? root.headGroups : []; delegate: pieceDelegate }
-        Repeater { model:root.type==="BranchCallBlock" && !root.rowSpec ?root.callHeadPieces():[];delegate:Item {
-            required property var modelData;width:modelData.kind==="Label"?branchPieceText.implicitWidth:branchPieceValue.implicitWidth;height:30
-            Text{id:branchPieceText;visible:modelData.kind==="Label";text:modelData.text;color:Theme.text;font.pixelSize:Theme.blockText;font.weight:Font.DemiBold;anchors.centerIn:parent}
-            ValueChip{id:branchPieceValue;visible:modelData.kind==="Input";valueData:instruction&&(instruction.args||[])[modelData.argIndex]?(instruction.args||[])[modelData.argIndex]:(modelData.bool?{kind:"Bool"}:{kind:"Number",value:0});location:root.fieldLocation("CallArg:"+modelData.argIndex);boxed:!!modelData.bool;anchors.centerIn:parent;onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled()}
-        }}
+        Repeater {
+            model: root.isWrap ? root.headGroups : []
+            delegate: pieceDelegate
+        }
+        Repeater {
+            model: root.type === "BranchCallBlock" && !root.rowSpec ? root.callHeadPieces() : []
+            delegate: Item {
+                required property var modelData
+                width: modelData.kind === "Label" ? branchPieceText.implicitWidth : branchPieceValue.implicitWidth
+                height: 30
+                Text {
+                    id: branchPieceText
+                    visible: modelData.kind === "Label"
+                    text: modelData.text
+                    color: Theme.text
+                    font.pixelSize: Theme.blockText
+                    font.weight: Font.DemiBold
+                    anchors.centerIn: parent
+                }
+                ValueChip {
+                    id: branchPieceValue
+                    visible: modelData.kind === "Input"
+                    valueData: instruction && (instruction.args || [])[modelData.argIndex] ? (instruction.args || [])[modelData.argIndex] : (modelData.bool ? {
+                            kind: "Bool"
+                        } : {
+                            kind: "Number",
+                            value: 0
+                        })
+                    location: root.fieldLocation("CallArg:" + modelData.argIndex)
+                    boxed: !!modelData.bool
+                    anchors.centerIn: parent
+                    onEditRequested: (l, t) => root.valueEdited(l, t)
+                    blockDefinitions: root.blockDefinitions
+                    onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)
+                    onValueDragMoved: (sx, sy) => root.valueDragMoved(sx, sy)
+                    onValueDragEnded: (sx, sy) => root.valueDragEnded(sx, sy)
+                    onValueDragCanceled: () => root.valueDragCanceled()
+                }
+            }
+        }
     }
 
     Repeater {
         id: mouthSlots
         model: root.isWrap ? root.slotCount() : 0
         delegate: Item {
-            id: slotDelegate; required property int index
+            id: slotDelegate
+            required property int index
             property real adjustment: root.mouthAdjustment(index)
             Behavior on adjustment {
                 enabled: root.animateLayout
-                NumberAnimation { duration: Motion.dur(140); easing.type: Easing.OutCubic }
+                NumberAnimation {
+                    duration: Motion.dur(140)
+                    easing.type: Easing.OutCubic
+                }
             }
             readonly property real contentHeight: slotBody.implicitHeight
             readonly property bool capEnd: root.lastIsCap(index)
@@ -710,23 +1286,35 @@ Item {
                     widest = Math.max(widest, preview.snapWidth || 0);
                 return widest;
             }
-            function report() { root.setMouth(index, mouthHeight, contentWidth, capEnd); }
+            function report() {
+                root.setMouth(index, mouthHeight, contentWidth, capEnd);
+            }
             onMouthHeightChanged: report()
             onContentWidthChanged: report()
             onCapEndChanged: report()
             Component.onCompleted: report()
-            x: 0; y: root.mouthTop(index); width: root.width; height: mouthHeight
+            x: 0
+            y: root.mouthTop(index)
+            width: root.width
+            height: mouthHeight
             Column {
-                id: slotBody; x: root.spine; spacing: -8
-                InstructionList { id: slotBlocks; instructions: root.body(slotDelegate.index) }
+                id: slotBody
+                x: root.spine
+                spacing: -8
+                InstructionList {
+                    id: slotBlocks
+                    instructions: root.body(slotDelegate.index)
+                }
                 Repeater {
                     id: childBlocks
                     model: slotBlocks
                     delegate: Loader {
                         id: child
-                        required property string payload; required property int index
+                        required property string payload
+                        required property int index
                         readonly property var blockData: JSON.parse(payload)
-                        width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
+                        width: item ? item.implicitWidth : 0
+                        height: item ? item.implicitHeight : 0
                         // A hovered or dragged block stacks over the next one.
                         z: item ? item.z : 0
                         // Supply bindings at creation to avoid rebuilding controls for each property.
@@ -763,8 +1351,10 @@ Item {
                             item.paletteDragMoved.connect((sx, sy) => root.paletteDragMoved(sx, sy));
                             item.paletteDragEnded.connect((sx, sy) => root.paletteDragEnded(sx, sy));
                             item.paletteDragCanceled.connect(() => root.paletteDragCanceled());
-                            item.dragBegan.connect(root.dragBegan); item.dragMoved.connect(root.dragMoved);
-                            item.dragEnded.connect(root.dragEnded); item.dragCanceled.connect(root.dragCanceled);
+                            item.dragBegan.connect(root.dragBegan);
+                            item.dragMoved.connect(root.dragMoved);
+                            item.dragEnded.connect(root.dragEnded);
+                            item.dragCanceled.connect(root.dragCanceled);
                         }
                     }
                 }
@@ -772,9 +1362,11 @@ Item {
             // separator bar below this mouth (not for the last: that is the foot bar)
             Text {
                 visible: slotDelegate.index < root.slotCount() - 1
-                x: root.spine + 8; y: root.effMouthHeights[slotDelegate.index] + Math.round((root.midHeight - height) / 2)
+                x: root.spine + 8
+                y: root.effMouthHeights[slotDelegate.index] + Math.round((root.midHeight - height) / 2)
                 text: root.type === "BranchCallBlock" ? root.branchSeparator(slotDelegate.index) : BlockRegistry.separator(root.type, slotDelegate.index)
-                color: Theme.text; font.pixelSize: Theme.blockText
+                color: Theme.text
+                font.pixelSize: Theme.blockText
             }
         }
     }
@@ -788,8 +1380,7 @@ Item {
             required property var modelData
             readonly property string kind: modelData.kind
             anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-            sourceComponent: kind === "label" ? labelPiece : kind === "value" ? (modelData.unit ? unitValuePiece : valuePiece) : kind === "dropdown" ? dropdownPiece : kind === "button" ? buttonPiece
-                : kind === "component" ? componentPiece : kind === "addComponent" ? addComponentPiece : kind === "removeComponent" ? removeComponentPiece : textPiece
+            sourceComponent: kind === "label" ? labelPiece : kind === "value" ? (modelData.unit ? unitValuePiece : valuePiece) : kind === "dropdown" ? dropdownPiece : kind === "button" ? buttonPiece : kind === "component" ? componentPiece : kind === "addComponent" ? addComponentPiece : kind === "removeComponent" ? removeComponentPiece : textPiece
             Component {
                 id: componentPiece
                 Rectangle {
@@ -804,8 +1395,12 @@ Item {
                     Accessible.name: qsTr("Component: %1").arg(componentSpec.label || "")
                     Row {
                         id: componentRow
-                        anchors.centerIn: parent; spacing: 7
-                        Repeater { model: piece.modelData.pieces; delegate: pieceDelegate }
+                        anchors.centerIn: parent
+                        spacing: 7
+                        Repeater {
+                            model: piece.modelData.pieces
+                            delegate: pieceDelegate
+                        }
                     }
                 }
             }
@@ -813,12 +1408,24 @@ Item {
                 id: labelPiece
                 // Event (header) labels use the same caption style as the
                 // built-in event blocks above, so every hat reads alike.
-                Text { text: piece.modelData.text || ""; color: Theme.text; font.pixelSize: root.isHeader ? Theme.blockText - 1 : Theme.blockText; font.weight: root.isHeader ? Font.DemiBold : Font.Normal; height: 30; verticalAlignment: Text.AlignVCenter }
+                Text {
+                    text: piece.modelData.text || ""
+                    color: Theme.text
+                    font.pixelSize: root.isHeader ? Theme.blockText - 1 : Theme.blockText
+                    font.weight: root.isHeader ? Font.DemiBold : Font.Normal
+                    height: 30
+                    verticalAlignment: Text.AlignVCenter
+                }
             }
             Component {
                 id: valuePiece
                 ValueChip {
-                    valueData: root.instruction ? (root.slotValue(piece.modelData) || (piece.modelData.bool ? { kind: "Bool" } : { kind: "Number", value: 0 })) : null
+                    valueData: root.instruction ? (root.slotValue(piece.modelData) || (piece.modelData.bool ? {
+                                kind: "Bool"
+                            } : {
+                                kind: "Number",
+                                value: 0
+                            })) : null
                     location: root.paletteMode ? null : root.fieldLocation(piece.modelData.field)
                     leafOptions: piece.modelData.options ? BlockRegistry.choices(piece.modelData.options, root.instruction) : null
                     leafPlaceholder: piece.modelData.placeholder || qsTr("choose")
@@ -826,7 +1433,8 @@ Item {
                     monospace: !!piece.modelData.monospace
                     pickAction: piece.modelData.pickAction || ""
                     pickOnClick: !piece.modelData.expression || !root.instruction || !root.instruction[piece.modelData.expression]
-                    boxed: !!piece.modelData.bool; forceBoolean: !!piece.modelData.bool && (!valueData || valueData.kind === "Bool")
+                    boxed: !!piece.modelData.bool
+                    forceBoolean: !!piece.modelData.bool && (!valueData || valueData.kind === "Bool")
                     pick: piece.modelData.pick || null
                     flatLeaf: !!piece.modelData.unit
                     keyMode: !!piece.modelData.keyCapture
@@ -846,11 +1454,27 @@ Item {
             Component {
                 id: unitValuePiece
                 Rectangle {
-                    implicitHeight: Math.max(27, unitChip.implicitHeight + 4); implicitWidth: unitLabel.implicitWidth + unitChip.implicitWidth + 21
-                    width: implicitWidth; height: implicitHeight; radius: 5; color: Theme.field
+                    implicitHeight: Math.max(27, unitChip.implicitHeight + 4)
+                    implicitWidth: unitLabel.implicitWidth + unitChip.implicitWidth + 21
+                    width: implicitWidth
+                    height: implicitHeight
+                    radius: 5
+                    color: Theme.field
                     border.color: unitChip.item && unitChip.item.dropHighlighted ? Theme.accent : Theme.border
-                    Text { id: unitLabel; x: 7; text: piece.modelData.unit; color: Theme.textDim; font.pixelSize: Theme.blockText; anchors.verticalCenter: parent.verticalCenter }
-                    Loader { id: unitChip; x: unitLabel.width + 14; anchors.verticalCenter: parent.verticalCenter; sourceComponent: valuePiece }
+                    Text {
+                        id: unitLabel
+                        x: 7
+                        text: piece.modelData.unit
+                        color: Theme.textDim
+                        font.pixelSize: Theme.blockText
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Loader {
+                        id: unitChip
+                        x: unitLabel.width + 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        sourceComponent: valuePiece
+                    }
                 }
             }
             Component {
@@ -859,16 +1483,32 @@ Item {
                     id: pieceDrop
                     readonly property var choices: root.pieceOptions(piece.modelData)
                     readonly property string current: root.pieceValue(piece.modelData)
-                    readonly property int chosen: { for (let i = 0; i < choices.length; ++i) if (choices[i].value === current) return i; return -1; }
-                    model: choices; textRole: "label"; currentIndex: chosen
+                    readonly property int chosen: {
+                        for (let i = 0; i < choices.length; ++i)
+                            if (choices[i].value === current)
+                                return i;
+                        return -1;
+                    }
+                    model: choices
+                    textRole: "label"
+                    currentIndex: chosen
                     displayText: chosen >= 0 ? choices[chosen].label : (current.length ? current : (piece.modelData.placeholder || "choose"))
-                    implicitWidth: Math.min(190, Math.max(56, dropMetrics.advanceWidth + 36)); implicitHeight: 28; font.pixelSize: Theme.blockText
-                    leftPadding: 8; rightPadding: 26
-                    TextMetrics { id: dropMetrics; font: pieceDrop.font; text: pieceDrop.displayText }
+                    implicitWidth: Math.min(190, Math.max(56, dropMetrics.advanceWidth + 36))
+                    implicitHeight: 28
+                    font.pixelSize: Theme.blockText
+                    leftPadding: 8
+                    rightPadding: 26
+                    TextMetrics {
+                        id: dropMetrics
+                        font: pieceDrop.font
+                        text: pieceDrop.displayText
+                    }
                     onActivated: index => {
                         const choice = pieceDrop.choices[index];
-                        if (choice.action) choice.action(value => root.setPiece(piece.modelData, value));
-                        else root.setPiece(piece.modelData, choice.value);
+                        if (choice.action)
+                            choice.action(value => root.setPiece(piece.modelData, value));
+                        else
+                            root.setPiece(piece.modelData, choice.value);
                     }
                 }
             }
@@ -882,33 +1522,46 @@ Item {
                     readonly property string picture: piece.modelData.image && root.instruction ? (root.instruction[piece.modelData.image] || "") : ""
                     readonly property string label: typeof piece.modelData.text === "function" ? piece.modelData.text(root.instruction) : (piece.modelData.text || "")
                     readonly property bool clickable: !root.paletteMode || !!piece.modelData.palette
-                    implicitWidth: buttonRow.implicitWidth + 14; implicitHeight: picture ? 34 : 28; radius: 6
+                    implicitWidth: buttonRow.implicitWidth + 14
+                    implicitHeight: picture ? 34 : 28
+                    radius: 6
                     color: buttonMouse.containsMouse && clickable ? Theme.panelRaised : Theme.field
                     border.color: buttonMouse.containsMouse && clickable ? Theme.accent : Theme.border
                     Row {
                         id: buttonRow
-                        anchors.centerIn: parent; spacing: 6
+                        anchors.centerIn: parent
+                        spacing: 6
                         Image {
                             visible: pieceButton.picture.length > 0
                             source: pieceButton.picture
                             readonly property real aspect: implicitHeight > 0 ? implicitWidth / implicitHeight : 1
-                            height: 26; width: Math.min(110, Math.max(14, height * aspect))
-                            fillMode: Image.PreserveAspectFit; smooth: false; anchors.verticalCenter: parent.verticalCenter
+                            height: 26
+                            width: Math.min(110, Math.max(14, height * aspect))
+                            fillMode: Image.PreserveAspectFit
+                            smooth: false
+                            anchors.verticalCenter: parent.verticalCenter
                         }
                         LucideIcon {
                             visible: !pieceButton.picture && !!piece.modelData.icon
-                            name: piece.modelData.icon || "info"; width: 14; height: 14; color: Theme.text
+                            name: piece.modelData.icon || "info"
+                            width: 14
+                            height: 14
+                            color: Theme.text
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         Text {
                             visible: pieceButton.label.length > 0
-                            text: pieceButton.label; color: Theme.text; font.pixelSize: Theme.blockText
+                            text: pieceButton.label
+                            color: Theme.text
+                            font.pixelSize: Theme.blockText
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
                     MouseArea {
                         id: buttonMouse
-                        anchors.fill: parent; hoverEnabled: true; enabled: pieceButton.clickable
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        enabled: pieceButton.clickable
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.pieceActionRequested(piece.modelData.action || "", root.strandId, root.path, root.instruction)
                     }
@@ -920,14 +1573,26 @@ Item {
                 Rectangle {
                     id: addButton
                     objectName: "addComponentButton"
-                    implicitWidth: 22; implicitHeight: 22; radius: 11
+                    implicitWidth: 22
+                    implicitHeight: 22
+                    radius: 11
                     color: addMouse.containsMouse ? Theme.panelRaised : "transparent"
                     border.color: addMouse.containsMouse ? Theme.accent : Theme.border
-                    LucideIcon { anchors.centerIn: parent; name: "plus"; width: 13; height: 13; color: addMouse.containsMouse ? Theme.accent : Theme.textDim }
-                    ToolTip.visible: addMouse.containsMouse; ToolTip.delay: 400; ToolTip.text: qsTr("Add an option")
+                    LucideIcon {
+                        anchors.centerIn: parent
+                        name: "plus"
+                        width: 13
+                        height: 13
+                        color: addMouse.containsMouse ? Theme.accent : Theme.textDim
+                    }
+                    ToolTip.visible: addMouse.containsMouse
+                    ToolTip.delay: 400
+                    ToolTip.text: qsTr("Add an option")
                     MouseArea {
                         id: addMouse
-                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: addMenu.popup(0, addButton.height + 2)
                     }
                     BwMenu {
@@ -937,7 +1602,8 @@ Item {
                             model: BlockRegistry.missingComponents(root.rowSpec, root.instruction)
                             delegate: BwMenuItem {
                                 required property var modelData
-                                iconName: modelData.icon || "plus"; text: modelData.label
+                                iconName: modelData.icon || "plus"
+                                text: modelData.label
                                 onTriggered: root.addComponent(modelData)
                             }
                             onObjectAdded: (index, object) => addMenu.insertItem(index, object)
@@ -951,16 +1617,29 @@ Item {
                 id: removeComponentPiece
                 Item {
                     objectName: "removeComponentButton"
-                    implicitWidth: 24; implicitHeight: 22
+                    implicitWidth: 24
+                    implicitHeight: 22
                     Rectangle {
-                        width: 1; height: parent.height; color: Theme.border
+                        width: 1
+                        height: parent.height
+                        color: Theme.border
                     }
-                    LucideIcon { anchors.centerIn: parent; anchors.horizontalCenterOffset: 3; name: "x"; width: 12; height: 12; color: removeMouse.containsMouse ? Theme.danger : Theme.textDim }
-                    ToolTip.visible: removeMouse.containsMouse; ToolTip.delay: 400
+                    LucideIcon {
+                        anchors.centerIn: parent
+                        anchors.horizontalCenterOffset: 3
+                        name: "x"
+                        width: 12
+                        height: 12
+                        color: removeMouse.containsMouse ? Theme.danger : Theme.textDim
+                    }
+                    ToolTip.visible: removeMouse.containsMouse
+                    ToolTip.delay: 400
                     ToolTip.text: qsTr("Remove %1").arg(piece.modelData.component.label || "")
                     MouseArea {
                         id: removeMouse
-                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: root.removeComponent(piece.modelData.component)
                     }
                 }
@@ -968,10 +1647,17 @@ Item {
             Component {
                 id: textPiece
                 BwTextField {
-                    text: root.pieceValue(piece.modelData); placeholderText: piece.modelData.placeholder || ""
-                    implicitWidth: Math.min(piece.modelData.maxWidth || 200, Math.max(piece.modelData.minWidth || 64, contentWidth + 20)); implicitHeight: 28; font.pixelSize: Theme.blockText
-                    leftPadding: 7; rightPadding: 7; topPadding: 2; bottomPadding: 2
-                    onEditingFinished: if (text !== root.pieceValue(piece.modelData)) root.setPieceField(piece.modelData, text)
+                    text: root.pieceValue(piece.modelData)
+                    placeholderText: piece.modelData.placeholder || ""
+                    implicitWidth: Math.min(piece.modelData.maxWidth || 200, Math.max(piece.modelData.minWidth || 64, contentWidth + 20))
+                    implicitHeight: 28
+                    font.pixelSize: Theme.blockText
+                    leftPadding: 7
+                    rightPadding: 7
+                    topPadding: 2
+                    bottomPadding: 2
+                    onEditingFinished: if (text !== root.pieceValue(piece.modelData))
+                        root.setPieceField(piece.modelData, text)
                 }
             }
         }
@@ -979,25 +1665,48 @@ Item {
 
     Rectangle {
         visible: root.markText.length > 0
-        z: 30; width: 18; height: 18; radius: 9; color: Theme.danger
-        border.width: 2; border.color: Theme.canvas
-        x: root.width - 12; y: -6
-        Text { anchors.centerIn: parent; text: "!"; color: "white"; font.pixelSize: 11; font.weight: Font.Black }
-        ToolTip.visible: markHover.hovered; ToolTip.delay: 200; ToolTip.text: root.markText
-        HoverHandler { id: markHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: BlockRegistry.markClicked(root.instruction.id) }
+        z: 30
+        width: 18
+        height: 18
+        radius: 9
+        color: Theme.danger
+        border.width: 2
+        border.color: Theme.canvas
+        x: root.width - 12
+        y: -6
+        Text {
+            anchors.centerIn: parent
+            text: "!"
+            color: "white"
+            font.pixelSize: 11
+            font.weight: Font.Black
+        }
+        ToolTip.visible: markHover.hovered
+        ToolTip.delay: 200
+        ToolTip.text: root.markText
+        HoverHandler {
+            id: markHover
+            cursorShape: Qt.PointingHandCursor
+        }
+        TapHandler {
+            onTapped: BlockRegistry.markClicked(root.instruction.id)
+        }
     }
 
     function isCapturingKey() {
-        if (!keyCapture) return false;
-        if (paletteMode) return keyCapture.kind === "Standalone";
+        if (!keyCapture)
+            return false;
+        if (paletteMode)
+            return keyCapture.kind === "Standalone";
         return keyCapture.kind === "Strand" && keyCapture.strand_id === strandId && samePath(keyCapture.index, path);
     }
     // Paths from the daemon carry an explicit `slot: null` on every step; ours omit it.
     function samePath(a, b) {
-        if (!a || !b || a.length !== b.length) return false;
+        if (!a || !b || a.length !== b.length)
+            return false;
         for (let i = 0; i < a.length; ++i)
-            if (a[i].index !== b[i].index || (a[i].slot === undefined || a[i].slot === null ? -1 : a[i].slot) !== (b[i].slot === undefined || b[i].slot === null ? -1 : b[i].slot)) return false;
+            if (a[i].index !== b[i].index || (a[i].slot === undefined || a[i].slot === null ? -1 : a[i].slot) !== (b[i].slot === undefined || b[i].slot === null ? -1 : b[i].slot))
+                return false;
         return true;
     }
 }

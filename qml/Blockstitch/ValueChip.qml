@@ -21,7 +21,7 @@ Item {
     // Renders a Text/Number leaf as keycaps; a click asks the host to capture a key combo.
     property bool keyMode: false
     property bool keyCapturing: false
-    signal keyCaptureRequested()
+    signal keyCaptureRequested
     // Renders a Text/Number leaf as a button that opens the host's picker:
     // {action, icon, display: function(text) -> label, tip}. A click calls
     // BlockRegistry.requestPick(action, location, value, chip). Reporters
@@ -32,43 +32,74 @@ Item {
     // location, value, chip) instead of editing it; otherwise it stays typeable.
     property string pickAction: ""
     property bool pickOnClick: true
-    readonly property var activePick: pick ? pick : (pickAction !== "" && pickOnClick ? { action: pickAction, icon: "chevron-down" } : null)
+    readonly property var activePick: pick ? pick : (pickAction !== "" && pickOnClick ? {
+            action: pickAction,
+            icon: "chevron-down"
+        } : null)
     readonly property string pickLabel: {
-        if (!activePick || !valueData || valueData.value === undefined) return "";
+        if (!activePick || !valueData || valueData.value === undefined)
+            return "";
         const text = String(valueData.value);
         return activePick.display ? activePick.display(text) : text;
     }
     // Resolve parameter scope from the canvas unless a drag preview supplies it.
     property string originBlockId: {
-        if (!location) return "";
+        if (!location)
+            return "";
         for (let owner = parent; owner; owner = owner.parent)
-            if (typeof owner.parameterOrigin === "function") return owner.parameterOrigin(location);
+            if (typeof owner.parameterOrigin === "function")
+                return owner.parameterOrigin(location);
         return "";
     }
     property bool dragPreview: false
-    readonly property var parameterDefinition: valueData && valueData.kind === "Param" && originBlockId !== ""
-        ? defFor(originBlockId) : null
-    readonly property bool booleanParameter: !!parameterDefinition && (parameterDefinition.pieces || []).some(p =>
-        p.kind === "Input" && p.name === valueData.name && (p.value_type === "Bool" || p.component === true))
+    readonly property var parameterDefinition: valueData && valueData.kind === "Param" && originBlockId !== "" ? defFor(originBlockId) : null
+    readonly property bool booleanParameter: !!parameterDefinition && (parameterDefinition.pieces || []).some(p => p.kind === "Input" && p.name === valueData.name && (p.value_type === "Bool" || p.component === true))
     // Parameters use their definition colour; ordinary variables keep the accent.
     property color referenceColor: parameterDefinition && parameterDefinition.color ? parameterDefinition.color : Theme.accent
     function keyPartLabel(k) {
         const named = {
-            Control: "Ctrl", LeftControl: "Ctrl", RightControl: "Ctrl", Shift: "Shift", LeftShift: "Shift", RightShift: "Shift", Meta: "Super", Escape: "Esc", Return: "Enter", Space: "Space", Delete: "Del", Insert: "Ins",
-            PageUp: "PgUp", PageDown: "PgDn", UpArrow: "\u2191", DownArrow: "\u2193", LeftArrow: "\u2190", RightArrow: "\u2192",
-            CapsLock: "Caps", PrintScr: "PrtSc", Option: "Alt", AltGr: "AltGr"
+            Control: "Ctrl",
+            LeftControl: "Ctrl",
+            RightControl: "Ctrl",
+            Shift: "Shift",
+            LeftShift: "Shift",
+            RightShift: "Shift",
+            Meta: "Super",
+            Escape: "Esc",
+            Return: "Enter",
+            Space: "Space",
+            Delete: "Del",
+            Insert: "Ins",
+            PageUp: "PgUp",
+            PageDown: "PgDn",
+            UpArrow: "\u2191",
+            DownArrow: "\u2193",
+            LeftArrow: "\u2190",
+            RightArrow: "\u2192",
+            CapsLock: "Caps",
+            PrintScr: "PrtSc",
+            Option: "Alt",
+            AltGr: "AltGr"
         };
-        if (named[k] !== undefined) return named[k];
-        if (k.indexOf("Other:") === 0) return qsTr("Key %1").arg(k.substring(6));
+        if (named[k] !== undefined)
+            return named[k];
+        if (k.indexOf("Other:") === 0)
+            return qsTr("Key %1").arg(k.substring(6));
         return k.length === 1 ? k.toUpperCase() : k;
     }
     // "Control+Alt+o" -> ["Control", "Alt", "o"]; a bare "+" is the plus key.
     function keyParts(text) {
-        const parts = []; let cur = "";
+        const parts = [];
+        let cur = "";
         for (const c of String(text)) {
-            if (c === "+" && cur.length) { parts.push(cur); cur = ""; } else cur += c;
+            if (c === "+" && cur.length) {
+                parts.push(cur);
+                cur = "";
+            } else
+                cur += c;
         }
-        if (cur.length) parts.push(cur);
+        if (cur.length)
+            parts.push(cur);
         return parts;
     }
     // Draw a Text/Number leaf as a box showing every line, typed in place
@@ -78,15 +109,22 @@ Item {
     readonly property string leafText: valueData && (valueData.kind === "Text" || valueData.kind === "Number") && valueData.value !== undefined ? String(valueData.value) : ""
     readonly property int leafLines: leafText.split("\n").length
     function commitText(text) {
-        if (!root.valueData || text === root.leafText) return;
-        if (root.location) root.editRequested(root.location, text);
-        else root.leafEdited([], root.leafFromText(root.valueData, text));
+        if (!root.valueData || text === root.leafText)
+            return;
+        if (root.location)
+            root.editRequested(root.location, text);
+        else
+            root.leafEdited([], root.leafFromText(root.valueData, text));
     }
     // The bigger editor, over the whole window.
     function openTextEditor(text) {
-        if (!root.editable) return;
-        const dialog = textEditorComponent.createObject(root, { text: text });
-        if (dialog) dialog.open();
+        if (!root.editable)
+            return;
+        const dialog = textEditorComponent.createObject(root, {
+            text: text
+        });
+        if (dialog)
+            dialog.open();
     }
     // Marks this item for value-drop hit-testing (recursive childAt walk in BlockCanvas).
     readonly property bool isValueChip: true
@@ -102,25 +140,30 @@ Item {
     signal valueDragBegan(var location, var value, real sceneX, real sceneY, real offsetX, real offsetY, real w, real h)
     signal valueDragMoved(real sceneX, real sceneY)
     signal valueDragEnded(real sceneX, real sceneY)
-    signal valueDragCanceled()
+    signal valueDragCanceled
 
     // Click-to-preview: only operators and variables evaluate to something.
     property string previewKey: ""
     readonly property bool previewable: !!valueData && ["Op", "Var"].indexOf(valueData.kind) >= 0
     readonly property bool previewShown: previewKey !== "" && !!BlockRegistry.preview && BlockRegistry.preview.key === previewKey
     function requestPreview() {
-        if (!previewable) return;
-        if (previewKey === "") previewKey = BlockRegistry.nextPreviewKey();
+        if (!previewable)
+            return;
+        if (previewKey === "")
+            previewKey = BlockRegistry.nextPreviewKey();
         BlockRegistry.requestPreview(previewKey, valueData);
     }
 
     readonly property var opSpec: valueData && valueData.kind === "Op" ? BlockRegistry.operator(valueData.op) : null
-    function defFor(id) { for (let i = 0; i < (blockDefinitions || []).length; ++i) if (blockDefinitions[i].id === id) return blockDefinitions[i]; return null; }
+    function defFor(id) {
+        for (let i = 0; i < (blockDefinitions || []).length; ++i)
+            if (blockDefinitions[i].id === id)
+                return blockDefinitions[i];
+        return null;
+    }
     readonly property var callDef: valueData && valueData.kind === "Call" ? defFor(valueData.block_id) : null
     readonly property bool emptyBoolean: !!valueData && valueData.kind === "Bool"
-    readonly property bool booleanShape: forceBoolean || booleanParameter || (!!valueData && (valueData.kind === "Bool"
-        || (valueData.kind === "Op" && BlockRegistry.isBoolOp(valueData.op, valueData))
-        || (valueData.kind === "Call" && !!callDef && callDef.shape === "ReturnsBool")))
+    readonly property bool booleanShape: forceBoolean || booleanParameter || (!!valueData && (valueData.kind === "Bool" || (valueData.kind === "Op" && BlockRegistry.isBoolOp(valueData.op, valueData)) || (valueData.kind === "Call" && !!callDef && callDef.shape === "ReturnsBool")))
     // An operator / variable / param / call reference is always its own
     // distinct block, even when a field passes boxed:false (which is meant
     // for bare Number/Text leaves typed straight into the field).
@@ -129,38 +172,48 @@ Item {
     readonly property bool customCall: !!callDef
     // Calls own editable mouths; only definition previews show named branch pieces.
     readonly property var callBranches: {
-        if (!callDef) return [];
+        if (!callDef)
+            return [];
         const pieces = callDef.pieces || [], out = [];
         for (let i = 0; i < pieces.length; ++i) {
-            if (pieces[i].kind !== "Branch") continue;
+            if (pieces[i].kind !== "Branch")
+                continue;
             let sep = "";
             for (let j = i + 1; j < pieces.length && pieces[j].kind !== "Branch"; ++j)
-                if (pieces[j].kind === "Label") { sep = pieces[j].text; break; }
-            out.push({ name: pieces[i].name || "", sep: sep });
+                if (pieces[j].kind === "Label") {
+                    sep = pieces[j].text;
+                    break;
+                }
+            out.push({
+                name: pieces[i].name || "",
+                sep: sep
+            });
         }
         return out;
     }
     readonly property bool hasBranches: callBranches.length > 0
     readonly property color refColor: callDef && callDef.color ? callDef.color : referenceColor
-    readonly property color quietRefColor: Qt.rgba(
-        refColor.r * .3 + Theme.border.r * .7,
-        refColor.g * .3 + Theme.border.g * .7,
-        refColor.b * .3 + Theme.border.b * .7, 1)
+    readonly property color quietRefColor: Qt.rgba(refColor.r * .3 + Theme.border.r * .7, refColor.g * .3 + Theme.border.g * .7, refColor.b * .3 + Theme.border.b * .7, 1)
     // Show the displaced value while the ghost carries this block.
-    readonly property bool draggedOut: valueGrab.dragging
-        || (BlockRegistry.settlingValueKey !== "" && !!location && BlockRegistry.settlingValueKey === BlockRegistry.locationKey(location))
+    readonly property bool draggedOut: valueGrab.dragging || (BlockRegistry.settlingValueKey !== "" && !!location && BlockRegistry.settlingValueKey === BlockRegistry.locationKey(location))
     readonly property bool inSlot: !!location && (location.kind === "Field" || (location.path || []).length > 0)
     readonly property bool hovered: (valueGrab.hovered && !valueGrab.dragging) || paletteHover.hovered
     // Sidebar prefabs have no location (so valueGrab never arms), but still
     // need the grab cursor + accent outline that blocks get from
     // InstructionBlock. A top HoverHandler does not consume presses, so the
     // palette's own drag surface behind it still receives them.
-    HoverHandler { id: paletteHover; enabled: root.paletteMode && !root.emptyBoolean; cursorShape: Qt.OpenHandCursor }
+    HoverHandler {
+        id: paletteHover
+        enabled: root.paletteMode && !root.emptyBoolean
+        cursorShape: Qt.OpenHandCursor
+    }
     readonly property string opPrefix: opSpec && opSpec.prefix ? opSpec.prefix : ""
     // `infix` goes between every pair of args; a list gives one per gap.
     readonly property var opInfixes: opSpec && Array.isArray(opSpec.infix) ? opSpec.infix : null
     readonly property string opInfix: opSpec && opSpec.infix && !opInfixes ? opSpec.infix : ""
-    function infixAt(index) { return opInfixes ? (opInfixes[index - 1] || "") : opInfix; }
+    function infixAt(index) {
+        return opInfixes ? (opInfixes[index - 1] || "") : opInfix;
+    }
     readonly property string opSuffix: opSpec && opSpec.suffix ? opSpec.suffix : ""
     readonly property int enumIndex: opSpec && opSpec.enumArg ? opSpec.enumArg.index : -1
     readonly property int pickIndex: opSpec && opSpec.pickArg ? opSpec.pickArg.index : -1
@@ -169,41 +222,82 @@ Item {
     // prefix / infix / suffix form. The array is cached by the host so the
     // chip keeps its controls while the value changes.
     readonly property var opLayout: {
-        if (!opSpec || !opSpec.layout) return null;
+        if (!opSpec || !opSpec.layout)
+            return null;
         return typeof opSpec.layout === "function" ? opSpec.layout(valueData) : opSpec.layout;
     }
     // What a Call renders: its definition's labels, and one slot per input.
     readonly property var customRow: BlockRegistry.customCallRow(callDef)
     function toggleComponent(component, enabled) {
         const value = BlockRegistry.componentValue(enabled);
-        if (location) BlockRegistry.replaceValue(childLocation(component.index), value);
-        else leafEdited([component.index], value);
+        if (location)
+            BlockRegistry.replaceValue(childLocation(component.index), value);
+        else
+            leafEdited([component.index], value);
     }
     readonly property var callPieces: {
-        if (opLayout) return opLayout;
-        if (!callDef) return [];
-        if (customRow) return BlockRegistry.rowPieces(customRow, valueData, paletteMode).map(p => {
-            if (p.kind === "value") return {label: "", arg: p.index, bool: p.bool};
-            return {label: p.text || "", arg: -1, bool: false, kind: p.kind, component: p.component};
-        });
-        const out = []; let arg = 0;
+        if (opLayout)
+            return opLayout;
+        if (!callDef)
+            return [];
+        if (customRow)
+            return BlockRegistry.rowPieces(customRow, valueData, paletteMode).map(p => {
+                if (p.kind === "value")
+                    return {
+                        label: "",
+                        arg: p.index,
+                        bool: p.bool
+                    };
+                return {
+                    label: p.text || "",
+                    arg: -1,
+                    bool: false,
+                    kind: p.kind,
+                    component: p.component
+                };
+            });
+        const out = [];
+        let arg = 0;
         for (const p of (callDef.pieces || [])) {
-            if (p.kind === "Label") out.push({ label: p.text, arg: -1, bool: false });
-            else if (p.kind === "Input") out.push({ label: "", arg: arg++, bool: p.value_type === "Bool" });
+            if (p.kind === "Label")
+                out.push({
+                    label: p.text,
+                    arg: -1,
+                    bool: false
+                });
+            else if (p.kind === "Input")
+                out.push({
+                    label: "",
+                    arg: arg++,
+                    bool: p.value_type === "Bool"
+                });
         }
         return out;
     }
     function childLocation(index) {
-        return root.location ? Object.assign({}, root.location, { path: (root.location.path || []).concat([index]) }) : null;
+        return root.location ? Object.assign({}, root.location, {
+            path: (root.location.path || []).concat([index])
+        }) : null;
     }
     function emitLeaf(path, leaf, text) {
-        if (root.location) root.editRequested(Object.assign({}, root.location, { path: (root.location.path || []).concat(path) }), text);
-        else root.leafEdited(path, leaf);
+        if (root.location)
+            root.editRequested(Object.assign({}, root.location, {
+                path: (root.location.path || []).concat(path)
+            }), text);
+        else
+            root.leafEdited(path, leaf);
     }
     function leafFromText(old, text) {
         const num = Number(text);
-        if (old && old.kind === "Number" && text.trim().length && Number.isFinite(num)) return { kind: "Number", value: num };
-        return { kind: "Text", value: text };
+        if (old && old.kind === "Number" && text.trim().length && Number.isFinite(num))
+            return {
+                kind: "Number",
+                value: num
+            };
+        return {
+            kind: "Text",
+            value: text
+        };
     }
     function wireNested(item, index, data) {
         // Bound, not copied: a chip now outlives edits elsewhere on its block.
@@ -228,16 +322,29 @@ Item {
     property var branchMetrics: ({})
     readonly property var branchCanvas: {
         for (let owner = parent; owner; owner = owner.parent)
-            if (owner.isBlockCanvas) return owner;
+            if (owner.isBlockCanvas)
+                return owner;
         return null;
     }
-    function branchId(slot) { return "@reporter-branch:" + JSON.stringify({ location: root.location, slot: slot }); }
-    function branchInstructions(slot) { return valueData && valueData.branches ? valueData.branches[slot] || [] : []; }
+    function branchId(slot) {
+        return "@reporter-branch:" + JSON.stringify({
+            location: root.location,
+            slot: slot
+        });
+    }
+    function branchInstructions(slot) {
+        return valueData && valueData.branches ? valueData.branches[slot] || [] : [];
+    }
     function reportBranch(slot, height, width, flat) {
         const old = branchMetrics[slot];
-        if (old && old.height === height && old.width === width && old.flat === flat) return;
+        if (old && old.height === height && old.width === width && old.flat === flat)
+            return;
         const next = Object.assign({}, branchMetrics);
-        next[slot] = { height: height, width: width, flat: flat };
+        next[slot] = {
+            height: height,
+            width: width,
+            flat: flat
+        };
         branchMetrics = next;
     }
     function branchMouthHeight(slot) {
@@ -249,7 +356,8 @@ Item {
     }
     function branchTop(slot) {
         let y = branchHead;
-        for (let i = 0; i < slot; ++i) y += branchMouthHeight(i) + branchMid;
+        for (let i = 0; i < slot; ++i)
+            y += branchMouthHeight(i) + branchMid;
         return y;
     }
     readonly property real branchHeight: branchTop(callBranches.length) - branchMid + branchFoot
@@ -260,17 +368,17 @@ Item {
         return width;
     }
     readonly property real branchPadX: booleanShape ? fullHeight / 2 : 22
-    readonly property real fullWidth: hasBranches ? branchWidth + 2 * branchPadX
-        : Math.max(booleanShape ? 48 : 36, content.implicitWidth + (booleanShape ? 22 : showBox ? 12 : 0))
+    readonly property real fullWidth: hasBranches ? branchWidth + 2 * branchPadX : Math.max(booleanShape ? 48 : 36, content.implicitWidth + (booleanShape ? 22 : showBox ? 12 : 0))
     readonly property real fullHeight: hasBranches ? branchHeight + 24 : Math.max(27, content.implicitHeight + (showBox ? 4 : 0))
 
     // What the slot holds once this block leaves it: the value it displaced,
     // or Number 0 in a nested slot (the core's blank there). A top-level
     // field's blank is the host's, so that one shows an empty box.
     readonly property bool vacated: draggedOut && inSlot && !!valueData
-    readonly property var vacatedValue: !vacated ? null
-        : valueData.saved ? valueData.saved
-        : (location.path || []).length > 0 ? { kind: "Number", value: 0 } : null
+    readonly property var vacatedValue: !vacated ? null : valueData.saved ? valueData.saved : (location.path || []).length > 0 ? {
+        kind: "Number",
+        value: 0
+    } : null
     readonly property real blankWidth: booleanShape ? 48 : 36
 
     implicitWidth: restoredValue.item ? restoredValue.item.implicitWidth : vacated ? blankWidth : fullWidth
@@ -303,7 +411,10 @@ Item {
 
     Rectangle {
         visible: root.vacated && !restoredValue.active
-        anchors.fill: parent; radius: 5; color: Theme.field; border.color: Theme.border
+        anchors.fill: parent
+        radius: 5
+        color: Theme.field
+        border.color: Theme.border
     }
 
     BooleanSlot {
@@ -330,14 +441,14 @@ Item {
             readonly property color edge: (root.hovered || root.dragPreview || root.dropHighlighted) ? root.refColor : (root.customCall ? root.quietRefColor : Theme.border)
             readonly property string outline: {
                 const w = width, h = height;
-                if (w <= 0 || h <= 0) return "";
+                if (w <= 0 || h <= 0)
+                    return "";
                 if (root.booleanShape) {
                     const n = Math.min(root.hasBranches ? h / 2 : h * .32, w / 2);
                     return "M" + n + " .5 L" + (w - n) + " .5 L" + (w - .5) + " " + h / 2 + " L" + (w - n) + " " + (h - .5) + " L" + n + " " + (h - .5) + " L.5 " + h / 2 + " Z";
                 }
                 const r = root.hasBranches ? 24 : 5, R = w - .5, B = h - .5;
-                return "M" + (.5 + r) + " .5 L" + (R - r) + " .5 Q" + R + " .5 " + R + " " + (.5 + r) + " L" + R + " " + (B - r) + " Q" + R + " " + B + " " + (R - r) + " " + B
-                    + " L" + (.5 + r) + " " + B + " Q.5 " + B + " .5 " + (B - r) + " L.5 " + (.5 + r) + " Q.5 .5 " + (.5 + r) + " .5 Z";
+                return "M" + (.5 + r) + " .5 L" + (R - r) + " .5 Q" + R + " .5 " + R + " " + (.5 + r) + " L" + R + " " + (B - r) + " Q" + R + " " + B + " " + (R - r) + " " + B + " L" + (.5 + r) + " " + B + " Q.5 " + B + " .5 " + (B - r) + " L.5 " + (.5 + r) + " Q.5 .5 " + (.5 + r) + " .5 Z";
             }
             // Drop preview reads stronger than hover: a soft glow under a
             // thicker line, so it stays visible next to the dragged ghost.
@@ -346,14 +457,18 @@ Item {
                 strokeWidth: root.dropHighlighted ? 6 : 0
                 fillColor: "transparent"
                 joinStyle: ShapePath.RoundJoin
-                PathSvg { path: chipShape.outline }
+                PathSvg {
+                    path: chipShape.outline
+                }
             }
             ShapePath {
                 strokeColor: chipShape.edge
                 strokeWidth: root.dropHighlighted ? 2.4 : ((root.hovered || root.dragPreview) ? 1.6 : 1)
                 joinStyle: ShapePath.RoundJoin
                 fillColor: Theme.field
-                PathSvg { path: chipShape.outline }
+                PathSvg {
+                    path: chipShape.outline
+                }
             }
         }
     }
@@ -395,7 +510,8 @@ Item {
             // Exclusive, so only the innermost chip under the pointer opens a menu.
             gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: eventPoint => {
-                if (!menuArea.menu) menuArea.menu = valueMenu.createObject(menuArea);
+                if (!menuArea.menu)
+                    menuArea.menu = valueMenu.createObject(menuArea);
                 menuArea.menu.popup(eventPoint.position.x, eventPoint.position.y);
             }
         }
@@ -403,12 +519,19 @@ Item {
             id: valueMenu
             BwMenu {
                 id: valueMenuPopup
-                BwMenuItem { visible: !root.extraMenu || root.extraMenu.length === 0; iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(root.valueData && root.valueData.kind === "Call" ? root.valueData.block_id : root.valueData && root.valueData.kind === "Op" ? root.valueData.op : (root.valueData ? root.valueData.kind : "Value")) }
+                BwMenuItem {
+                    visible: !root.extraMenu || root.extraMenu.length === 0
+                    iconName: "info"
+                    text: qsTr("Details")
+                    onTriggered: root.detailsRequested(root.valueData && root.valueData.kind === "Call" ? root.valueData.block_id : root.valueData && root.valueData.kind === "Op" ? root.valueData.op : (root.valueData ? root.valueData.kind : "Value"))
+                }
                 Instantiator {
                     model: root.extraMenu
                     delegate: BwMenuItem {
                         required property var modelData
-                        iconName: modelData.icon || ""; text: modelData.text; danger: !!modelData.danger
+                        iconName: modelData.icon || ""
+                        text: modelData.text
+                        danger: !!modelData.danger
                         onTriggered: modelData.id === "details" ? root.detailsRequested(root.valueData && root.valueData.kind === "Call" ? root.valueData.block_id : root.valueData && root.valueData.kind === "Op" ? root.valueData.op : (root.valueData ? root.valueData.kind : "Value")) : root.extraMenuTriggered(modelData.id)
                     }
                     onObjectAdded: (index, object) => valueMenuPopup.addItem(object)
@@ -420,14 +543,21 @@ Item {
     Item {
         id: branchBody
         visible: root.hasBranches && !root.draggedOut
-        x: root.branchPadX; y: 12
-        width: root.branchWidth; height: root.branchHeight
+        x: root.branchPadX
+        y: 12
+        width: root.branchWidth
+        height: root.branchHeight
         BlockSurface {
             objectName: "reporterBranchSurface"
             anchors.fill: parent
-            shape: "wrap"; fill: Theme.block; outline: Theme.border
-            headNotch: false; footTab: false
-            headHeight: root.branchHead; midHeight: root.branchMid; footHeight: root.branchFoot
+            shape: "wrap"
+            fill: Theme.block
+            outline: Theme.border
+            headNotch: false
+            footTab: false
+            headHeight: root.branchHead
+            midHeight: root.branchMid
+            footHeight: root.branchFoot
             mouthHeights: root.callBranches.map((b, i) => root.branchMouthHeight(i))
             flatEnds: root.callBranches.map((b, i) => !!root.branchMetrics[i] && root.branchMetrics[i].flat)
         }
@@ -443,18 +573,28 @@ Item {
                 readonly property var branchSource: root
                 readonly property real mouthHeight: Math.max(26, branchColumn.implicitHeight - (capEnd || branchList.length === 0 ? 0 : 8))
                 readonly property bool capEnd: branchList.length > 0 && BlockRegistry.isCap(branchList[branchList.length - 1], root.blockDefinitions)
-                function report() { root.reportBranch(index, mouthHeight, branchColumn.implicitWidth, capEnd); }
+                function report() {
+                    root.reportBranch(index, mouthHeight, branchColumn.implicitWidth, capEnd);
+                }
                 onMouthHeightChanged: report()
                 onCapEndChanged: report()
-                Component.onCompleted: { report(); BlockRegistry.indexBranch(branchItem); }
+                Component.onCompleted: {
+                    report();
+                    BlockRegistry.indexBranch(branchItem);
+                }
                 Component.onDestruction: BlockRegistry.unindexBranch(branchItem)
-                x: 20; y: root.branchTop(index)
-                width: root.branchWidth - 20; height: root.branchMouthHeight(index)
+                x: 20
+                y: root.branchTop(index)
+                width: root.branchWidth - 20
+                height: root.branchMouthHeight(index)
                 Column {
                     id: branchColumn
                     spacing: -8
                     onImplicitWidthChanged: branchItem.report()
-                    InstructionList { id: branchBlocks; instructions: branchItem.branchList }
+                    InstructionList {
+                        id: branchBlocks
+                        instructions: branchItem.branchList
+                    }
                     Repeater {
                         model: branchBlocks
                         delegate: Loader {
@@ -463,17 +603,24 @@ Item {
                             required property int index
                             readonly property var blockData: JSON.parse(payload)
                             source: "InstructionBlock.qml"
-                            width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
+                            width: item ? item.implicitWidth : 0
+                            height: item ? item.implicitHeight : 0
                             z: item ? item.z : 0
                             onLoaded: {
                                 item.instruction = Qt.binding(() => branchChild.blockData);
                                 item.strandId = Qt.binding(() => branchItem.branchStrandId);
-                                item.path = Qt.binding(() => [{ index: branchChild.index }]);
+                                item.path = Qt.binding(() => [
+                                        {
+                                            index: branchChild.index
+                                        }
+                                    ]);
                                 item.tailCount = Qt.binding(() => branchBlocks.count - branchChild.index);
                                 item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
                                 item.paletteMode = Qt.binding(() => root.paletteMode || root.dragPreview || !root.editable);
-                                if (root.branchCanvas) root.branchCanvas.wireBranchInstruction(item);
-                                else item.locked = true;
+                                if (root.branchCanvas)
+                                    root.branchCanvas.wireBranchInstruction(item);
+                                else
+                                    item.locked = true;
                             }
                         }
                     }
@@ -486,54 +633,103 @@ Item {
                 required property var modelData
                 required property int index
                 visible: index < root.callBranches.length - 1 && modelData.sep.length > 0
-                x: 28; y: root.branchTop(index) + root.branchMouthHeight(index) + Math.round((root.branchMid - height) / 2)
-                text: modelData.sep; color: Theme.text; font.pixelSize: Theme.blockText
+                x: 28
+                y: root.branchTop(index) + root.branchMouthHeight(index) + Math.round((root.branchMid - height) / 2)
+                text: modelData.sep
+                color: Theme.text
+                font.pixelSize: Theme.blockText
             }
         }
     }
     Row {
-        id: content; anchors.centerIn: parent; spacing: 3
+        id: content
+        anchors.centerIn: parent
+        spacing: 3
         anchors.verticalCenterOffset: root.hasBranches ? 12 + root.branchHead / 2 - root.implicitHeight / 2 : 0
         visible: !root.draggedOut
-        LucideIcon { visible: root.customCall; name: root.callDef && root.callDef.icon ? root.callDef.icon : "blocks"; color: root.refColor; width: 14; height: 14; anchors.verticalCenter: parent.verticalCenter }
-        Text { visible: root.opPrefix.length > 0; text: root.opPrefix; color: Theme.text; font.pixelSize: Theme.blockText; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+        LucideIcon {
+            visible: root.customCall
+            name: root.callDef && root.callDef.icon ? root.callDef.icon : "blocks"
+            color: root.refColor
+            width: 14
+            height: 14
+            anchors.verticalCenter: parent.verticalCenter
+        }
+        Text {
+            visible: root.opPrefix.length > 0
+            text: root.opPrefix
+            color: Theme.text
+            font.pixelSize: Theme.blockText
+            font.weight: Font.DemiBold
+            anchors.verticalCenter: parent.verticalCenter
+        }
         Repeater {
             model: root.valueData && root.valueData.kind === "Op" && !root.opLayout ? (root.valueData.args || []) : []
             delegate: Row {
                 id: argRow
-                required property var modelData; required property int index; spacing: 3
+                required property var modelData
+                required property int index
+                spacing: 3
                 // The name/choice slot of a reporter is a dropdown over a plain Text leaf.
                 readonly property bool isEnum: index === root.enumIndex && !!modelData && modelData.kind === "Text"
                 anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                Text { visible: argRow.index > 0 && root.infixAt(argRow.index).length > 0; text: root.infixAt(argRow.index); color: Theme.text; font.pixelSize: Theme.blockText; anchors.verticalCenter: parent.verticalCenter }
+                Text {
+                    visible: argRow.index > 0 && root.infixAt(argRow.index).length > 0
+                    text: root.infixAt(argRow.index)
+                    color: Theme.text
+                    font.pixelSize: Theme.blockText
+                    anchors.verticalCenter: parent.verticalCenter
+                }
                 Loader {
                     active: argRow.isEnum
-                    width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
+                    width: item ? item.implicitWidth : 0
+                    height: item ? item.implicitHeight : 0
                     anchors.verticalCenter: parent.verticalCenter
                     sourceComponent: Component {
                         BwComboBox {
                             id: enumBox
                             readonly property var choices: argRow.isEnum ? BlockRegistry.enumChoices(root.opSpec.enumArg) : []
-                            readonly property int chosen: { const v = argRow.modelData ? argRow.modelData.value : ""; for (let i = 0; i < choices.length; ++i) if (choices[i].value === v) return i; return -1; }
-                            model: choices; textRole: "label"
+                            readonly property int chosen: {
+                                const v = argRow.modelData ? argRow.modelData.value : "";
+                                for (let i = 0; i < choices.length; ++i)
+                                    if (choices[i].value === v)
+                                        return i;
+                                return -1;
+                            }
+                            model: choices
+                            textRole: "label"
                             currentIndex: chosen
                             displayText: chosen >= 0 ? choices[chosen].label : (argRow.modelData && argRow.modelData.value ? String(argRow.modelData.value) : "choose")
-                            implicitWidth: Math.min(170, Math.max(56, enumMetrics.advanceWidth + 34)); implicitHeight: 27; font.pixelSize: Theme.blockText
-                            leftPadding: 8; rightPadding: 26
+                            implicitWidth: Math.min(170, Math.max(56, enumMetrics.advanceWidth + 34))
+                            implicitHeight: 27
+                            font.pixelSize: Theme.blockText
+                            leftPadding: 8
+                            rightPadding: 26
                             enabled: root.editable
-                            TextMetrics { id: enumMetrics; font: enumBox.font; text: enumBox.displayText }
+                            TextMetrics {
+                                id: enumMetrics
+                                font: enumBox.font
+                                text: enumBox.displayText
+                            }
                             onActivated: index => {
                                 const choice = enumBox.choices[index];
-                                const select = v => root.emitLeaf([argRow.index], { kind: "Text", value: v }, v);
-                                if (choice.action) choice.action(select, root.childLocation(argRow.index));
-                                else select(choice.value);
+                                const select = v => root.emitLeaf([argRow.index], {
+                                        kind: "Text",
+                                        value: v
+                                    }, v);
+                                if (choice.action)
+                                    choice.action(select, root.childLocation(argRow.index));
+                                else
+                                    select(choice.value);
                             }
                         }
                     }
                 }
                 Loader {
                     active: !argRow.isEnum
-                    source: "ValueChip.qml"; width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
+                    source: "ValueChip.qml"
+                    width: item ? item.implicitWidth : 0
+                    height: item ? item.implicitHeight : 0
                     anchors.verticalCenter: parent.verticalCenter
                     onLoaded: root.wireNested(item, argRow.index, argRow.modelData)
                 }
@@ -541,14 +737,24 @@ Item {
                 Rectangle {
                     id: pickButton
                     visible: argRow.index === root.pickIndex && !!argRow.modelData && argRow.modelData.kind === "Text"
-                    width: visible ? 27 : 0; height: 27; radius: 5
+                    width: visible ? 27 : 0
+                    height: 27
+                    radius: 5
                     anchors.verticalCenter: parent.verticalCenter
                     color: pickMouse.containsMouse && pickMouse.enabled ? Theme.panelRaised : Theme.field
                     border.color: pickMouse.containsMouse && pickMouse.enabled ? Theme.accent : Theme.border
-                    LucideIcon { anchors.centerIn: parent; name: root.opSpec && root.opSpec.pickArg && root.opSpec.pickArg.icon ? root.opSpec.pickArg.icon : "list"; width: 14; height: 14; color: Theme.text }
+                    LucideIcon {
+                        anchors.centerIn: parent
+                        name: root.opSpec && root.opSpec.pickArg && root.opSpec.pickArg.icon ? root.opSpec.pickArg.icon : "list"
+                        width: 14
+                        height: 14
+                        color: Theme.text
+                    }
                     MouseArea {
                         id: pickMouse
-                        anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
                         enabled: root.editable && !!root.location && !root.paletteMode
                         onClicked: BlockRegistry.requestPick(root.opSpec.pickArg.action || "", root.childLocation(argRow.index), argRow.modelData)
                     }
@@ -558,7 +764,8 @@ Item {
         Loader {
             active: !!root.valueData && (root.valueData.kind === "Number" || root.valueData.kind === "Text")
             // Explicit, or the Loader keeps the width of a leaf it no longer shows.
-            width: item ? item.implicitWidth : 0; height: item ? item.implicitHeight : 0
+            width: item ? item.implicitWidth : 0
+            height: item ? item.implicitHeight : 0
             anchors.verticalCenter: parent.verticalCenter
             sourceComponent: root.keyMode ? keycapLeaf : root.leafOptions !== null && root.valueData && root.valueData.kind === "Text" ? enumLeaf : root.activePick ? pickLeaf : root.multiline ? boxLeafComponent : root.leafLines > 1 ? summaryLeafComponent : textLeaf
         }
@@ -569,16 +776,31 @@ Item {
                 readonly property var choices: root.leafOptions || []
                 readonly property string current: root.valueData ? String(root.valueData.value || "") : ""
                 readonly property int chosen: choices.findIndex(c => c.value === current)
-                model: choices; textRole: "label"; currentIndex: chosen
+                model: choices
+                textRole: "label"
+                currentIndex: chosen
                 displayText: chosen >= 0 ? choices[chosen].label : (current || root.leafPlaceholder)
-                implicitWidth: Math.min(190, Math.max(56, leafMetrics.advanceWidth + 36)); implicitHeight: 28; font.pixelSize: Theme.blockText
-                leftPadding: 8; rightPadding: 26; enabled: root.editable
-                TextMetrics { id: leafMetrics; font: leafBox.font; text: leafBox.displayText }
+                implicitWidth: Math.min(190, Math.max(56, leafMetrics.advanceWidth + 36))
+                implicitHeight: 28
+                font.pixelSize: Theme.blockText
+                leftPadding: 8
+                rightPadding: 26
+                enabled: root.editable
+                TextMetrics {
+                    id: leafMetrics
+                    font: leafBox.font
+                    text: leafBox.displayText
+                }
                 onActivated: index => {
                     const choice = choices[index];
-                    const select = v => root.emitLeaf([], { kind: "Text", value: v }, v);
-                    if (choice.action) choice.action(select, root.location);
-                    else select(choice.value);
+                    const select = v => root.emitLeaf([], {
+                            kind: "Text",
+                            value: v
+                        }, v);
+                    if (choice.action)
+                        choice.action(select, root.location);
+                    else
+                        select(choice.value);
                 }
             }
         }
@@ -591,30 +813,53 @@ Item {
                 implicitHeight: 30
                 implicitWidth: showHint ? Math.max(36, hint.implicitWidth + 24) : Math.max(36, capRow.implicitWidth + 24)
                 Rectangle {
-                    anchors.fill: parent; radius: 5
+                    anchors.fill: parent
+                    radius: 5
                     color: root.keyCapturing ? Theme.accent : (capHover.hovered ? Theme.hover : Theme.field)
                     border.color: root.keyCapturing ? Theme.accentHover : Theme.border
                 }
                 Text {
-                    id: hint; anchors.centerIn: parent; font.pixelSize: Theme.blockText; visible: keycaps.showHint
+                    id: hint
+                    anchors.centerIn: parent
+                    font.pixelSize: Theme.blockText
+                    visible: keycaps.showHint
                     text: root.keyCapturing ? qsTr("Press keys...") : qsTr("Click to set key")
                     color: root.keyCapturing ? "white" : Theme.text
                 }
                 Row {
-                    id: capRow; spacing: 4; visible: !keycaps.showHint
+                    id: capRow
+                    spacing: 4
+                    visible: !keycaps.showHint
                     anchors.centerIn: parent
                     Repeater {
                         model: keycaps.parts
                         delegate: Row {
                             id: capPart
-                            required property var modelData; required property int index; spacing: 4
+                            required property var modelData
+                            required property int index
+                            spacing: 4
                             anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                            Text { visible: capPart.index > 0; text: "+"; color: Theme.text; font.pixelSize: Theme.blockText - 1; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: root.keyPartLabel(capPart.modelData); color: Theme.text; font.pixelSize: Theme.blockText; anchors.verticalCenter: parent.verticalCenter }
+                            Text {
+                                visible: capPart.index > 0
+                                text: "+"
+                                color: Theme.text
+                                font.pixelSize: Theme.blockText - 1
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Text {
+                                text: root.keyPartLabel(capPart.modelData)
+                                color: Theme.text
+                                font.pixelSize: Theme.blockText
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
                         }
                     }
                 }
-                HoverHandler { id: capHover; enabled: root.editable; cursorShape: Qt.PointingHandCursor }
+                HoverHandler {
+                    id: capHover
+                    enabled: root.editable
+                    cursorShape: Qt.PointingHandCursor
+                }
                 // Hold the press so dragging a key input cannot pan a surrounding view.
                 MouseArea {
                     anchors.fill: parent
@@ -622,9 +867,13 @@ Item {
                     acceptedButtons: Qt.LeftButton
                     preventStealing: true
                     cursorShape: Qt.PointingHandCursor
-                    TapHandler { onTapped: root.keyCaptureRequested() }
+                    TapHandler {
+                        onTapped: root.keyCaptureRequested()
+                    }
                 }
-                ToolTip.visible: capHover.hovered && !root.keyCapturing; ToolTip.delay: 500; ToolTip.text: qsTr("Click to set key, or drop a variable here")
+                ToolTip.visible: capHover.hovered && !root.keyCapturing
+                ToolTip.delay: 500
+                ToolTip.text: qsTr("Click to set key, or drop a variable here")
             }
         }
         Component {
@@ -637,21 +886,49 @@ Item {
                 radius: 5
                 color: pickHover.hovered && live ? Theme.hover : (root.flatLeaf ? "transparent" : Theme.field)
                 border.color: root.flatLeaf ? "transparent" : (pickHover.hovered && live ? Theme.accent : Theme.border)
-                Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
-                Behavior on border.color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
+                Behavior on color {
+                    enabled: Motion.enabled
+                    ColorAnimation {
+                        duration: Motion.quick
+                    }
+                }
+                Behavior on border.color {
+                    enabled: Motion.enabled
+                    ColorAnimation {
+                        duration: Motion.quick
+                    }
+                }
                 Row {
                     id: pickRow
-                    anchors.centerIn: parent; spacing: 6
+                    anchors.centerIn: parent
+                    spacing: 6
                     LucideIcon {
                         visible: !!root.activePick.icon
-                        name: root.activePick.icon || ""; width: 13; height: 13; color: Theme.text
+                        name: root.activePick.icon || ""
+                        width: 13
+                        height: 13
+                        color: Theme.text
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                    Text { text: root.pickLabel; color: Theme.text; font.pixelSize: Theme.blockText; anchors.verticalCenter: parent.verticalCenter }
+                    Text {
+                        text: root.pickLabel
+                        color: Theme.text
+                        font.pixelSize: Theme.blockText
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                 }
-                HoverHandler { id: pickHover; enabled: pickChip.live; cursorShape: Qt.PointingHandCursor }
-                TapHandler { enabled: pickChip.live; onTapped: BlockRegistry.requestPick(root.activePick.action || "", root.location, root.valueData, pickChip) }
-                ToolTip.visible: pickHover.hovered && !!root.activePick.tip; ToolTip.delay: 500; ToolTip.text: root.activePick.tip || ""
+                HoverHandler {
+                    id: pickHover
+                    enabled: pickChip.live
+                    cursorShape: Qt.PointingHandCursor
+                }
+                TapHandler {
+                    enabled: pickChip.live
+                    onTapped: BlockRegistry.requestPick(root.activePick.action || "", root.location, root.valueData, pickChip)
+                }
+                ToolTip.visible: pickHover.hovered && !!root.activePick.tip
+                ToolTip.delay: 500
+                ToolTip.text: root.activePick.tip || ""
                 Accessible.role: Accessible.Button
                 Accessible.name: root.pickLabel
             }
@@ -659,16 +936,28 @@ Item {
         Component {
             id: textLeaf
             Item {
-                implicitWidth: leafInput.implicitWidth; implicitHeight: leafInput.implicitHeight
+                implicitWidth: leafInput.implicitWidth
+                implicitHeight: leafInput.implicitHeight
                 BwTextField {
                     id: leafInput
-                    readOnly: !root.editable; text: root.leafText; selectByMouse: true
-                    font.pixelSize: Theme.blockText; color: Theme.text; implicitHeight: 27
+                    readOnly: !root.editable
+                    text: root.leafText
+                    selectByMouse: true
+                    font.pixelSize: Theme.blockText
+                    color: Theme.text
+                    implicitHeight: 27
                     // Room on the right for the expand button while editing.
                     readonly property bool expandShown: activeFocus && root.editable
                     implicitWidth: Math.max(36, Math.min(600, contentWidth + 18 + (expandShown ? 20 : 0)))
-                    leftPadding: 7; rightPadding: expandShown ? 27 : 7; topPadding: 2; bottomPadding: 2
-                    background: Rectangle { radius: 5; color: root.flatLeaf ? "transparent" : Theme.field; border.color: root.flatLeaf ? "transparent" : (leafInput.activeFocus ? Theme.accent : Theme.border) }
+                    leftPadding: 7
+                    rightPadding: expandShown ? 27 : 7
+                    topPadding: 2
+                    bottomPadding: 2
+                    background: Rectangle {
+                        radius: 5
+                        color: root.flatLeaf ? "transparent" : Theme.field
+                        border.color: root.flatLeaf ? "transparent" : (leafInput.activeFocus ? Theme.accent : Theme.border)
+                    }
                     onEditingFinished: root.commitText(text)
                     // Shift+Enter starts a second line, in the bigger editor.
                     Keys.onPressed: event => {
@@ -681,11 +970,28 @@ Item {
                     Item {
                         objectName: "expandTextButton"
                         visible: leafInput.expandShown
-                        anchors.right: parent.right; anchors.rightMargin: 3; anchors.verticalCenter: parent.verticalCenter
-                        width: 21; height: 21
-                        LucideIcon { anchors.centerIn: parent; name: "maximize"; width: 12; height: 12; color: expandMouse.containsMouse ? Theme.accent : Theme.textDim }
-                        ToolTip.visible: expandMouse.containsMouse; ToolTip.delay: 400; ToolTip.text: qsTr("Edit in a bigger box (Shift+Enter adds a line)")
-                        MouseArea { id: expandMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.openTextEditor(leafInput.text) }
+                        anchors.right: parent.right
+                        anchors.rightMargin: 3
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 21
+                        height: 21
+                        LucideIcon {
+                            anchors.centerIn: parent
+                            name: "maximize"
+                            width: 12
+                            height: 12
+                            color: expandMouse.containsMouse ? Theme.accent : Theme.textDim
+                        }
+                        ToolTip.visible: expandMouse.containsMouse
+                        ToolTip.delay: 400
+                        ToolTip.text: qsTr("Edit in a bigger box (Shift+Enter adds a line)")
+                        MouseArea {
+                            id: expandMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.openTextEditor(leafInput.text)
+                        }
                     }
                 }
             }
@@ -704,23 +1010,45 @@ Item {
                 border.color: root.flatLeaf ? "transparent" : (summaryHover.hovered && root.editable ? Theme.accent : Theme.border)
                 Row {
                     id: summaryRow
-                    anchors.centerIn: parent; spacing: 6
+                    anchors.centerIn: parent
+                    spacing: 6
                     Text {
-                        text: root.leafText.split("\n")[0]; color: Theme.text; font.pixelSize: Theme.blockText
-                        width: Math.min(implicitWidth, 260); elide: Text.ElideRight
+                        text: root.leafText.split("\n")[0]
+                        color: Theme.text
+                        font.pixelSize: Theme.blockText
+                        width: Math.min(implicitWidth, 260)
+                        elide: Text.ElideRight
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Rectangle {
                         objectName: "multilineBadge"
                         anchors.verticalCenter: parent.verticalCenter
-                        implicitWidth: badgeText.implicitWidth + 10; implicitHeight: 17; radius: 8.5
-                        color: Theme.panelRaised; border.color: Theme.border
-                        Text { id: badgeText; anchors.centerIn: parent; text: root.leafLines === 2 ? qsTr("+1 line") : qsTr("+%1 lines").arg(root.leafLines - 1); color: Theme.textDim; font.pixelSize: 10 }
+                        implicitWidth: badgeText.implicitWidth + 10
+                        implicitHeight: 17
+                        radius: 8.5
+                        color: Theme.panelRaised
+                        border.color: Theme.border
+                        Text {
+                            id: badgeText
+                            anchors.centerIn: parent
+                            text: root.leafLines === 2 ? qsTr("+1 line") : qsTr("+%1 lines").arg(root.leafLines - 1)
+                            color: Theme.textDim
+                            font.pixelSize: 10
+                        }
                     }
                 }
-                HoverHandler { id: summaryHover; enabled: root.editable; cursorShape: Qt.PointingHandCursor }
-                TapHandler { enabled: root.editable; onTapped: root.openTextEditor(root.leafText) }
-                ToolTip.visible: summaryHover.hovered; ToolTip.delay: 500; ToolTip.text: root.leafText
+                HoverHandler {
+                    id: summaryHover
+                    enabled: root.editable
+                    cursorShape: Qt.PointingHandCursor
+                }
+                TapHandler {
+                    enabled: root.editable
+                    onTapped: root.openTextEditor(root.leafText)
+                }
+                ToolTip.visible: summaryHover.hovered
+                ToolTip.delay: 500
+                ToolTip.text: root.leafText
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Text, %1 lines. Click to edit.").arg(root.leafLines)
             }
@@ -738,43 +1066,78 @@ Item {
                 radius: 5
                 color: Theme.field
                 border.color: boxArea.activeFocus ? Theme.accent : Theme.border
-                FontMetrics { id: boxMetrics; font: boxArea.font }
+                FontMetrics {
+                    id: boxMetrics
+                    font: boxArea.font
+                }
                 Flickable {
                     id: boxFlick
-                    anchors.fill: parent; anchors.margins: 1; anchors.rightMargin: 24
-                    contentWidth: boxArea.contentWidth + 14; contentHeight: boxArea.contentHeight + 12
-                    clip: true; boundsBehavior: Flickable.StopAtBounds
+                    anchors.fill: parent
+                    anchors.margins: 1
+                    anchors.rightMargin: 24
+                    contentWidth: boxArea.contentWidth + 14
+                    contentHeight: boxArea.contentHeight + 12
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
                     interactive: (contentHeight > height || contentWidth > width) && textHolds === 0
                     property int textHolds: 0
                     TextEdit {
                         id: boxArea
                         objectName: "multilineBoxArea"
-                        x: 7; y: 6
+                        x: 7
+                        y: 6
                         // Fill the box, so a click anywhere in it starts typing.
                         width: Math.max(contentWidth, boxFlick.width - 14)
                         height: Math.max(contentHeight, boxFlick.height - 12)
-                        readOnly: !root.editable; text: root.leafText; selectByMouse: true
-                        font.pixelSize: Theme.blockText; font.family: root.monospace ? "monospace" : font.family
-                        color: Theme.text; selectionColor: Theme.accent; selectedTextColor: "white"
+                        readOnly: !root.editable
+                        text: root.leafText
+                        selectByMouse: true
+                        font.pixelSize: Theme.blockText
+                        font.family: root.monospace ? "monospace" : font.family
+                        color: Theme.text
+                        selectionColor: Theme.accent
+                        selectedTextColor: "white"
                         onEditingFinished: root.commitText(text)
                         TextSelectHold {}
                         onCursorRectangleChanged: {
                             const r = cursorRectangle;
-                            if (r.y < boxFlick.contentY) boxFlick.contentY = r.y;
-                            else if (r.y + r.height + 12 > boxFlick.contentY + boxFlick.height) boxFlick.contentY = r.y + r.height + 12 - boxFlick.height;
+                            if (r.y < boxFlick.contentY)
+                                boxFlick.contentY = r.y;
+                            else if (r.y + r.height + 12 > boxFlick.contentY + boxFlick.height)
+                                boxFlick.contentY = r.y + r.height + 12 - boxFlick.height;
                         }
                         Keys.onPressed: event => {
-                            if (event.key === Qt.Key_Escape) { event.accepted = true; boxArea.focus = false; }
+                            if (event.key === Qt.Key_Escape) {
+                                event.accepted = true;
+                                boxArea.focus = false;
+                            }
                         }
                     }
                 }
                 Item {
                     visible: root.editable
-                    anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 3
-                    width: 21; height: 21
-                    LucideIcon { anchors.centerIn: parent; name: "maximize"; width: 12; height: 12; color: boxExpandMouse.containsMouse ? Theme.accent : Theme.textDim }
-                    ToolTip.visible: boxExpandMouse.containsMouse; ToolTip.delay: 400; ToolTip.text: qsTr("Edit in a bigger box")
-                    MouseArea { id: boxExpandMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.openTextEditor(boxArea.text) }
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: 3
+                    width: 21
+                    height: 21
+                    LucideIcon {
+                        anchors.centerIn: parent
+                        name: "maximize"
+                        width: 12
+                        height: 12
+                        color: boxExpandMouse.containsMouse ? Theme.accent : Theme.textDim
+                    }
+                    ToolTip.visible: boxExpandMouse.containsMouse
+                    ToolTip.delay: 400
+                    ToolTip.text: qsTr("Edit in a bigger box")
+                    MouseArea {
+                        id: boxExpandMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.openTextEditor(boxArea.text)
+                    }
                 }
             }
         }
@@ -786,18 +1149,40 @@ Item {
                 onClosed: destroy()
             }
         }
-        Text { visible: !!root.valueData && ["Var","Param"].indexOf(root.valueData.kind)>=0; text: root.valueData && root.valueData.name ? root.valueData.name : ""; color: root.referenceColor; font.pixelSize: Theme.blockText; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
-        Text { visible: !!root.valueData && root.valueData.kind === "Call" && !root.callDef; text: root.callDisplayLabel; color: Theme.text; font.pixelSize: Theme.blockText; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+        Text {
+            visible: !!root.valueData && ["Var", "Param"].indexOf(root.valueData.kind) >= 0
+            text: root.valueData && root.valueData.name ? root.valueData.name : ""
+            color: root.referenceColor
+            font.pixelSize: Theme.blockText
+            font.weight: Font.DemiBold
+            anchors.verticalCenter: parent.verticalCenter
+        }
+        Text {
+            visible: !!root.valueData && root.valueData.kind === "Call" && !root.callDef
+            text: root.callDisplayLabel
+            color: Theme.text
+            font.pixelSize: Theme.blockText
+            font.weight: Font.DemiBold
+            anchors.verticalCenter: parent.verticalCenter
+        }
         Repeater {
             model: root.callPieces
             delegate: Item {
                 id: callPiece
-                required property var modelData; required property int index
+                required property var modelData
+                required property int index
                 readonly property bool componentControl: modelData.kind === "addComponent" || modelData.kind === "removeComponent"
                 width: componentControl ? 24 : modelData.arg < 0 ? callText.implicitWidth : (callArg.item ? callArg.item.implicitWidth : 0)
                 height: componentControl ? 24 : modelData.arg < 0 ? callText.implicitHeight : (callArg.item ? callArg.item.implicitHeight : 0)
                 anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                Text { id: callText; visible: callPiece.modelData.arg < 0 && !callPiece.componentControl; text: callPiece.modelData.label; color: Theme.text; font.pixelSize: Theme.blockText; font.weight: Font.DemiBold }
+                Text {
+                    id: callText
+                    visible: callPiece.modelData.arg < 0 && !callPiece.componentControl
+                    text: callPiece.modelData.label
+                    color: Theme.text
+                    font.pixelSize: Theme.blockText
+                    font.weight: Font.DemiBold
+                }
                 Rectangle {
                     anchors.fill: parent
                     visible: callPiece.componentControl
@@ -805,7 +1190,13 @@ Item {
                     color: componentMouse.containsMouse ? Theme.hover : "transparent"
                     border.color: Theme.border
                     objectName: callPiece.modelData.kind === "addComponent" ? "addCustomComponentButton" : "removeCustomComponentButton"
-                    LucideIcon { anchors.centerIn: parent; width: 13; height: 13; name: callPiece.modelData.kind === "addComponent" ? "plus" : "x"; color: Theme.textDim }
+                    LucideIcon {
+                        anchors.centerIn: parent
+                        width: 13
+                        height: 13
+                        name: callPiece.modelData.kind === "addComponent" ? "plus" : "x"
+                        color: Theme.textDim
+                    }
                     ToolTip.visible: componentMouse.containsMouse
                     ToolTip.text: callPiece.modelData.kind === "addComponent" ? qsTr("Add a component") : qsTr("Remove %1").arg(callPiece.modelData.component ? callPiece.modelData.component.label : "")
                     MouseArea {
@@ -815,8 +1206,10 @@ Item {
                         enabled: root.editable
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (callPiece.modelData.kind === "addComponent") customComponentMenu.popup();
-                            else root.toggleComponent(callPiece.modelData.component, false);
+                            if (callPiece.modelData.kind === "addComponent")
+                                customComponentMenu.popup();
+                            else
+                                root.toggleComponent(callPiece.modelData.component, false);
                         }
                     }
                     BwMenu {
@@ -840,45 +1233,81 @@ Item {
                     source: "ValueChip.qml"
                     onLoaded: {
                         const i = callPiece.modelData.arg, args = root.valueData.args || [];
-                        root.wireNested(item, i, args[i] || (callPiece.modelData.bool ? { kind: "Bool" } : { kind: "Number", value: 0 }));
+                        root.wireNested(item, i, args[i] || (callPiece.modelData.bool ? {
+                                kind: "Bool"
+                            } : {
+                                kind: "Number",
+                                value: 0
+                            }));
                     }
                 }
             }
         }
-        Text { visible: !!root.valueData && root.valueData.kind === "Op" && !root.opLayout && root.opPrefix.length===0 && root.opSuffix.length===0 && (root.valueData.args||[]).length===0; text: root.valueData && root.valueData.op ? root.valueData.op.toLowerCase() : ""; color: Theme.text; font.pixelSize: Theme.blockText }
-        Text { visible: root.opSuffix.length>0; text:root.opSuffix; color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
+        Text {
+            visible: !!root.valueData && root.valueData.kind === "Op" && !root.opLayout && root.opPrefix.length === 0 && root.opSuffix.length === 0 && (root.valueData.args || []).length === 0
+            text: root.valueData && root.valueData.op ? root.valueData.op.toLowerCase() : ""
+            color: Theme.text
+            font.pixelSize: Theme.blockText
+        }
+        Text {
+            visible: root.opSuffix.length > 0
+            text: root.opSuffix
+            color: Theme.text
+            font.pixelSize: Theme.blockText
+            anchors.verticalCenter: parent.verticalCenter
+        }
         // The host's picker for the whole operator, which may rewrite every arg.
         Rectangle {
             readonly property var spec: root.opSpec && root.opSpec.pickOp && root.valueData && root.valueData.kind === "Op" ? root.opSpec.pickOp : null
             visible: !!spec
-            width: visible ? 27 : 0; height: 27; radius: 5
+            width: visible ? 27 : 0
+            height: 27
+            radius: 5
             anchors.verticalCenter: parent.verticalCenter
             color: opPickMouse.containsMouse && opPickMouse.enabled ? Theme.panelRaised : Theme.field
             border.color: opPickMouse.containsMouse && opPickMouse.enabled ? Theme.accent : Theme.border
-            LucideIcon { anchors.centerIn: parent; name: parent.spec && parent.spec.icon ? parent.spec.icon : "crosshair"; width: 14; height: 14; color: Theme.text }
+            LucideIcon {
+                anchors.centerIn: parent
+                name: parent.spec && parent.spec.icon ? parent.spec.icon : "crosshair"
+                width: 14
+                height: 14
+                color: Theme.text
+            }
             MouseArea {
                 id: opPickMouse
-                anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
                 enabled: root.editable && !!root.location && !root.paletteMode
                 onClicked: BlockRegistry.requestPick(parent.spec.action || "", root.location, root.valueData, parent)
             }
-            ToolTip.visible: !!spec && !!spec.tip && opPickMouse.containsMouse; ToolTip.delay: 500; ToolTip.text: spec && spec.tip ? spec.tip : ""
+            ToolTip.visible: !!spec && !!spec.tip && opPickMouse.containsMouse
+            ToolTip.delay: 500
+            ToolTip.text: spec && spec.tip ? spec.tip : ""
         }
     }
     // Sample-evaluation result floating above the chip; it never takes input.
     Rectangle {
         visible: root.previewShown
-        z: 100; enabled: false
-        x: (root.width - width) / 2; y: -height - 6
-        width: Math.min(260, tipText.implicitWidth + 16); height: tipText.implicitHeight + 8
-        radius: Theme.radius; color: Theme.panelRaised
+        z: 100
+        enabled: false
+        x: (root.width - width) / 2
+        y: -height - 6
+        width: Math.min(260, tipText.implicitWidth + 16)
+        height: tipText.implicitHeight + 8
+        radius: Theme.radius
+        color: Theme.panelRaised
         border.color: BlockRegistry.preview && BlockRegistry.preview.error ? Theme.danger : Theme.border
         Text {
             id: tipText
-            x: 8; y: 4; width: Math.min(244, implicitWidth)
+            x: 8
+            y: 4
+            width: Math.min(244, implicitWidth)
             text: BlockRegistry.preview ? BlockRegistry.preview.text : ""
             color: BlockRegistry.preview && BlockRegistry.preview.error ? Theme.danger : Theme.text
-            font.pixelSize: Theme.blockText; font.weight: Font.DemiBold; wrapMode: Text.Wrap
+            font.pixelSize: Theme.blockText
+            font.weight: Font.DemiBold
+            wrapMode: Text.Wrap
         }
     }
 }

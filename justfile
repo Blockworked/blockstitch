@@ -16,3 +16,7 @@ test: test-core test-qml
 # The QML crate (needs Qt 6.10 and qmake6, or QMAKE set).
 build:
     cargo build
+
+# Reformat the QML files that are kept qmlformat-clean (Qt 6's qmlformat on PATH).
+fmt-qml:
+    cd qml/Blockstitch && for f in InstructionBlock PalettePanel BlockCanvas ValueChip; do qmlformat -i $f.qml; done

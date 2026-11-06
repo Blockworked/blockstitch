@@ -8,7 +8,9 @@ Rectangle {
     // A section's name: sentence case after a small block notch, so it reads as
     // part of the palette rather than as a caption.
     component SectionLabel: Text {
-        color:Theme.textDim; font.pixelSize:13; font.weight:Font.DemiBold
+        color: Theme.textDim
+        font.pixelSize: 13
+        font.weight: Font.DemiBold
     }
     property var instructionTypes: []
     // What Details says about a custom block; a host whose documents aren't
@@ -34,15 +36,21 @@ Rectangle {
     readonly property var allOperators: operators.concat(Array.from(extraOperators || []))
     // instructionTypes plus, with sectionsListBlocks, the ones only sections name.
     readonly property var allInstructionTypes: {
-        const out=Array.from(instructionTypes||[]);
-        if(!sectionsListBlocks) return out;
-        const skip={};
-        for(const o of allOperators.concat(listOperators,dictOperators)) skip[o[0]]=true;
-        for(const t of [].concat(Array.from(listInstructionTypes||[]),Array.from(dictInstructionTypes||[]),out)) skip[t]=true;
-        for(const s of sections||[]) for(const name of s.items||[]) {
-            if(String(name).indexOf("@")===0 || skip[name]) continue;
-            skip[name]=true; out.push(name);
-        }
+        const out = Array.from(instructionTypes || []);
+        if (!sectionsListBlocks)
+            return out;
+        const skip = {};
+        for (const o of allOperators.concat(listOperators, dictOperators))
+            skip[o[0]] = true;
+        for (const t of [].concat(Array.from(listInstructionTypes || []), Array.from(dictInstructionTypes || []), out))
+            skip[t] = true;
+        for (const s of sections || [])
+            for (const name of s.items || []) {
+                if (String(name).indexOf("@") === 0 || skip[name])
+                    continue;
+                skip[name] = true;
+                out.push(name);
+            }
         return out;
     }
     property var keyCapture: null
@@ -52,25 +60,25 @@ Rectangle {
     signal dragStarted(var spec, real sceneX, real sceneY, real offsetX, real offsetY)
     signal dragMoved(real sceneX, real sceneY)
     signal dragEnded(real sceneX, real sceneY)
-    signal dragCanceled()
+    signal dragCanceled
     signal resizeRequested(real width)
     signal customBlockActivated(var definition)
     signal valueActivated(var value)
-    signal makeVariableRequested()
-    signal makeListRequested()
+    signal makeVariableRequested
+    signal makeListRequested
     signal listEditorStateRequested(string name, bool visible, int x, int y)
     signal renameListRequested(string name)
     signal deleteListRequested(string name)
-    signal makeDictRequested()
+    signal makeDictRequested
     signal dictEditorStateRequested(string name, bool visible, int x, int y)
     signal renameDictRequested(string name)
     signal deleteDictRequested(string name)
-    signal makeBlockRequested()
+    signal makeBlockRequested
     // The button on a host section, see `sections`.
     signal sectionActionRequested(string action)
     // Optional: a library of shared blocks, and sharing a block as a pack.
     property bool blockLibraryEnabled: false
-    signal browseBlocksRequested()
+    signal browseBlocksRequested
     signal shareBlockRequested(var definition)
     signal renameVariableRequested(string name)
     // Adds "Set value" to a variable's menu; the host answers setVariableValueRequested.
@@ -79,89 +87,214 @@ Rectangle {
     signal deleteVariableRequested(string name)
     signal editBlockRequested(var definition)
     signal deleteBlockRequested(string blockId)
-    signal standaloneKeyCaptureRequested()
+    signal standaloneKeyCaptureRequested
     signal pieceActionRequested(string action, var instruction)
     signal detailsRequested(string name, string identifier, string explainer)
     implicitWidth: 318
     color: Theme.panel
     border.color: Theme.borderSoft
 
-    function n(v) { return {kind:"Number",value:v}; }
-    function t(v) { return {kind:"Text",value:v}; }
+    function n(v) {
+        return {
+            kind: "Number",
+            value: v
+        };
+    }
+    function t(v) {
+        return {
+            kind: "Text",
+            value: v
+        };
+    }
     // A palette block's fresh instruction: the host's registered prefab, else
     // defaults for the control, variable and list blocks every host shares.
     function prefab(type) {
-        const registered=BlockRegistry.prefab(type); if(registered) return registered;
-        const i={id:"palette-"+type,type:type};
-        if(type==="AddToList"){i.name=firstListName();i.value=t("thing");}
-        else if(type==="DeleteOfList"){i.name=firstListName();i.index=n(1);}
-        else if(type==="DeleteAllOfList"||type==="ReverseList")i.name=firstListName();
-        else if(type==="ShiftList"){i.name=firstListName();i.amount=n(1);}
-        else if(type==="InsertIntoList"){i.name=firstListName();i.value=t("thing");i.index=n(1);}
-        else if(type==="ReplaceItemOfList"){i.name=firstListName();i.index=n(1);i.value=t("thing");}
-        else if(type==="If"){i.condition={kind:"Bool"};i.body=[];} else if(type==="IfElse"){i.condition={kind:"Bool"};i.then_body=[];i.else_body=[];}
-        else if(type==="Repeat"){i.count=n(10);i.body=[];} else if(type==="Forever"){i.body=[];} else if(type==="While"){i.condition={kind:"Bool"};i.body=[];}
-        else if(type==="Return")i.value=n(0); else if(type==="SetVariable"){i.name=BlockRegistry.defaultVariableName(variables);i.value=n(0);} else if(type==="ChangeVariable"){i.name=BlockRegistry.defaultVariableName(variables);i.value=n(1);}
+        const registered = BlockRegistry.prefab(type);
+        if (registered)
+            return registered;
+        const i = {
+            id: "palette-" + type,
+            type: type
+        };
+        if (type === "AddToList") {
+            i.name = firstListName();
+            i.value = t("thing");
+        } else if (type === "DeleteOfList") {
+            i.name = firstListName();
+            i.index = n(1);
+        } else if (type === "DeleteAllOfList" || type === "ReverseList")
+            i.name = firstListName();
+        else if (type === "ShiftList") {
+            i.name = firstListName();
+            i.amount = n(1);
+        } else if (type === "InsertIntoList") {
+            i.name = firstListName();
+            i.value = t("thing");
+            i.index = n(1);
+        } else if (type === "ReplaceItemOfList") {
+            i.name = firstListName();
+            i.index = n(1);
+            i.value = t("thing");
+        } else if (type === "If") {
+            i.condition = {
+                kind: "Bool"
+            };
+            i.body = [];
+        } else if (type === "IfElse") {
+            i.condition = {
+                kind: "Bool"
+            };
+            i.then_body = [];
+            i.else_body = [];
+        } else if (type === "Repeat") {
+            i.count = n(10);
+            i.body = [];
+        } else if (type === "Forever") {
+            i.body = [];
+        } else if (type === "While") {
+            i.condition = {
+                kind: "Bool"
+            };
+            i.body = [];
+        } else if (type === "Return")
+            i.value = n(0);
+        else if (type === "SetVariable") {
+            i.name = BlockRegistry.defaultVariableName(variables);
+            i.value = n(0);
+        } else if (type === "ChangeVariable") {
+            i.name = BlockRegistry.defaultVariableName(variables);
+            i.value = n(1);
+        }
         return i;
     }
-    function firstListName(){return lists&&lists.length?lists[0].name:"";}
-    readonly property var operators: [
-        ["Add","number",2],["Sub","number",2],["Mul","number",2],["Div","number",2],["Mod","number",2],["Round","number",1],["Math","number",2],["Random","number",2],
-        ["Join","text",2],["Join3","text",3],["NewLine","text",0],["Tab","text",0],["IndexOf","text",2],["LastIndexOf","text",2],["LetterOf","text",2],["Length","text",1],["Case","text",2],
-        ["Eq","bool",2],["Neq","bool",2],["Gt","bool",2],["Lt","bool",2],["Gte","bool",2],["Lte","bool",2],["And","bool",2],["Or","bool",2],["Not","bool",1],["True","bool",0],["False","bool",0],["CurrentTime","number",1]
-    ]
-    readonly property var listOperators: [["ListItem","text",2],["ListItemNumber","number",2],["ListAmount","number",2],["ListLength","number",1],["ListContains","bool",2],["ListItemExists","bool",2],["ListIsEmpty","bool",1],["ListAsJson","text",1]]
-    readonly property var dictOperators: [["DictValue","text",2],["DictHasKey","bool",2],["DictSize","number",1],["DictKeys","text",1],["DictAsJson","text",1],["DictIsEmpty","bool",1]]
+    function firstListName() {
+        return lists && lists.length ? lists[0].name : "";
+    }
+    readonly property var operators: [["Add", "number", 2], ["Sub", "number", 2], ["Mul", "number", 2], ["Div", "number", 2], ["Mod", "number", 2], ["Round", "number", 1], ["Math", "number", 2], ["Random", "number", 2], ["Join", "text", 2], ["Join3", "text", 3], ["NewLine", "text", 0], ["Tab", "text", 0], ["IndexOf", "text", 2], ["LastIndexOf", "text", 2], ["LetterOf", "text", 2], ["Length", "text", 1], ["Case", "text", 2], ["Eq", "bool", 2], ["Neq", "bool", 2], ["Gt", "bool", 2], ["Lt", "bool", 2], ["Gte", "bool", 2], ["Lte", "bool", 2], ["And", "bool", 2], ["Or", "bool", 2], ["Not", "bool", 1], ["True", "bool", 0], ["False", "bool", 0], ["CurrentTime", "number", 1]]
+    readonly property var listOperators: [["ListItem", "text", 2], ["ListItemNumber", "number", 2], ["ListAmount", "number", 2], ["ListLength", "number", 1], ["ListContains", "bool", 2], ["ListItemExists", "bool", 2], ["ListIsEmpty", "bool", 1], ["ListAsJson", "text", 1]]
+    readonly property var dictOperators: [["DictValue", "text", 2], ["DictHasKey", "bool", 2], ["DictSize", "number", 1], ["DictKeys", "text", 1], ["DictAsJson", "text", 1], ["DictIsEmpty", "bool", 1]]
     // A fresh value for an [op, result, arity, args?] entry: the given args,
     // else blockstitch-core's defaults (see BlockRegistry.freshValue).
     function operatorValue(spec) {
-        if(spec[3])return {kind:"Op",op:spec[0],args:JSON.parse(JSON.stringify(spec[3])),saved:n(0)};
-        const fresh=BlockRegistry.freshValue(spec[0],{lists:(lists||[]).map(l=>l.name),dicts:(dicts||[]).map(d=>d.name)});
-        if(fresh) return fresh;
-        let args=[]; for(let i=0;i<spec[2];i++) args.push(spec[1]==="text"?t(""):n(0));
-        return {kind:"Op",op:spec[0],args:args,saved:n(0)};
+        if (spec[3])
+            return {
+                kind: "Op",
+                op: spec[0],
+                args: JSON.parse(JSON.stringify(spec[3])),
+                saved: n(0)
+            };
+        const fresh = BlockRegistry.freshValue(spec[0], {
+            lists: (lists || []).map(l => l.name),
+            dicts: (dicts || []).map(d => d.name)
+        });
+        if (fresh)
+            return fresh;
+        let args = [];
+        for (let i = 0; i < spec[2]; i++)
+            args.push(spec[1] === "text" ? t("") : n(0));
+        return {
+            kind: "Op",
+            op: spec[0],
+            args: args,
+            saved: n(0)
+        };
     }
     readonly property var communityPacks: {
         const packs = [];
         for (const definition of blockDefinitions || []) {
-            if (!definition.read_only) continue;
-            const memberships = definition.packs && definition.packs.length ? definition.packs
-                : [{id:definition.pack_name || "community",name:definition.pack_name || qsTr("Community blocks")}];
+            if (!definition.read_only)
+                continue;
+            const memberships = definition.packs && definition.packs.length ? definition.packs : [
+                {
+                    id: definition.pack_name || "community",
+                    name: definition.pack_name || qsTr("Community blocks")
+                }
+            ];
             for (const membership of memberships) {
                 let pack = packs.find(p => p.id === membership.id);
                 if (!pack) {
-                    pack = {id:membership.id,name:membership.name,blocks:[]};
+                    pack = {
+                        id: membership.id,
+                        name: membership.name,
+                        blocks: []
+                    };
                     packs.push(pack);
                 }
                 pack.blocks.push(definition);
             }
         }
-        return packs.sort((a,b) => a.name.localeCompare(b.name));
+        return packs.sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    function customArguments(definition){ return BlockRegistry.freshCallArgs(definition); }
-    function customInstruction(definition){
-        const args=customArguments(definition);
-        const count=(definition.pieces||[]).filter(p=>p.kind==="Branch").length;
-        const i={id:"palette-call",type:count?"BranchCallBlock":"CallBlock",block_id:definition.id,args:args};
-        if(count)i.branches=Array.from({length:count},()=>[]);
+    function customArguments(definition) {
+        return BlockRegistry.freshCallArgs(definition);
+    }
+    function customInstruction(definition) {
+        const args = customArguments(definition);
+        const count = (definition.pieces || []).filter(p => p.kind === "Branch").length;
+        const i = {
+            id: "palette-call",
+            type: count ? "BranchCallBlock" : "CallBlock",
+            block_id: definition.id,
+            args: args
+        };
+        if (count)
+            i.branches = Array.from({
+                length: count
+            }, () => []);
         return i;
     }
-    readonly property var customMenu: [{id:"edit",text:qsTr("Edit block"),icon:"blocks"},{id:"details",text:qsTr("Details"),icon:"info"}]
-        .concat(root.blockLibraryEnabled?[{id:"share",text:qsTr("Share as a pack..."),icon:"package"}]:[])
-        .concat([{id:"delete",text:qsTr("Delete block"),icon:"trash",danger:true}])
-    function customMenuAction(id,definition){
-        if(definition.read_only) return;
-        if(id==="edit") root.editBlockRequested(definition);
-        else if(id==="share") root.shareBlockRequested(definition);
-        else if(id==="delete") root.deleteBlockRequested(definition.id);
+    readonly property var customMenu: [
+        {
+            id: "edit",
+            text: qsTr("Edit block"),
+            icon: "blocks"
+        },
+        {
+            id: "details",
+            text: qsTr("Details"),
+            icon: "info"
+        }
+    ].concat(root.blockLibraryEnabled ? [
+        {
+            id: "share",
+            text: qsTr("Share as a pack..."),
+            icon: "package"
+        }
+    ] : []).concat([
+        {
+            id: "delete",
+            text: qsTr("Delete block"),
+            icon: "trash",
+            danger: true
+        }
+    ])
+    function customMenuAction(id, definition) {
+        if (definition.read_only)
+            return;
+        if (id === "edit")
+            root.editBlockRequested(definition);
+        else if (id === "share")
+            root.shareBlockRequested(definition);
+        else if (id === "delete")
+            root.deleteBlockRequested(definition.id);
     }
-    function isReporter(definition){return definition.shape==="ReturnsValue"||definition.shape==="ReturnsBool";}
-    function customValue(definition){
-        const args=customArguments(definition);
-        return {kind:"Call",block_id:definition.id,args:args,branches:[],saved:n(0)};
+    function isReporter(definition) {
+        return definition.shape === "ReturnsValue" || definition.shape === "ReturnsBool";
     }
-    function customLabel(definition){return (definition.pieces||[]).filter(p=>p.kind!=="Branch").map(p=>p.kind==="Label"?p.text:"("+p.name+")").join(" ");}
+    function customValue(definition) {
+        const args = customArguments(definition);
+        return {
+            kind: "Call",
+            block_id: definition.id,
+            args: args,
+            branches: [],
+            saved: n(0)
+        };
+    }
+    function customLabel(definition) {
+        return (definition.pieces || []).filter(p => p.kind !== "Branch").map(p => p.kind === "Label" ? p.text : "(" + p.name + ")").join(" ");
+    }
 
     // ---- search and category filtering ----
     // rail | chips | accordion | flyout | tiles
@@ -170,32 +303,58 @@ Rectangle {
     property bool flyoutOpen: false
     property bool paletteDragging: false
     property string searchText: ""
-    FontMetrics { id: railMetrics; font.pixelSize:10 }
+    FontMetrics {
+        id: railMetrics
+        font.pixelSize: 10
+    }
     readonly property int railWidth: {
         let widest = 0;
-        for (const item of railModel) widest = Math.max(widest, railMetrics.advanceWidth(item.name));
+        for (const item of railModel)
+            widest = Math.max(widest, railMetrics.advanceWidth(item.name));
         return Math.min(96, Math.max(54, Math.ceil(widest) + 20));
     }
-    readonly property bool railVisible: layout==="rail"||layout==="flyout"
-    readonly property bool flyoutShown: layout==="flyout"&&flyoutOpen&&!paletteDragging
-    readonly property real contentWidth: Math.max(160, width-12-(railVisible?railWidth+1:0)-16)
-    readonly property var railModel: layout==="flyout"?[{id:"search",name:"Search",icon:"search"}].concat(categories.slice(1)):categories
-    onLayoutChanged: { searchText=""; flyoutOpen=false; category=layout==="accordion"?"input":"all"; }
-    onDragStarted: paletteDragging=true
-    onDragEnded: paletteDragging=false
-    onDragCanceled: paletteDragging=false
+    readonly property bool railVisible: layout === "rail" || layout === "flyout"
+    readonly property bool flyoutShown: layout === "flyout" && flyoutOpen && !paletteDragging
+    readonly property real contentWidth: Math.max(160, width - 12 - (railVisible ? railWidth + 1 : 0) - 16)
+    readonly property var railModel: layout === "flyout" ? [
+        {
+            id: "search",
+            name: "Search",
+            icon: "search"
+        }
+    ].concat(categories.slice(1)) : categories
+    onLayoutChanged: {
+        searchText = "";
+        flyoutOpen = false;
+        category = layout === "accordion" ? "input" : "all";
+    }
+    onDragStarted: paletteDragging = true
+    onDragEnded: paletteDragging = false
+    onDragCanceled: paletteDragging = false
     function railActivated(id) {
-        if(layout==="flyout") {
-            const target=id==="search"?"all":id;
-            if(flyoutOpen&&category===target&&!searching) { flyoutOpen=false; return; }
-            searchText=""; category=target; flyoutOpen=true;
-            if(id==="search") Qt.callLater(()=>searchField.forceActiveFocus());
-        } else { searchText=""; category=id; }
+        if (layout === "flyout") {
+            const target = id === "search" ? "all" : id;
+            if (flyoutOpen && category === target && !searching) {
+                flyoutOpen = false;
+                return;
+            }
+            searchText = "";
+            category = target;
+            flyoutOpen = true;
+            if (id === "search")
+                Qt.callLater(() => searchField.forceActiveFocus());
+        } else {
+            searchText = "";
+            category = id;
+        }
     }
     function categoryCount(c) {
-        if(c==="custom" || c==="community") return (blockDefinitions||[]).filter(def => !!def.read_only === (c==="community")).length;
-        let n=0;
-        for(const s of resolvedSections) if(s.category===c) n+=s.items.filter(i=>i.kind==="instruction"||i.kind==="operator").length;
+        if (c === "custom" || c === "community")
+            return (blockDefinitions || []).filter(def => !!def.read_only === (c === "community")).length;
+        let n = 0;
+        for (const s of resolvedSections)
+            if (s.category === c)
+                n += s.items.filter(i => i.kind === "instruction" || i.kind === "operator").length;
         return n;
     }
     // The host's palette sections, in order: [{category, title, action, items}].
@@ -206,534 +365,1123 @@ Rectangle {
     // an untitled section at the end of its category.
     property var sections: []
     readonly property var defaultSections: [
-        {category:"data",title:qsTr("Variables"),action:"makeVariable",items:["@variables","SetVariable","ChangeVariable"]},
-        {category:"data",title:qsTr("Lists"),action:"makeList",items:["@lists"].concat(listOperators.map(o=>o[0]),Array.from(listInstructionTypes||[]))},
-        {category:"data",title:qsTr("Dicts"),action:"makeDict",items:["@dicts"].concat(dictOperators.map(o=>o[0]),Array.from(dictInstructionTypes||[]))}
+        {
+            category: "data",
+            title: qsTr("Variables"),
+            action: "makeVariable",
+            items: ["@variables", "SetVariable", "ChangeVariable"]
+        },
+        {
+            category: "data",
+            title: qsTr("Lists"),
+            action: "makeList",
+            items: ["@lists"].concat(listOperators.map(o => o[0]), Array.from(listInstructionTypes || []))
+        },
+        {
+            category: "data",
+            title: qsTr("Dicts"),
+            action: "makeDict",
+            items: ["@dicts"].concat(dictOperators.map(o => o[0]), Array.from(dictInstructionTypes || []))
+        }
     ]
     readonly property var resolvedSections: {
-        const known={}, order=[];
-        const add=(name,kind,spec,category)=>{ if(!known[name]){ known[name]={kind:kind,name:name,spec:spec,category:category}; order.push(name); } };
-        for(const t of allInstructionTypes) add(t,"instruction",null,instructionCategory(t));
-        for(const o of allOperators) add(o[0],"operator",o,operatorCategory(o[0]));
-        for(const o of listOperators) add(o[0],"operator",o,"data");
-        for(const t of listInstructionTypes||[]) add(t,"instruction",null,"data");
-        if(dictsEnabled){ for(const o of dictOperators) add(o[0],"operator",o,"data"); for(const t of dictInstructionTypes||[]) add(t,"instruction",null,"data"); }
-        const given=Array.from(sections||[]);
-        const tokens=given.reduce((all,s)=>all.concat(Array.from(s.items||[]).filter(i=>String(i).indexOf("@")===0)),[]);
-        for(const s of defaultSections) if(tokens.indexOf(s.items[0])<0) given.push(s);
-        const used={}, out=[];
-        for(const s of given) {
-            if(Array.from(s.items||[]).indexOf("@dicts")>=0 && !dictsEnabled) continue;
-            const items=[];
-            for(const name of s.items||[]) {
-                if(name==="@variables") items.push({kind:"variables",name:name});
-                else if(name==="@lists") items.push({kind:"lists",name:name});
-                else if(name==="@dicts") items.push({kind:"dicts",name:name});
-                else if(known[name] && !used[name]) { used[name]=true; items.push(known[name]); }
+        const known = {}, order = [];
+        const add = (name, kind, spec, category) => {
+            if (!known[name]) {
+                known[name] = {
+                    kind: kind,
+                    name: name,
+                    spec: spec,
+                    category: category
+                };
+                order.push(name);
             }
-            if(items.length) out.push({category:s.category,title:s.title||"",action:s.action||"",actionText:s.actionText||"",items:items});
+        };
+        for (const t of allInstructionTypes)
+            add(t, "instruction", null, instructionCategory(t));
+        for (const o of allOperators)
+            add(o[0], "operator", o, operatorCategory(o[0]));
+        for (const o of listOperators)
+            add(o[0], "operator", o, "data");
+        for (const t of listInstructionTypes || [])
+            add(t, "instruction", null, "data");
+        if (dictsEnabled) {
+            for (const o of dictOperators)
+                add(o[0], "operator", o, "data");
+            for (const t of dictInstructionTypes || [])
+                add(t, "instruction", null, "data");
         }
-        for(const name of order) {
-            if(used[name]) continue;
-            const item=known[name];
-            let last=-1;
-            for(let i=0;i<out.length;i++) if(out[i].category===item.category) last=i;
-            if(last>=0 && out[last].title==="" && out[last].action==="") out[last].items.push(item);
-            else out.splice(last>=0?last+1:out.length,0,{category:item.category,title:"",action:"",actionText:"",items:[item]});
+        const given = Array.from(sections || []);
+        const tokens = given.reduce((all, s) => all.concat(Array.from(s.items || []).filter(i => String(i).indexOf("@") === 0)), []);
+        for (const s of defaultSections)
+            if (tokens.indexOf(s.items[0]) < 0)
+                given.push(s);
+        const used = {}, out = [];
+        for (const s of given) {
+            if (Array.from(s.items || []).indexOf("@dicts") >= 0 && !dictsEnabled)
+                continue;
+            const items = [];
+            for (const name of s.items || []) {
+                if (name === "@variables")
+                    items.push({
+                        kind: "variables",
+                        name: name
+                    });
+                else if (name === "@lists")
+                    items.push({
+                        kind: "lists",
+                        name: name
+                    });
+                else if (name === "@dicts")
+                    items.push({
+                        kind: "dicts",
+                        name: name
+                    });
+                else if (known[name] && !used[name]) {
+                    used[name] = true;
+                    items.push(known[name]);
+                }
+            }
+            if (items.length)
+                out.push({
+                    category: s.category,
+                    title: s.title || "",
+                    action: s.action || "",
+                    actionText: s.actionText || "",
+                    items: items
+                });
         }
-        const rank=c=>{ const i=categories.findIndex(x=>x.id===c); return i<0?categories.length:i; };
-        return out.map((s,i)=>({s:s,i:i})).sort((a,b)=>rank(a.s.category)-rank(b.s.category)||a.i-b.i).map(x=>x.s);
+        for (const name of order) {
+            if (used[name])
+                continue;
+            const item = known[name];
+            let last = -1;
+            for (let i = 0; i < out.length; i++)
+                if (out[i].category === item.category)
+                    last = i;
+            if (last >= 0 && out[last].title === "" && out[last].action === "")
+                out[last].items.push(item);
+            else
+                out.splice(last >= 0 ? last + 1 : out.length, 0, {
+                    category: item.category,
+                    title: "",
+                    action: "",
+                    actionText: "",
+                    items: [item]
+                });
+        }
+        const rank = c => {
+            const i = categories.findIndex(x => x.id === c);
+            return i < 0 ? categories.length : i;
+        };
+        return out.map((s, i) => ({
+                    s: s,
+                    i: i
+                })).sort((a, b) => rank(a.s.category) - rank(b.s.category) || a.i - b.i).map(x => x.s);
     }
     function itemMatches(item) {
-        if(item.kind==="variables") return (variables||[]).some(v=>matches(v));
-        if(item.kind==="lists"||item.kind==="dicts") return false;
+        if (item.kind === "variables")
+            return (variables || []).some(v => matches(v));
+        if (item.kind === "lists" || item.kind === "dicts")
+            return false;
         return matches(item.name);
     }
-    function categoryName(id) { for(const c of categories) if(c.id===id) return c.name; return id; }
+    function categoryName(id) {
+        for (const c of categories)
+            if (c.id === id)
+                return c.name;
+        return id;
+    }
     function actionText(action, text) {
-        if(text) return text;
-        return action==="makeVariable"?qsTr("Make a Variable"):action==="makeList"?qsTr("Make a List"):action==="makeDict"?qsTr("Make a Dict"):action;
+        if (text)
+            return text;
+        return action === "makeVariable" ? qsTr("Make a Variable") : action === "makeList" ? qsTr("Make a List") : action === "makeDict" ? qsTr("Make a Dict") : action;
     }
     function sectionAction(action) {
-        if(action==="makeVariable") makeVariableRequested(); else if(action==="makeList") makeListRequested(); else if(action==="makeDict") makeDictRequested(); else sectionActionRequested(action);
+        if (action === "makeVariable")
+            makeVariableRequested();
+        else if (action === "makeList")
+            makeListRequested();
+        else if (action === "makeDict")
+            makeDictRequested();
+        else
+            sectionActionRequested(action);
     }
     function operatorExplainer(op) {
-        if(listOperators.some(o=>o[0]===op)) return qsTr("A list reporter block that reads data without changing the list.");
-        if(dictOperators.some(o=>o[0]===op)) return qsTr("A dict reporter block that reads data without changing the dict.");
+        if (listOperators.some(o => o[0] === op))
+            return qsTr("A list reporter block that reads data without changing the list.");
+        if (dictOperators.some(o => o[0] === op))
+            return qsTr("A dict reporter block that reads data without changing the dict.");
         return qsTr("A value or operator block that can be placed in an input.");
     }
     // App-specific categories ({id, name, icon}), listed before Custom.
     property var appCategories: []
     readonly property var categories: [
-        {id:"all",name:qsTr("All"),icon:"layout-grid"},{id:"events",name:qsTr("Events"),icon:"zap"},{id:"input",name:qsTr("Input"),icon:"keyboard"},
-        {id:"control",name:qsTr("Flow"),icon:"git-branch"},{id:"data",name:qsTr("Data"),icon:"variable"},{id:"operators",name:qsTr("Operators"),icon:"equal"},
-        {id:"system",name:qsTr("System"),icon:"settings"}
-    ].concat(Array.from(appCategories || [])).concat([{id:"custom",name:qsTr("Custom"),icon:"blocks"}]).concat(root.blockLibraryEnabled?[{id:"community",name:qsTr("Community"),icon:"package"}]:[])
+        {
+            id: "all",
+            name: qsTr("All"),
+            icon: "layout-grid"
+        },
+        {
+            id: "events",
+            name: qsTr("Events"),
+            icon: "zap"
+        },
+        {
+            id: "input",
+            name: qsTr("Input"),
+            icon: "keyboard"
+        },
+        {
+            id: "control",
+            name: qsTr("Flow"),
+            icon: "git-branch"
+        },
+        {
+            id: "data",
+            name: qsTr("Data"),
+            icon: "variable"
+        },
+        {
+            id: "operators",
+            name: qsTr("Operators"),
+            icon: "equal"
+        },
+        {
+            id: "system",
+            name: qsTr("System"),
+            icon: "settings"
+        }
+    ].concat(Array.from(appCategories || [])).concat([
+        {
+            id: "custom",
+            name: qsTr("Custom"),
+            icon: "blocks"
+        }
+    ]).concat(root.blockLibraryEnabled ? [
+        {
+            id: "community",
+            name: qsTr("Community"),
+            icon: "package"
+        }
+    ] : [])
     readonly property var systemOperators: ["CurrentTime"]
     // Each name a host section lists -> that section's category (the first wins).
     readonly property var sectionCategories: {
-        const out={};
-        for(const s of sections||[]) for(const name of s.items||[]) if(!out[name]) out[name]=s.category;
+        const out = {};
+        for (const s of sections || [])
+            for (const name of s.items || [])
+                if (!out[name])
+                    out[name] = s.category;
         return out;
     }
     // extraCategories, then the host's sections, then blockstitch's own guesses.
     function instructionCategory(type) {
-        if(extraCategories[type]) return extraCategories[type];
-        if(sectionCategories[type]) return sectionCategories[type];
-        if(type.indexOf("When")===0) return "events";
-        if(["Wait","If","IfElse","Repeat","Forever","While","EscapeLoop","ContinueLoop","Return"].indexOf(type)>=0) return "control";
+        if (extraCategories[type])
+            return extraCategories[type];
+        if (sectionCategories[type])
+            return sectionCategories[type];
+        if (type.indexOf("When") === 0)
+            return "events";
+        if (["Wait", "If", "IfElse", "Repeat", "Forever", "While", "EscapeLoop", "ContinueLoop", "Return"].indexOf(type) >= 0)
+            return "control";
         return "data";
     }
-    function operatorCategory(op) { return extraCategories[op] || sectionCategories[op] || (systemOperators.indexOf(op)>=0 ? "system" : "operators"); }
-    function humanize(s) { return String(s).replace(/([a-z0-9])([A-Z])/g,"$1 $2").toLowerCase(); }
-    function matches(label) { return humanize(label).indexOf(searchText.trim().toLowerCase())>=0; }
+    function operatorCategory(op) {
+        return extraCategories[op] || sectionCategories[op] || (systemOperators.indexOf(op) >= 0 ? "system" : "operators");
+    }
+    function humanize(s) {
+        return String(s).replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+    }
+    function matches(label) {
+        return humanize(label).indexOf(searchText.trim().toLowerCase()) >= 0;
+    }
     // Palette blocks still building in the background (see the entry Loader).
     property int pendingEntries: 0
-    readonly property bool searching: searchText.trim().length>0
+    readonly property bool searching: searchText.trim().length > 0
     readonly property bool noResults: {
-        if(!searching) return false;
-        const labels=[].concat(allInstructionTypes,Array.from(listInstructionTypes||[]),
-            dictsEnabled?Array.from(dictInstructionTypes||[]):[],
-            allOperators.map(o=>o[0]),listOperators.map(o=>o[0]),dictsEnabled?dictOperators.map(o=>o[0]):[],
-            Array.from(variables||[]),Array.from(blockDefinitions||[]).map(d=>customLabel(d)),communityPacks.map(p=>p.name));
-        return !labels.some(l=>matches(l));
+        if (!searching)
+            return false;
+        const labels = [].concat(allInstructionTypes, Array.from(listInstructionTypes || []), dictsEnabled ? Array.from(dictInstructionTypes || []) : [], allOperators.map(o => o[0]), listOperators.map(o => o[0]), dictsEnabled ? dictOperators.map(o => o[0]) : [], Array.from(variables || []), Array.from(blockDefinitions || []).map(d => customLabel(d)), communityPacks.map(p => p.name));
+        return !labels.some(l => matches(l));
     }
 
     // The block list for one category ("" = every category). A Component so the
     // accordion can host one per open section.
     Component {
-        id:blockListComponent
+        id: blockListComponent
         Column {
-            id:blk
+            id: blk
             property string only: ""
-            spacing:8
-            function itemShown(c,label) { return root.searching ? root.matches(label) : (only===""||only===c); }
-            function sectionShown(c) { return !root.searching && (only===""||only===c); }
-                Repeater {
-                    model:root.resolvedSections
-                    delegate:Column {
-                        id:sec
-                        required property var modelData
-                        required property int index
-                        readonly property bool firstOfCategory: index===0 || root.resolvedSections[index-1].category!==modelData.category
-                        visible:root.searching ? modelData.items.some(i=>root.itemMatches(i)) : (blk.only===""||blk.only===modelData.category)
-                        spacing:8
-                        Text {
-                            visible:blk.only==="" && !root.searching && sec.firstOfCategory
-                            text:root.categoryName(sec.modelData.category); color:Theme.text; font.pixelSize:15; font.weight:Font.Bold
-                            topPadding:sec.index===0?0:12
+            spacing: 8
+            function itemShown(c, label) {
+                return root.searching ? root.matches(label) : (only === "" || only === c);
+            }
+            function sectionShown(c) {
+                return !root.searching && (only === "" || only === c);
+            }
+            Repeater {
+                model: root.resolvedSections
+                delegate: Column {
+                    id: sec
+                    required property var modelData
+                    required property int index
+                    readonly property bool firstOfCategory: index === 0 || root.resolvedSections[index - 1].category !== modelData.category
+                    visible: root.searching ? modelData.items.some(i => root.itemMatches(i)) : (blk.only === "" || blk.only === modelData.category)
+                    spacing: 8
+                    Text {
+                        visible: blk.only === "" && !root.searching && sec.firstOfCategory
+                        text: root.categoryName(sec.modelData.category)
+                        color: Theme.text
+                        font.pixelSize: 15
+                        font.weight: Font.Bold
+                        topPadding: sec.index === 0 ? 0 : 12
+                    }
+                    Row {
+                        visible: !root.searching && (sec.modelData.title !== "" || sec.modelData.action !== "")
+                        spacing: 8
+                        topPadding: 4
+                        SectionLabel {
+                            visible: sec.modelData.title !== ""
+                            text: sec.modelData.title
+                            anchors.verticalCenter: parent.verticalCenter
                         }
-                        Row {
-                            visible:!root.searching && (sec.modelData.title!=="" || sec.modelData.action!==""); spacing:8; topPadding:4
-                            SectionLabel { visible:sec.modelData.title!==""; text:sec.modelData.title; anchors.verticalCenter:parent.verticalCenter }
-                            BwButton { visible:sec.modelData.action!==""; text:root.actionText(sec.modelData.action,sec.modelData.actionText); implicitHeight:28; font.pixelSize:11; onClicked:root.sectionAction(sec.modelData.action) }
+                        BwButton {
+                            visible: sec.modelData.action !== ""
+                            text: root.actionText(sec.modelData.action, sec.modelData.actionText)
+                            implicitHeight: 28
+                            font.pixelSize: 11
+                            onClicked: root.sectionAction(sec.modelData.action)
                         }
-                        Repeater {
-                            model:sec.modelData.items
-                            delegate:Loader {
-                                id:entry
-                                required property var modelData
-                                // Past the first sections, blocks build over the next
-                                // frames instead of all before the palette first shows.
-                                asynchronous:sec.index>1
-                                property bool pending: false
-                                Component.onCompleted: if (status === Loader.Loading) { pending = true; ++root.pendingEntries; }
-                                onStatusChanged: if (pending && status !== Loader.Loading) { pending = false; --root.pendingEntries; }
-                                Component.onDestruction: if (pending) --root.pendingEntries
-                                visible:!root.searching || root.itemMatches(modelData)
-                                sourceComponent:modelData.kind==="instruction"?instructionEntry:modelData.kind==="operator"?operatorEntry
-                                    :modelData.kind==="variables"?variablesEntry:modelData.kind==="lists"?listsEntry:dictsEntry
-                                Component {
-                                    id:instructionEntry
-                                    PaletteBlock {
-                                        instruction:root.prefab(entry.modelData.name); spec:({kind:"instruction",type:entry.modelData.name,instruction:instruction})
-                                        variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
-                                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                                        onActivated:root.blockActivated(entry.modelData.name,instruction); onKeyCaptureRequested:root.standaloneKeyCaptureRequested()
-                                        onPieceActionRequested: (action, instruction) => root.pieceActionRequested(action, instruction)
-                                        onDetailsRequested:type=>root.detailsRequested(type,type,qsTr("See what this block does and where it can be used."))
-                                    }
+                    }
+                    Repeater {
+                        model: sec.modelData.items
+                        delegate: Loader {
+                            id: entry
+                            required property var modelData
+                            // Past the first sections, blocks build over the next
+                            // frames instead of all before the palette first shows.
+                            asynchronous: sec.index > 1
+                            property bool pending: false
+                            Component.onCompleted: if (status === Loader.Loading) {
+                                pending = true;
+                                ++root.pendingEntries;
+                            }
+                            onStatusChanged: if (pending && status !== Loader.Loading) {
+                                pending = false;
+                                --root.pendingEntries;
+                            }
+                            Component.onDestruction: if (pending)
+                                --root.pendingEntries
+                            visible: !root.searching || root.itemMatches(modelData)
+                            sourceComponent: modelData.kind === "instruction" ? instructionEntry : modelData.kind === "operator" ? operatorEntry : modelData.kind === "variables" ? variablesEntry : modelData.kind === "lists" ? listsEntry : dictsEntry
+                            Component {
+                                id: instructionEntry
+                                PaletteBlock {
+                                    instruction: root.prefab(entry.modelData.name)
+                                    spec: ({
+                                            kind: "instruction",
+                                            type: entry.modelData.name,
+                                            instruction: instruction
+                                        })
+                                    variables: Array.from(root.variables || [])
+                                    lists: Array.from(root.lists || [])
+                                    blockDefinitions: root.blockDefinitions
+                                    keyCapture: root.keyCapture
+                                    onDragStarted: (sp, sx, sy, ox, oy) => root.dragStarted(sp, sx, sy, ox, oy)
+                                    onDragMoved: (sx, sy) => root.dragMoved(sx, sy)
+                                    onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
+                                    onDragCanceled: root.dragCanceled()
+                                    onActivated: root.blockActivated(entry.modelData.name, instruction)
+                                    onKeyCaptureRequested: root.standaloneKeyCaptureRequested()
+                                    onPieceActionRequested: (action, instruction) => root.pieceActionRequested(action, instruction)
+                                    onDetailsRequested: type => root.detailsRequested(type, type, qsTr("See what this block does and where it can be used."))
                                 }
-                                Component {
-                                    id:operatorEntry
-                                    PaletteValue {
-                                        valueData:root.operatorValue(entry.modelData.spec); spec:({kind:"value",value:valueData})
-                                        blockDefinitions:root.blockDefinitions
-                                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                                        onActivated:root.valueActivated(valueData)
-                                        onDetailsRequested:kind=>root.detailsRequested(kind,kind,root.operatorExplainer(kind))
-                                    }
+                            }
+                            Component {
+                                id: operatorEntry
+                                PaletteValue {
+                                    valueData: root.operatorValue(entry.modelData.spec)
+                                    spec: ({
+                                            kind: "value",
+                                            value: valueData
+                                        })
+                                    blockDefinitions: root.blockDefinitions
+                                    onDragStarted: (sp, sx, sy, ox, oy) => root.dragStarted(sp, sx, sy, ox, oy)
+                                    onDragMoved: (sx, sy) => root.dragMoved(sx, sy)
+                                    onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
+                                    onDragCanceled: root.dragCanceled()
+                                    onActivated: root.valueActivated(valueData)
+                                    onDetailsRequested: kind => root.detailsRequested(kind, kind, root.operatorExplainer(kind))
                                 }
-                                Component {
-                                    id:variablesEntry
-                                    Column {
-                                        spacing:8
-                                        Repeater {
-                                            model:root.variables||[]
-                                            delegate:PaletteValue {
-                                                required property string modelData
-                                                visible:!root.searching || root.matches(modelData)
-                                                valueData:({kind:"Var",name:modelData}); editable:false; spec:({kind:"value",value:valueData})
-                                                blockDefinitions:root.blockDefinitions
-                                                extraMenu:(root.offerSetVariableValue?[{id:"set",text:qsTr("Set value"),icon:"pencil"}]:[]).concat([{id:"rename",text:qsTr("Rename variable"),icon:"equal"},{id:"delete",text:qsTr("Delete variable"),icon:"trash",danger:true}])
-                                                onExtraMenuTriggered:id=>id==="set"?root.setVariableValueRequested(modelData):id==="rename"?root.renameVariableRequested(modelData):root.deleteVariableRequested(modelData)
-                                                onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                                                onActivated:root.valueActivated(valueData)
-                                            }
+                            }
+                            Component {
+                                id: variablesEntry
+                                Column {
+                                    spacing: 8
+                                    Repeater {
+                                        model: root.variables || []
+                                        delegate: PaletteValue {
+                                            required property string modelData
+                                            visible: !root.searching || root.matches(modelData)
+                                            valueData: ({
+                                                    kind: "Var",
+                                                    name: modelData
+                                                })
+                                            editable: false
+                                            spec: ({
+                                                    kind: "value",
+                                                    value: valueData
+                                                })
+                                            blockDefinitions: root.blockDefinitions
+                                            extraMenu: (root.offerSetVariableValue ? [
+                                                    {
+                                                        id: "set",
+                                                        text: qsTr("Set value"),
+                                                        icon: "pencil"
+                                                    }
+                                                ] : []).concat([
+                                                {
+                                                    id: "rename",
+                                                    text: qsTr("Rename variable"),
+                                                    icon: "equal"
+                                                },
+                                                {
+                                                    id: "delete",
+                                                    text: qsTr("Delete variable"),
+                                                    icon: "trash",
+                                                    danger: true
+                                                }
+                                            ])
+                                            onExtraMenuTriggered: id => id === "set" ? root.setVariableValueRequested(modelData) : id === "rename" ? root.renameVariableRequested(modelData) : root.deleteVariableRequested(modelData)
+                                            onDragStarted: (sp, sx, sy, ox, oy) => root.dragStarted(sp, sx, sy, ox, oy)
+                                            onDragMoved: (sx, sy) => root.dragMoved(sx, sy)
+                                            onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
+                                            onDragCanceled: root.dragCanceled()
+                                            onActivated: root.valueActivated(valueData)
                                         }
                                     }
                                 }
-                                Component {
-                                    id:listsEntry
-                                    CollectionPanel {
-                                        collections:root.lists; noun:"list"; rowWidth:Math.max(230,root.width-28-root.railWidth-1)
-                                        onEditorStateRequested:(name,visible,x,y)=>root.listEditorStateRequested(name,visible,x,y)
-                                        onRenameRequested:name=>root.renameListRequested(name)
-                                        onDeleteRequested:name=>root.deleteListRequested(name)
-                                        onDetailsRequested:name=>root.detailsRequested(name,"List",qsTr("A document-wide ordered collection of text and number items."))
-                                    }
-                                }
-                                Component {
-                                    id:dictsEntry
-                                    CollectionPanel {
-                                        collections:root.dicts; noun:"dict"; rowWidth:Math.max(230,root.width-28-root.railWidth-1)
-                                        emptyText:qsTr("Make a dict, then check it to open its editor on the canvas.")
-                                        onEditorStateRequested:(name,visible,x,y)=>root.dictEditorStateRequested(name,visible,x,y)
-                                        onRenameRequested:name=>root.renameDictRequested(name)
-                                        onDeleteRequested:name=>root.deleteDictRequested(name)
-                                        onDetailsRequested:name=>root.detailsRequested(name,"Dict",qsTr("A document-wide collection of text and number values, looked up by key."))
-                                    }
+                            }
+                            Component {
+                                id: listsEntry
+                                CollectionPanel {
+                                    collections: root.lists
+                                    noun: "list"
+                                    rowWidth: Math.max(230, root.width - 28 - root.railWidth - 1)
+                                    onEditorStateRequested: (name, visible, x, y) => root.listEditorStateRequested(name, visible, x, y)
+                                    onRenameRequested: name => root.renameListRequested(name)
+                                    onDeleteRequested: name => root.deleteListRequested(name)
+                                    onDetailsRequested: name => root.detailsRequested(name, "List", qsTr("A document-wide ordered collection of text and number items."))
                                 }
                             }
-                        }
-                    }
-                }
-                Row {
-                    visible:blk.sectionShown("custom"); spacing:8; topPadding:8
-                    SectionLabel { text:qsTr("My blocks"); anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:qsTr("Make a Block"); implicitHeight:28; font.pixelSize:11; onClicked:root.makeBlockRequested() }
-                }
-                Repeater {
-                    model:(root.blockDefinitions||[]).filter(def=>!def.read_only)
-                    delegate:Loader {
-                        id:customItem; required property var modelData
-                        visible:blk.itemShown("custom",root.customLabel(modelData))
-                        sourceComponent:root.isReporter(modelData)?customReporter:customCall
-                        Component {
-                            id:customCall
-                            PaletteBlock {
-                                instruction:root.customInstruction(customItem.modelData); spec:({kind:"custom",definition:customItem.modelData,instruction:instruction,color:blockColor})
-                                variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; blockColor:customItem.modelData.color||Theme.block
-                                onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                                onActivated:root.customBlockActivated(customItem.modelData)
-                                onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,root.customBlockDetails)
-                                extraMenu:root.customMenu
-                                onExtraMenuTriggered:id=>root.customMenuAction(id,customItem.modelData)
-                            }
-                        }
-                        Component {
-                            id:customReporter
-                            PaletteValue {
-                                valueData:root.customValue(customItem.modelData); editable:false; forceBoolean:customItem.modelData.shape==="ReturnsBool"; callLabel:root.customLabel(customItem.modelData)
-                                blockDefinitions:root.blockDefinitions
-                                spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,label:callLabel})
-                                onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                                onActivated:root.valueActivated(valueData)
-                                onDetailsRequested:root.detailsRequested(root.customLabel(customItem.modelData),customItem.modelData.id,root.customReporterDetails)
-                                extraMenu:root.customMenu
-                                onExtraMenuTriggered:id=>root.customMenuAction(id,customItem.modelData)
-                            }
-                        }
-                    }
-                }
-                Row {
-                    visible:root.blockLibraryEnabled && blk.sectionShown("community"); spacing:8; topPadding:8
-                    SectionLabel { text:qsTr("Community blocks"); anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { text:qsTr("Browse"); iconName:"book-open"; implicitHeight:28; font.pixelSize:11; onClicked:root.browseBlocksRequested() }
-                }
-                Repeater {
-                    model:root.communityPacks
-                    delegate:Column {
-                        id: packSection
-                        required property var modelData
-                        readonly property bool matchesPack: root.searching && root.matches(modelData.name)
-                        visible: modelData.blocks.some(def => matchesPack || blk.itemShown("community",root.customLabel(def)))
-                        spacing:8; topPadding:6
-                        Text {
-                            id: packHeading
-                            objectName: "communityPackHeading"
-                            width: root.contentWidth
-                            text: packSection.modelData.name
-                            color: Theme.textDim; font.pixelSize:12; font.weight:Font.DemiBold
-                            elide: Text.ElideRight
-                            ToolTip.visible: headingHover.hovered && truncated
-                            ToolTip.text: text
-                            HoverHandler { id: headingHover }
-                        }
-                        Repeater {
-                            model: packSection.modelData.blocks
-                            delegate:Loader {
-                                id:communityItem; required property var modelData
-                                visible:packSection.matchesPack || blk.itemShown("community",root.customLabel(modelData))
-                                sourceComponent:root.isReporter(modelData)?communityReporter:communityCall
-                                Component {
-                                    id:communityCall
-                                    PaletteBlock {
-                                        instruction:root.customInstruction(communityItem.modelData); spec:({kind:"custom",definition:communityItem.modelData,instruction:instruction,color:blockColor})
-                                        variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture; blockColor:communityItem.modelData.color||Theme.block
-                                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                                        onActivated:root.customBlockActivated(communityItem.modelData)
-                                        onDetailsRequested:root.detailsRequested(root.customLabel(communityItem.modelData),communityItem.modelData.id,root.customBlockDetails)
-                                        extraMenu:[{id:"details",text:qsTr("Details"),icon:"info"}]
-                                        onExtraMenuTriggered:id=>root.customMenuAction(id,communityItem.modelData)
-                                    }
-                                }
-                                Component {
-                                    id:communityReporter
-                                    PaletteValue {
-                                        valueData:root.customValue(communityItem.modelData); editable:false; forceBoolean:communityItem.modelData.shape==="ReturnsBool"; callLabel:root.customLabel(communityItem.modelData)
-                                        blockDefinitions:root.blockDefinitions
-                                        spec:({kind:"value",value:valueData,forceBoolean:forceBoolean,label:callLabel})
-                                        onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
-                                        onActivated:root.valueActivated(valueData)
-                                        onDetailsRequested:root.detailsRequested(root.customLabel(communityItem.modelData),communityItem.modelData.id,root.customReporterDetails)
-                                        extraMenu:[{id:"details",text:qsTr("Details"),icon:"info"}]
-                                        onExtraMenuTriggered:id=>root.customMenuAction(id,communityItem.modelData)
-                                    }
+                            Component {
+                                id: dictsEntry
+                                CollectionPanel {
+                                    collections: root.dicts
+                                    noun: "dict"
+                                    rowWidth: Math.max(230, root.width - 28 - root.railWidth - 1)
+                                    emptyText: qsTr("Make a dict, then check it to open its editor on the canvas.")
+                                    onEditorStateRequested: (name, visible, x, y) => root.dictEditorStateRequested(name, visible, x, y)
+                                    onRenameRequested: name => root.renameDictRequested(name)
+                                    onDeleteRequested: name => root.deleteDictRequested(name)
+                                    onDetailsRequested: name => root.detailsRequested(name, "Dict", qsTr("A document-wide collection of text and number values, looked up by key."))
                                 }
                             }
                         }
                     }
                 }
+            }
+            Row {
+                visible: blk.sectionShown("custom")
+                spacing: 8
+                topPadding: 8
+                SectionLabel {
+                    text: qsTr("My blocks")
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                BwButton {
+                    text: qsTr("Make a Block")
+                    implicitHeight: 28
+                    font.pixelSize: 11
+                    onClicked: root.makeBlockRequested()
+                }
+            }
+            Repeater {
+                model: (root.blockDefinitions || []).filter(def => !def.read_only)
+                delegate: Loader {
+                    id: customItem
+                    required property var modelData
+                    visible: blk.itemShown("custom", root.customLabel(modelData))
+                    sourceComponent: root.isReporter(modelData) ? customReporter : customCall
+                    Component {
+                        id: customCall
+                        PaletteBlock {
+                            instruction: root.customInstruction(customItem.modelData)
+                            spec: ({
+                                    kind: "custom",
+                                    definition: customItem.modelData,
+                                    instruction: instruction,
+                                    color: blockColor
+                                })
+                            variables: Array.from(root.variables || [])
+                            lists: Array.from(root.lists || [])
+                            blockDefinitions: root.blockDefinitions
+                            keyCapture: root.keyCapture
+                            blockColor: customItem.modelData.color || Theme.block
+                            onDragStarted: (sp, sx, sy, ox, oy) => root.dragStarted(sp, sx, sy, ox, oy)
+                            onDragMoved: (sx, sy) => root.dragMoved(sx, sy)
+                            onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
+                            onDragCanceled: root.dragCanceled()
+                            onActivated: root.customBlockActivated(customItem.modelData)
+                            onDetailsRequested: root.detailsRequested(root.customLabel(customItem.modelData), customItem.modelData.id, root.customBlockDetails)
+                            extraMenu: root.customMenu
+                            onExtraMenuTriggered: id => root.customMenuAction(id, customItem.modelData)
+                        }
+                    }
+                    Component {
+                        id: customReporter
+                        PaletteValue {
+                            valueData: root.customValue(customItem.modelData)
+                            editable: false
+                            forceBoolean: customItem.modelData.shape === "ReturnsBool"
+                            callLabel: root.customLabel(customItem.modelData)
+                            blockDefinitions: root.blockDefinitions
+                            spec: ({
+                                    kind: "value",
+                                    value: valueData,
+                                    forceBoolean: forceBoolean,
+                                    label: callLabel
+                                })
+                            onDragStarted: (sp, sx, sy, ox, oy) => root.dragStarted(sp, sx, sy, ox, oy)
+                            onDragMoved: (sx, sy) => root.dragMoved(sx, sy)
+                            onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
+                            onDragCanceled: root.dragCanceled()
+                            onActivated: root.valueActivated(valueData)
+                            onDetailsRequested: root.detailsRequested(root.customLabel(customItem.modelData), customItem.modelData.id, root.customReporterDetails)
+                            extraMenu: root.customMenu
+                            onExtraMenuTriggered: id => root.customMenuAction(id, customItem.modelData)
+                        }
+                    }
+                }
+            }
+            Row {
+                visible: root.blockLibraryEnabled && blk.sectionShown("community")
+                spacing: 8
+                topPadding: 8
+                SectionLabel {
+                    text: qsTr("Community blocks")
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                BwButton {
+                    text: qsTr("Browse")
+                    iconName: "book-open"
+                    implicitHeight: 28
+                    font.pixelSize: 11
+                    onClicked: root.browseBlocksRequested()
+                }
+            }
+            Repeater {
+                model: root.communityPacks
+                delegate: Column {
+                    id: packSection
+                    required property var modelData
+                    readonly property bool matchesPack: root.searching && root.matches(modelData.name)
+                    visible: modelData.blocks.some(def => matchesPack || blk.itemShown("community", root.customLabel(def)))
+                    spacing: 8
+                    topPadding: 6
+                    Text {
+                        id: packHeading
+                        objectName: "communityPackHeading"
+                        width: root.contentWidth
+                        text: packSection.modelData.name
+                        color: Theme.textDim
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                        ToolTip.visible: headingHover.hovered && truncated
+                        ToolTip.text: text
+                        HoverHandler {
+                            id: headingHover
+                        }
+                    }
+                    Repeater {
+                        model: packSection.modelData.blocks
+                        delegate: Loader {
+                            id: communityItem
+                            required property var modelData
+                            visible: packSection.matchesPack || blk.itemShown("community", root.customLabel(modelData))
+                            sourceComponent: root.isReporter(modelData) ? communityReporter : communityCall
+                            Component {
+                                id: communityCall
+                                PaletteBlock {
+                                    instruction: root.customInstruction(communityItem.modelData)
+                                    spec: ({
+                                            kind: "custom",
+                                            definition: communityItem.modelData,
+                                            instruction: instruction,
+                                            color: blockColor
+                                        })
+                                    variables: Array.from(root.variables || [])
+                                    lists: Array.from(root.lists || [])
+                                    blockDefinitions: root.blockDefinitions
+                                    keyCapture: root.keyCapture
+                                    blockColor: communityItem.modelData.color || Theme.block
+                                    onDragStarted: (sp, sx, sy, ox, oy) => root.dragStarted(sp, sx, sy, ox, oy)
+                                    onDragMoved: (sx, sy) => root.dragMoved(sx, sy)
+                                    onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
+                                    onDragCanceled: root.dragCanceled()
+                                    onActivated: root.customBlockActivated(communityItem.modelData)
+                                    onDetailsRequested: root.detailsRequested(root.customLabel(communityItem.modelData), communityItem.modelData.id, root.customBlockDetails)
+                                    extraMenu: [
+                                        {
+                                            id: "details",
+                                            text: qsTr("Details"),
+                                            icon: "info"
+                                        }
+                                    ]
+                                    onExtraMenuTriggered: id => root.customMenuAction(id, communityItem.modelData)
+                                }
+                            }
+                            Component {
+                                id: communityReporter
+                                PaletteValue {
+                                    valueData: root.customValue(communityItem.modelData)
+                                    editable: false
+                                    forceBoolean: communityItem.modelData.shape === "ReturnsBool"
+                                    callLabel: root.customLabel(communityItem.modelData)
+                                    blockDefinitions: root.blockDefinitions
+                                    spec: ({
+                                            kind: "value",
+                                            value: valueData,
+                                            forceBoolean: forceBoolean,
+                                            label: callLabel
+                                        })
+                                    onDragStarted: (sp, sx, sy, ox, oy) => root.dragStarted(sp, sx, sy, ox, oy)
+                                    onDragMoved: (sx, sy) => root.dragMoved(sx, sy)
+                                    onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
+                                    onDragCanceled: root.dragCanceled()
+                                    onActivated: root.valueActivated(valueData)
+                                    onDetailsRequested: root.detailsRequested(root.customLabel(communityItem.modelData), communityItem.modelData.id, root.customReporterDetails)
+                                    extraMenu: [
+                                        {
+                                            id: "details",
+                                            text: qsTr("Details"),
+                                            icon: "info"
+                                        }
+                                    ]
+                                    onExtraMenuTriggered: id => root.customMenuAction(id, communityItem.modelData)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Text {
-                visible:root.noResults; text:qsTr("No blocks match \"%1\"").arg(root.searchText.trim())
-                color:Theme.textDim; font.pixelSize:12; topPadding:8
+                visible: root.noResults
+                text: qsTr("No blocks match \"%1\"").arg(root.searchText.trim())
+                color: Theme.textDim
+                font.pixelSize: 12
+                topPadding: 8
             }
         }
     }
 
     RowLayout {
-        anchors.fill:parent; spacing:0
+        anchors.fill: parent
+        spacing: 0
         Flickable {
-            id:rail
-            visible:root.railVisible
-            Layout.preferredWidth:root.railWidth; Layout.fillHeight:true; clip:true
-            contentHeight:railColumn.height; interactive:contentHeight>height; boundsBehavior:Flickable.StopAtBounds
+            id: rail
+            visible: root.railVisible
+            Layout.preferredWidth: root.railWidth
+            Layout.fillHeight: true
+            clip: true
+            contentHeight: railColumn.height
+            interactive: contentHeight > height
+            boundsBehavior: Flickable.StopAtBounds
             // Only switch once the pointer rests on an icon, so sweeping across the rail doesn't flicker
             Timer {
-                id:hoverIntent; interval:140
+                id: hoverIntent
+                interval: 140
                 property string pending: ""
-                onTriggered: if (!root.searching && root.layout==="rail") root.category = pending
+                onTriggered: if (!root.searching && root.layout === "rail")
+                    root.category = pending
             }
             Column {
-                id:railColumn
-                width:parent.width; spacing:6; topPadding:6
+                id: railColumn
+                width: parent.width
+                spacing: 6
+                topPadding: 6
                 Repeater {
-                    model:root.railModel
-                    delegate:Rectangle {
+                    model: root.railModel
+                    delegate: Rectangle {
                         required property var modelData
-                        readonly property bool current: root.layout==="flyout"
-                            ? root.flyoutOpen && !root.searching && (modelData.id==="search"?root.category==="all":root.category===modelData.id)
-                            : !root.searching && root.category===modelData.id
-                        width:railColumn.width-8; x:4; height:46; radius:6
-                        color:current?Theme.panelRaised:(railHover.hovered?Theme.field:"transparent")
-                        opacity:root.searching&&root.layout==="rail"?0.5:1
+                        readonly property bool current: root.layout === "flyout" ? root.flyoutOpen && !root.searching && (modelData.id === "search" ? root.category === "all" : root.category === modelData.id) : !root.searching && root.category === modelData.id
+                        width: railColumn.width - 8
+                        x: 4
+                        height: 46
+                        radius: 6
+                        color: current ? Theme.panelRaised : (railHover.hovered ? Theme.field : "transparent")
+                        opacity: root.searching && root.layout === "rail" ? 0.5 : 1
                         Column {
-                            anchors.centerIn:parent; width:parent.width-8; spacing:3
-                            LucideIcon { anchors.horizontalCenter:parent.horizontalCenter; width:18; height:18; name:modelData.icon; color:current?Theme.accent:Theme.textDim }
+                            anchors.centerIn: parent
+                            width: parent.width - 8
+                            spacing: 3
+                            LucideIcon {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: 18
+                                height: 18
+                                name: modelData.icon
+                                color: current ? Theme.accent : Theme.textDim
+                            }
                             Text {
                                 id: categoryLabel
                                 objectName: "paletteCategoryLabel"
-                                width:parent.width; horizontalAlignment:Text.AlignHCenter
-                                text:modelData.name; font.pixelSize:10; color:current?Theme.text:Theme.textDim
-                                elide:Text.ElideRight
+                                width: parent.width
+                                horizontalAlignment: Text.AlignHCenter
+                                text: modelData.name
+                                font.pixelSize: 10
+                                color: current ? Theme.text : Theme.textDim
+                                elide: Text.ElideRight
                             }
                         }
-                        ToolTip.visible:railHover.hovered && categoryLabel.truncated
-                        ToolTip.text:modelData.name
+                        ToolTip.visible: railHover.hovered && categoryLabel.truncated
+                        ToolTip.text: modelData.name
                         HoverHandler {
-                            id:railHover
+                            id: railHover
                             onHoveredChanged: {
-                                if (root.layout!=="rail") return;
-                                if (hovered && !root.searching) { hoverIntent.pending=modelData.id; hoverIntent.restart(); }
-                                else if (hoverIntent.pending===modelData.id) hoverIntent.stop();
+                                if (root.layout !== "rail")
+                                    return;
+                                if (hovered && !root.searching) {
+                                    hoverIntent.pending = modelData.id;
+                                    hoverIntent.restart();
+                                } else if (hoverIntent.pending === modelData.id)
+                                    hoverIntent.stop();
                             }
                         }
-                        TapHandler { onTapped:root.railActivated(modelData.id) }
+                        TapHandler {
+                            onTapped: root.railActivated(modelData.id)
+                        }
                     }
                 }
             }
         }
-        Rectangle { visible:root.railVisible; Layout.preferredWidth:1; Layout.fillHeight:true; color:Theme.borderSoft }
+        Rectangle {
+            visible: root.railVisible
+            Layout.preferredWidth: 1
+            Layout.fillHeight: true
+            color: Theme.borderSoft
+        }
         ColumnLayout {
-            id:contentColumn
-            visible:root.layout!=="flyout"||root.flyoutOpen
-            Layout.fillWidth:true; Layout.fillHeight:true; spacing:0; clip:true
+            id: contentColumn
+            visible: root.layout !== "flyout" || root.flyoutOpen
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 0
+            clip: true
             BwTextField {
-                id:searchField
-                Layout.fillWidth:true; Layout.margins:8; Layout.bottomMargin:4
-                placeholderText:qsTr("Search blocks"); text:root.searchText
-                onTextChanged:root.searchText=text
-                rightPadding:30
+                id: searchField
+                Layout.fillWidth: true
+                Layout.margins: 8
+                Layout.bottomMargin: 4
+                placeholderText: qsTr("Search blocks")
+                text: root.searchText
+                onTextChanged: root.searchText = text
+                rightPadding: 30
                 LucideIcon {
-                    anchors.right:parent.right; anchors.rightMargin:8; anchors.verticalCenter:parent.verticalCenter
-                    width:14; height:14; name:root.searching?"x":"search"; color:Theme.textDim
-                    MouseArea { anchors.fill:parent; anchors.margins:-4; enabled:root.searching; onClicked:root.searchText="" }
+                    anchors.right: parent.right
+                    anchors.rightMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 14
+                    height: 14
+                    name: root.searching ? "x" : "search"
+                    color: Theme.textDim
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        enabled: root.searching
+                        onClicked: root.searchText = ""
+                    }
                 }
             }
             Flow {
-                visible:root.layout==="chips"
-                Layout.fillWidth:true; Layout.leftMargin:8; Layout.rightMargin:8; Layout.bottomMargin:6; spacing:6
+                visible: root.layout === "chips"
+                Layout.fillWidth: true
+                Layout.leftMargin: 8
+                Layout.rightMargin: 8
+                Layout.bottomMargin: 6
+                spacing: 6
                 Repeater {
-                    model:root.categories
-                    delegate:Rectangle {
+                    model: root.categories
+                    delegate: Rectangle {
                         required property var modelData
-                        readonly property bool current:!root.searching&&root.category===modelData.id
-                        height:26; radius:13; width:chipLabel.implicitWidth+20
-                        color:current?Theme.panelRaised:"transparent"
-                        border.color:current?Theme.accent:Theme.borderSoft
-                        Text { id:chipLabel; anchors.centerIn:parent; text:modelData.name; font.pixelSize:12; color:current?Theme.text:Theme.textDim }
-                        HoverHandler { cursorShape:Qt.PointingHandCursor }
-                        TapHandler { onTapped:{root.searchText="";root.category=modelData.id;} }
+                        readonly property bool current: !root.searching && root.category === modelData.id
+                        height: 26
+                        radius: 13
+                        width: chipLabel.implicitWidth + 20
+                        color: current ? Theme.panelRaised : "transparent"
+                        border.color: current ? Theme.accent : Theme.borderSoft
+                        Text {
+                            id: chipLabel
+                            anchors.centerIn: parent
+                            text: modelData.name
+                            font.pixelSize: 12
+                            color: current ? Theme.text : Theme.textDim
+                        }
+                        HoverHandler {
+                            cursorShape: Qt.PointingHandCursor
+                        }
+                        TapHandler {
+                            onTapped: {
+                                root.searchText = "";
+                                root.category = modelData.id;
+                            }
+                        }
                     }
                 }
             }
             Rectangle {
-                visible:root.layout==="tiles"&&!root.searching&&root.category!=="all"
-                Layout.fillWidth:true; Layout.leftMargin:8; Layout.rightMargin:8; Layout.bottomMargin:6; implicitHeight:30; radius:6
-                color:backHover.hovered?Theme.field:"transparent"
+                visible: root.layout === "tiles" && !root.searching && root.category !== "all"
+                Layout.fillWidth: true
+                Layout.leftMargin: 8
+                Layout.rightMargin: 8
+                Layout.bottomMargin: 6
+                implicitHeight: 30
+                radius: 6
+                color: backHover.hovered ? Theme.field : "transparent"
                 Row {
-                    anchors.verticalCenter:parent.verticalCenter; anchors.left:parent.left; anchors.leftMargin:6; spacing:6
-                    LucideIcon { width:16; height:16; name:"chevron-left"; color:Theme.textDim; anchors.verticalCenter:parent.verticalCenter }
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    anchors.leftMargin: 6
+                    spacing: 6
+                    LucideIcon {
+                        width: 16
+                        height: 16
+                        name: "chevron-left"
+                        color: Theme.textDim
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                     Text {
-                        anchors.verticalCenter:parent.verticalCenter; color:Theme.text; font.pixelSize:13; font.weight:Font.Medium
-                        text:{ for(const c of root.categories) if(c.id===root.category) return c.name; return ""; }
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: Theme.text
+                        font.pixelSize: 13
+                        font.weight: Font.Medium
+                        text: {
+                            for (const c of root.categories)
+                                if (c.id === root.category)
+                                    return c.name;
+                            return "";
+                        }
                     }
                 }
-                Text { anchors.right:parent.right; anchors.rightMargin:8; anchors.verticalCenter:parent.verticalCenter; text:qsTr("All categories"); color:Theme.textDim; font.pixelSize:11 }
-                HoverHandler { id:backHover; cursorShape:Qt.PointingHandCursor }
-                TapHandler { onTapped:root.category="all" }
+                Text {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: qsTr("All categories")
+                    color: Theme.textDim
+                    font.pixelSize: 11
+                }
+                HoverHandler {
+                    id: backHover
+                    cursorShape: Qt.PointingHandCursor
+                }
+                TapHandler {
+                    onTapped: root.category = "all"
+                }
             }
             ScrollView {
-                id:paletteScroll
+                id: paletteScroll
                 // Back at the top whenever the category changes (e.g. returning to the tile grid)
-                Connections { target:root; function onCategoryChanged(){ paletteScroll.contentItem.contentY=0; } }
-                Layout.fillWidth:true; Layout.fillHeight:true; clip:true
+                Connections {
+                    target: root
+                    function onCategoryChanged() {
+                        paletteScroll.contentItem.contentY = 0;
+                    }
+                }
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
                 ScrollBar.horizontal.policy: ScrollBar.AsNeeded
                 // Flickable must not also handle the wheel, or it overrides the faster pan below
-                Binding { target:paletteScroll.contentItem; property:"interactive"; value:!paletteWheel.active }
-                WheelHandler { id:paletteWheel; target:null; function touchpad(e){return paletteSmooth.isTouchpad(e);} function pan(ad,pd,tp){if(!tp)return ad/120*Qt.styleHints.wheelScrollLines*24;const d=ad!==0?ad/12:pd;return d*Math.min(24,6+1.5*Math.abs(d));} acceptedDevices:PointerDevice.Mouse|PointerDevice.TouchPad; onWheel:event=>{const tp=paletteWheel.touchpad(event);paletteSmooth.scrollBy(0,paletteWheel.pan(event.angleDelta.y,event.pixelDelta.y,tp),!tp);event.accepted=true;} }
-                SmoothScroll { id:paletteSmooth; flickable:paletteScroll.contentItem }
+                Binding {
+                    target: paletteScroll.contentItem
+                    property: "interactive"
+                    value: !paletteWheel.active
+                }
+                WheelHandler {
+                    id: paletteWheel
+                    target: null
+                    function touchpad(e) {
+                        return paletteSmooth.isTouchpad(e);
+                    }
+                    function pan(ad, pd, tp) {
+                        if (!tp)
+                            return ad / 120 * Qt.styleHints.wheelScrollLines * 24;
+                        const d = ad !== 0 ? ad / 12 : pd;
+                        return d * Math.min(24, 6 + 1.5 * Math.abs(d));
+                    }
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    onWheel: event => {
+                        const tp = paletteWheel.touchpad(event);
+                        paletteSmooth.scrollBy(0, paletteWheel.pan(event.angleDelta.y, event.pixelDelta.y, tp), !tp);
+                        event.accepted = true;
+                    }
+                }
+                SmoothScroll {
+                    id: paletteSmooth
+                    flickable: paletteScroll.contentItem
+                }
                 Column {
-                    width:Math.max(root.contentWidth+16, childrenRect.width); spacing:8; padding:8
+                    width: Math.max(root.contentWidth + 16, childrenRect.width)
+                    spacing: 8
+                    padding: 8
                     // Tiles: top-level category grid
                     Grid {
-                        visible:root.layout==="tiles"&&!root.searching&&root.category==="all"
-                        columns:2; spacing:8
+                        visible: root.layout === "tiles" && !root.searching && root.category === "all"
+                        columns: 2
+                        spacing: 8
                         Repeater {
-                            model:root.layout==="tiles"?root.categories.slice(1):[]
-                            delegate:Rectangle {
+                            model: root.layout === "tiles" ? root.categories.slice(1) : []
+                            delegate: Rectangle {
                                 required property var modelData
-                                width:Math.floor((root.contentWidth-8)/2); height:74; radius:8
-                                color:tileHover.hovered?Theme.panelRaised:Theme.field; border.color:Theme.borderSoft
+                                width: Math.floor((root.contentWidth - 8) / 2)
+                                height: 74
+                                radius: 8
+                                color: tileHover.hovered ? Theme.panelRaised : Theme.field
+                                border.color: Theme.borderSoft
                                 Column {
-                                    anchors.centerIn:parent; spacing:3
-                                    LucideIcon { anchors.horizontalCenter:parent.horizontalCenter; width:22; height:22; name:modelData.icon; color:Theme.text }
-                                    Text { anchors.horizontalCenter:parent.horizontalCenter; text:modelData.name; color:Theme.text; font.pixelSize:12 }
-                                    Text { anchors.horizontalCenter:parent.horizontalCenter; text:qsTr("%n block(s)","",root.categoryCount(modelData.id)); color:Theme.textDim; font.pixelSize:10 }
+                                    anchors.centerIn: parent
+                                    spacing: 3
+                                    LucideIcon {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        width: 22
+                                        height: 22
+                                        name: modelData.icon
+                                        color: Theme.text
+                                    }
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: modelData.name
+                                        color: Theme.text
+                                        font.pixelSize: 12
+                                    }
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: qsTr("%n block(s)", "", root.categoryCount(modelData.id))
+                                        color: Theme.textDim
+                                        font.pixelSize: 10
+                                    }
                                 }
-                                HoverHandler { id:tileHover; cursorShape:Qt.PointingHandCursor }
-                                TapHandler { onTapped:root.category=modelData.id }
+                                HoverHandler {
+                                    id: tileHover
+                                    cursorShape: Qt.PointingHandCursor
+                                }
+                                TapHandler {
+                                    onTapped: root.category = modelData.id
+                                }
                             }
                         }
                     }
                     // Accordion: one header per category, one section open at a time
                     Column {
-                        visible:root.layout==="accordion"&&!root.searching
-                        spacing:4
+                        visible: root.layout === "accordion" && !root.searching
+                        spacing: 4
                         Repeater {
-                            model:root.layout==="accordion"?root.categories.slice(1):[]
-                            delegate:Column {
-                                id:section
+                            model: root.layout === "accordion" ? root.categories.slice(1) : []
+                            delegate: Column {
+                                id: section
                                 required property var modelData
-                                readonly property bool expanded:root.category===modelData.id
-                                spacing:6
+                                readonly property bool expanded: root.category === modelData.id
+                                spacing: 6
                                 Rectangle {
-                                    width:root.contentWidth; height:34; radius:6
-                                    color:headerHover.hovered?Theme.field:"transparent"
+                                    width: root.contentWidth
+                                    height: 34
+                                    radius: 6
+                                    color: headerHover.hovered ? Theme.field : "transparent"
                                     Row {
-                                        anchors.verticalCenter:parent.verticalCenter; anchors.left:parent.left; anchors.leftMargin:6; spacing:8
-                                        LucideIcon { width:15; height:15; name:section.expanded?"chevron-down":"chevron-right"; color:Theme.textDim; anchors.verticalCenter:parent.verticalCenter }
-                                        Text { text:section.modelData.name; color:section.expanded?Theme.text:Theme.textDim; font.pixelSize:13; font.weight:section.expanded?Font.Medium:Font.Normal; anchors.verticalCenter:parent.verticalCenter }
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 6
+                                        spacing: 8
+                                        LucideIcon {
+                                            width: 15
+                                            height: 15
+                                            name: section.expanded ? "chevron-down" : "chevron-right"
+                                            color: Theme.textDim
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Text {
+                                            text: section.modelData.name
+                                            color: section.expanded ? Theme.text : Theme.textDim
+                                            font.pixelSize: 13
+                                            font.weight: section.expanded ? Font.Medium : Font.Normal
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
                                     }
-                                    Text { anchors.right:parent.right; anchors.rightMargin:8; anchors.verticalCenter:parent.verticalCenter; text:root.categoryCount(section.modelData.id); color:Theme.textDim; font.pixelSize:11 }
-                                    HoverHandler { id:headerHover; cursorShape:Qt.PointingHandCursor }
-                                    TapHandler { onTapped:root.category=section.expanded?"all":section.modelData.id }
+                                    Text {
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: 8
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: root.categoryCount(section.modelData.id)
+                                        color: Theme.textDim
+                                        font.pixelSize: 11
+                                    }
+                                    HoverHandler {
+                                        id: headerHover
+                                        cursorShape: Qt.PointingHandCursor
+                                    }
+                                    TapHandler {
+                                        onTapped: root.category = section.expanded ? "all" : section.modelData.id
+                                    }
                                 }
                                 Loader {
-                                    id:sectionList
-                                    active:section.expanded
-                                    sourceComponent:blockListComponent
-                                    Binding { target:sectionList.item; property:"only"; value:section.modelData.id; when:sectionList.status===Loader.Ready }
+                                    id: sectionList
+                                    active: section.expanded
+                                    sourceComponent: blockListComponent
+                                    Binding {
+                                        target: sectionList.item
+                                        property: "only"
+                                        value: section.modelData.id
+                                        when: sectionList.status === Loader.Ready
+                                    }
                                 }
                             }
                         }
                     }
                     // Everything else: one flat list (a category, all, or search results)
                     Loader {
-                        id:flatList
-                        active:root.searching||(root.layout!=="accordion"&&!(root.layout==="tiles"&&root.category==="all"))
-                        sourceComponent:blockListComponent
-                        Binding { target:flatList.item; property:"only"; value:root.searching||root.category==="all"?"":root.category; when:flatList.status===Loader.Ready }
+                        id: flatList
+                        active: root.searching || (root.layout !== "accordion" && !(root.layout === "tiles" && root.category === "all"))
+                        sourceComponent: blockListComponent
+                        Binding {
+                            target: flatList.item
+                            property: "only"
+                            value: root.searching || root.category === "all" ? "" : root.category
+                            when: flatList.status === Loader.Ready
+                        }
                     }
-                    Item { width:1;height:8 }
+                    Item {
+                        width: 1
+                        height: 8
+                    }
                 }
             }
         }
     }
     // Delete target, shown only while something is dragged from the canvas.
     Rectangle {
-        anchors.fill: parent; z: 4; radius: root.radius
+        anchors.fill: parent
+        z: 4
+        radius: root.radius
         color: root.trashArmed ? Qt.alpha(Theme.dangerBackground, 0.96) : Qt.alpha(Theme.panel, 0.96)
-        opacity: root.trashActive ? 1 : 0; visible: opacity > 0
-        Behavior on opacity { enabled: Motion.enabled; NumberAnimation { duration: Motion.quick } }
+        opacity: root.trashActive ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity {
+            enabled: Motion.enabled
+            NumberAnimation {
+                duration: Motion.quick
+            }
+        }
         Shape {
             id: trashOutline
-            anchors.fill: parent; anchors.margins: 10
+            anchors.fill: parent
+            anchors.margins: 10
             ShapePath {
-                strokeColor: root.trashArmed ? Theme.danger : Theme.border; strokeWidth: 1.5
-                strokeStyle: ShapePath.DashLine; dashPattern: [4, 3]
+                strokeColor: root.trashArmed ? Theme.danger : Theme.border
+                strokeWidth: 1.5
+                strokeStyle: ShapePath.DashLine
+                dashPattern: [4, 3]
                 fillColor: root.trashArmed ? "#1fff4848" : "transparent"
-                startX: 6; startY: 0
-                PathLine { x: trashOutline.width - 6; y: 0 }
-                PathQuad { x: trashOutline.width; y: 6; controlX: trashOutline.width; controlY: 0 }
-                PathLine { x: trashOutline.width; y: trashOutline.height - 6 }
-                PathQuad { x: trashOutline.width - 6; y: trashOutline.height; controlX: trashOutline.width; controlY: trashOutline.height }
-                PathLine { x: 6; y: trashOutline.height }
-                PathQuad { x: 0; y: trashOutline.height - 6; controlX: 0; controlY: trashOutline.height }
-                PathLine { x: 0; y: 6 }
-                PathQuad { x: 6; y: 0; controlX: 0; controlY: 0 }
+                startX: 6
+                startY: 0
+                PathLine {
+                    x: trashOutline.width - 6
+                    y: 0
+                }
+                PathQuad {
+                    x: trashOutline.width
+                    y: 6
+                    controlX: trashOutline.width
+                    controlY: 0
+                }
+                PathLine {
+                    x: trashOutline.width
+                    y: trashOutline.height - 6
+                }
+                PathQuad {
+                    x: trashOutline.width - 6
+                    y: trashOutline.height
+                    controlX: trashOutline.width
+                    controlY: trashOutline.height
+                }
+                PathLine {
+                    x: 6
+                    y: trashOutline.height
+                }
+                PathQuad {
+                    x: 0
+                    y: trashOutline.height - 6
+                    controlX: 0
+                    controlY: trashOutline.height
+                }
+                PathLine {
+                    x: 0
+                    y: 6
+                }
+                PathQuad {
+                    x: 6
+                    y: 0
+                    controlX: 0
+                    controlY: 0
+                }
             }
         }
         Column {
-            anchors.centerIn: parent; spacing: 8
-            LucideIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "trash"; width: 30; height: 30; color: root.trashArmed ? Theme.danger : Theme.text }
-            Text { anchors.horizontalCenter: parent.horizontalCenter; text: root.trashArmed ? qsTr("Release to delete") : qsTr("Drop here to delete"); color: root.trashArmed ? Theme.danger : Theme.text; font.pixelSize: 14 }
+            anchors.centerIn: parent
+            spacing: 8
+            LucideIcon {
+                anchors.horizontalCenter: parent.horizontalCenter
+                name: "trash"
+                width: 30
+                height: 30
+                color: root.trashArmed ? Theme.danger : Theme.text
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: root.trashArmed ? qsTr("Release to delete") : qsTr("Drop here to delete")
+                color: root.trashArmed ? Theme.danger : Theme.text
+                font.pixelSize: 14
+            }
         }
     }
 
     // Drag the right edge to resize the panel.
     Rectangle {
-        anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.right: parent.right
-        width: 6; z: 5; visible: root.layout !== "flyout" || root.flyoutShown
-        color: Theme.accent; opacity: resizeArea.pressed || resizeArea.containsMouse ? 0.5 : 0
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        width: 6
+        z: 5
+        visible: root.layout !== "flyout" || root.flyoutShown
+        color: Theme.accent
+        opacity: resizeArea.pressed || resizeArea.containsMouse ? 0.5 : 0
         MouseArea {
             id: resizeArea
-            anchors.fill: parent; hoverEnabled: true; preventStealing: true; cursorShape: Qt.SizeHorCursor
+            anchors.fill: parent
+            hoverEnabled: true
+            preventStealing: true
+            cursorShape: Qt.SizeHorCursor
             property real startWidth: 0
             property real startX: 0
-            onPressed: mouse => { startWidth = root.width; startX = mapToItem(null, mouse.x, 0).x; }
-            onPositionChanged: mouse => { if (pressed) root.resizeRequested(startWidth + mapToItem(null, mouse.x, 0).x - startX); }
+            onPressed: mouse => {
+                startWidth = root.width;
+                startX = mapToItem(null, mouse.x, 0).x;
+            }
+            onPositionChanged: mouse => {
+                if (pressed)
+                    root.resizeRequested(startWidth + mapToItem(null, mouse.x, 0).x - startX);
+            }
         }
     }
 }
