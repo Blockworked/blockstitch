@@ -135,6 +135,9 @@ pub struct Instruction<K> {
     pub kind: K,
 }
 
+/// A visitor over a call's branch bodies.
+type BranchBodiesMut<'a, K> = dyn FnMut(&mut Vec<Vec<Instruction<K>>>) + 'a;
+
 impl<K> Instruction<K> {
     pub fn new(kind: K) -> Self {
         Self {
@@ -260,7 +263,7 @@ impl<K: BlockKind> Instruction<K> {
     pub fn for_each_call_branches_mut(
         &mut self,
         block_id: &str,
-        f_ins: &mut dyn FnMut(&mut Vec<Vec<Instruction<K>>>),
+        f_ins: &mut BranchBodiesMut<'_, K>,
         f_val: &mut dyn FnMut(&mut Vec<Vec<serde_json::Value>>),
     ) {
         self.walk_mut(&mut |ins| {

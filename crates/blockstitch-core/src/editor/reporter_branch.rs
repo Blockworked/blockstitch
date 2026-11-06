@@ -66,6 +66,9 @@ fn collect_ids(args: &Json, ids: &mut Vec<String>) {
     }
 }
 
+/// Turns a reporter branch's saved JSON body into instructions.
+pub type BranchReader<'a, K> = dyn Fn(&[Json]) -> Result<Vec<Instruction<K>>, String> + 'a;
+
 impl<K: BlockKind> BlockGraph<K> {
     /// Adds each named branch (and any branch its reporter sits in) as a
     /// temporary strand. `read` turns a branch's saved JSON body into
@@ -73,7 +76,7 @@ impl<K: BlockKind> BlockGraph<K> {
     pub fn open_reporter_branches(
         &mut self,
         ids: &[String],
-        read: &dyn Fn(&[Json]) -> Result<Vec<Instruction<K>>, String>,
+        read: &BranchReader<'_, K>,
     ) -> Result<OpenBranches, String> {
         let mut open = Vec::new();
         for id in ids {
@@ -85,7 +88,7 @@ impl<K: BlockKind> BlockGraph<K> {
     fn open_branch(
         &mut self,
         id: &str,
-        read: &dyn Fn(&[Json]) -> Result<Vec<Instruction<K>>, String>,
+        read: &BranchReader<'_, K>,
         open: &mut Vec<Branch>,
     ) -> Result<(), String> {
         let Some(encoded) = id.strip_prefix(REPORTER_BRANCH_PREFIX) else {

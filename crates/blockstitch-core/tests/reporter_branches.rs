@@ -112,7 +112,7 @@ fn a_header_in_a_branch_is_refused() {
         json!({ "location": location, "slot": 0 })
     );
     let open = graph
-        .open_reporter_branches(&[branch.clone()], &read)
+        .open_reporter_branches(std::slice::from_ref(&branch), &read)
         .unwrap();
     graph
         .strands
