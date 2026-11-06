@@ -26,7 +26,7 @@ Rectangle {
     onMaxXChanged: keepInView()
     onMaxYChanged: keepInView()
     readonly property var entries: modelData.entries || []
-    visible: modelData.editor_visible
+    visible: !!modelData.editor_visible
     x: Math.max(0, Math.min(editorX, maxX))
     y: Math.max(0, Math.min(editorY, maxY))
     z: 12

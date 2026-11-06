@@ -17,7 +17,7 @@ Rectangle {
     objectName: "listEditor_" + modelData.name
     readonly property real maxX: Math.max(0, overlay.width - width)
     readonly property real maxY: Math.max(0, overlay.height - height)
-    visible: modelData.editor_visible
+    visible: !!modelData.editor_visible
     x: Math.max(0, Math.min(editorX, maxX))
     y: Math.max(0, Math.min(editorY, maxY))
     z: 12
