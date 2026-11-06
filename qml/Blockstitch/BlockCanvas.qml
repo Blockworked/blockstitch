@@ -1054,17 +1054,8 @@ Rectangle {
                     return;
                 }
                 zoomer.stop();
-                // A mouse wheel gets Qt's own Flickable step per notch (angleDelta 120,
-                // less on hi-res wheels) with no acceleration; a touchpad gets the
-                // accelerated pan. pixelDelta is truncated to ints on touchpads;
-                // angleDelta carries the real resolution (about 12 units per px).
                 const touchpad = canvasScroll.isTouchpad(event);
-                const pan = (ad, pd) => {
-                    if (!touchpad)
-                        return ad / 120 * Qt.styleHints.wheelScrollLines * 24;
-                    const d = ad !== 0 ? ad / 12 : pd;
-                    return d * Math.min(24, 6 + 1.5 * Math.abs(d));
-                };
+                const pan = (ad, pd) => canvasScroll.wheelStep(ad, pd, touchpad);
                 // A wheel notch glides to its target; a touchpad pan trails its
                 // fingers by a few frames.
                 const px = pan(event.angleDelta.x, event.pixelDelta.x), py = pan(event.angleDelta.y, event.pixelDelta.y);

@@ -13,13 +13,8 @@ WheelHandler {
     // which mouse wheels send too on Wayland and with libinput on X11.
     function isTouchpad(event) { return smooth.isTouchpad(event); }
 
-    // Wheel: Qt's own Flickable step (wheelScrollLines * 24 px per notch), no acceleration.
-    // Touchpad pixelDelta is truncated to ints; angleDelta has the real resolution (~12 per px).
-    function pan(ad, pd, touchpad) {
-        if (!touchpad) return ad / 120 * Qt.styleHints.wheelScrollLines * 24;
-        const d = ad !== 0 ? ad / 12 : pd;
-        return d * Math.min(24, 3 + 1.5 * Math.abs(d));
-    }
+    // A list's touchpad pan starts gentler than the canvas's (3 px per unit, not 6).
+    function pan(ad, pd, touchpad) { return smooth.wheelStep(ad, pd, touchpad, 3); }
 
     // Flickable must not also handle the wheel or it overrides this
     onActiveChanged: if (flickable) flickable.interactive = !active

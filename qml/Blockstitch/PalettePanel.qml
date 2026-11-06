@@ -808,10 +808,7 @@ Rectangle {
                         return paletteSmooth.isTouchpad(e);
                     }
                     function pan(ad, pd, tp) {
-                        if (!tp)
-                            return ad / 120 * Qt.styleHints.wheelScrollLines * 24;
-                        const d = ad !== 0 ? ad / 12 : pd;
-                        return d * Math.min(24, 6 + 1.5 * Math.abs(d));
+                        return paletteSmooth.wheelStep(ad, pd, tp);
                     }
                     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                     onWheel: event => {

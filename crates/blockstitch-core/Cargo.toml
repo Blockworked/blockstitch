@@ -2,6 +2,7 @@
 name = "blockstitch-core"
 version = "0.1.0"
 edition = "2024"
+rust-version.workspace = true
 description = "Backend model, value system and editor operations for the blockstitch block editor."
 license = "GPL-3.0-or-later"
 

@@ -4,10 +4,15 @@
 members = [".", "crates/blockstitch-core", "crates/blockstitch-ffi"]
 default-members = ["crates/blockstitch-core", "crates/blockstitch-ffi"]
 
+[workspace.package]
+# The same minimum as Blockwork; CI checks the core crates with it.
+rust-version = "1.91"
+
 [package]
 name = "blockstitch-qml"
 version = "0.1.0"
 edition = "2024"
+rust-version.workspace = true
 description = "Qt 6/QML frontend components for Blockstitch's block canvas"
 license = "GPL-3.0-or-later"
 build = "build.rs"

@@ -2,6 +2,7 @@
 name = "blockstitch-ffi"
 version = "0.1.0"
 edition = "2024"
+rust-version.workspace = true
 description = "C ABI over blockstitch-core: handle-based sessions speaking JSON, for hosts that can't link Rust directly (Qt for WebAssembly)."
 license = "GPL-3.0-or-later"
 

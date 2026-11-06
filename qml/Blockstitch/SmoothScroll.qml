@@ -109,6 +109,17 @@ QtObject {
         return !!dev && dev.type === PointerDevice.TouchPad;
     }
 
+    // Pixels to pan for one axis of a wheel event. A mouse wheel gets Qt's own
+    // Flickable step per notch (angleDelta 120, less on hi-res wheels) with no
+    // acceleration; a touchpad gets an accelerated pan starting at `base` px
+    // per unit. pixelDelta is truncated to ints on touchpads; angleDelta
+    // carries the real resolution (about 12 units per px).
+    function wheelStep(angleDelta, pixelDelta, touchpad, base) {
+        if (!touchpad) return angleDelta / 120 * Qt.styleHints.wheelScrollLines * 24;
+        const d = angleDelta !== 0 ? angleDelta / 12 : pixelDelta;
+        return d * Math.min(24, (base === undefined ? 6 : base) + 1.5 * Math.abs(d));
+    }
+
     function stop() { _gx = null; _gy = null; following = false; }
 
     // Pans by (dx, dy) px from a touchpad, trailing slightly behind; positive

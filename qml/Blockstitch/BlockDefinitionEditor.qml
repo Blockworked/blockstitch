@@ -827,12 +827,7 @@ Item {
                     orientation: Qt.Horizontal | Qt.Vertical
                     onWheel: event => {
                         const touchpad = previewScroll.isTouchpad(event);
-                        // Match the main canvas's wheel steps and touchpad acceleration.
-                        const pan = (ad, pd) => {
-                            if (!touchpad) return ad / 120 * Qt.styleHints.wheelScrollLines * 24;
-                            const d = ad !== 0 ? ad / 12 : pd;
-                            return d * Math.min(24, 6 + 1.5 * Math.abs(d));
-                        };
+                        const pan = (ad, pd) => previewScroll.wheelStep(ad, pd, touchpad);
                         const px = pan(event.angleDelta.x, event.pixelDelta.x);
                         const py = pan(event.angleDelta.y, event.pixelDelta.y);
                         if (touchpad) previewScroll.follow(px, py);
