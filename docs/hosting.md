@@ -251,7 +251,7 @@ its website build both call.
 A host pins `blockstitch-core`, `blockstitch-qml` (and `blockstitch-ffi` if
 used) to one commit, and moves them together. Blockwork's
 `scripts/set-blockstitch-rev.js` and Blockloom's `just blockstitch-published`
-do that; Blockwork's also moves the flatpak manifest, after which
+do that; Blockwork's also moves the flatpak manifest, after which its
 `packaging/flatpak/cargo-sources.json` is regenerated with
 `flatpak-cargo-generator`. `just blockstitch-local` builds against a sibling
 checkout through an uncommitted `.cargo/config.toml`; delete it before
