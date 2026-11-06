@@ -132,6 +132,11 @@ title. Any other `action` is the host's own: `actionText` labels the button and
 a click sends `sectionActionRequested(action)`. Blocks no section names join an untitled section at the end of their
 category; without `sections`, variables, lists and dicts still get their own.
 
+The built-in categories are Events, Flow, Data and Operators, then Custom.
+`appCategories: [{id, name, icon, after}]` adds the host's own: one with
+`after` sits behind that category, the rest go before Custom.
+`accordionCategory` names the one the accordion layout opens on.
+
 Fresh values come from the core: `BlockRegistry.freshValue(kind, names)` for
 an operator, `BlockRegistry.freshCallArgs(definition)` for a custom block
 call. Don't keep operator defaults in QML; change the Rust `default_args`

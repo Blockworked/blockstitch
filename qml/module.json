@@ -24,7 +24,6 @@
     "BwDialog.qml",
     "BwSwitch.qml",
     "BwSlider.qml",
-    "BwTimePicker.qml",
     "SmoothScroll.qml",
     "WheelPan.qml",
     "BooleanSlot.qml",

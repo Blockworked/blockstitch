@@ -12,6 +12,8 @@ Item {
         listInstructionTypes: ["AddToList"]
         variables: ["score"]
         extraCategories: ({ SetClipboard: "system" })
+        appCategories: [{ id: "input", name: "Input", icon: "keyboard", after: "events" },
+                        { id: "system", name: "System", icon: "settings" }]
     }
     SignalSpy { id: actionSpy; target: palette; signalName: "sectionActionRequested" }
     TestCase {
@@ -60,6 +62,12 @@ Item {
             verify(names(operators[0]).indexOf("Add") >= 0);
             compare(palette.categoryCount("input"), 1);
             palette.sections = [];
+        }
+
+        function test_hostCategoriesKeepTheirPlace() {
+            compare(palette.categories.map(c => c.id),
+                    ["all", "events", "input", "control", "data", "operators", "system", "custom"]);
+            compare(palette.operatorCategory("CurrentTime"), "operators");
         }
 
         function test_sectionsDecideCategories() {

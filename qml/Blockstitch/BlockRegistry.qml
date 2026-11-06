@@ -110,6 +110,9 @@ QtObject {
     // piece: {kind:"label",text} | {kind:"value",field,key,index,bool,pick,options,placeholder,unit,keyCapture}
     //      | {kind:"dropdown",key,index,options,placeholder,encode,decode}
     //      | {kind:"text",key,index,placeholder}
+    //      | {kind:"button",action,text,icon,image,palette} (see BlockPiece.qml)
+    // The registry adds "component", "addComponent" and "removeComponent"
+    // pieces itself for a row's optional components; a host never writes them.
     // A piece's `index`, when set, picks one entry of the array held under
     // `key`; without it `key` holds the value itself. A value piece's `pick`
     // shows typed text as a picker button (see ValueChip.pick); `options`
@@ -132,6 +135,10 @@ QtObject {
     // Rows for the shared variable, list and loop blocks; a host's own row
     // for the same type wins.
     property var builtinRows: defaultRows()
+    // Types InstructionBlock draws itself, with no row: the C-shaped control
+    // blocks and custom block headers, calls and branch slots.
+    readonly property var selfDrawnTypes: ["If", "IfElse", "Repeat", "Forever", "While",
+        "BlockHeader", "CallBlock", "BranchCallBlock", "RunBranch"]
     function defaultRows() {
         const label = text => ({ kind: "label", text: text });
         const value = (field, key) => ({ kind: "value", field: field, key: key });

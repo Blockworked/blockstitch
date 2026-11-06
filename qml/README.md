@@ -46,7 +46,7 @@ is added to `module.json` and nowhere else.
 | `BlockDefinitionEditor.qml` | "Make a Block". |
 | `BlockAppearancePopup.qml`, `BlockIconPopup.qml` | Its color and icon pickers. |
 | `Theme.qml`, `Motion.qml`, `Icons.qml` | Colors and sizes, animation timing, Lucide icon paths. |
-| `Bw*.qml` | The small controls (button, check box, combo box, dialog, menu, slider, switch, text field, time picker) every host uses for its own UI too. The `Bw` prefix is historical; they hold nothing Blockwork-specific. |
+| `Bw*.qml` | The small controls (button, check box, combo box, dialog, menu, slider, switch, text field) every host uses for its own UI too. The `Bw` prefix is historical; they hold nothing Blockwork-specific. |
 
 ## Registering an app's blocks
 
@@ -67,7 +67,7 @@ BlockRegistry.registerPrefabs({ Say: () => ({ text: { kind: "Text", value: "Hell
 Blockstitch draws its own control and data blocks: the variable and list
 blocks, `Return` and the loop exits have rows in `BlockRegistry.defaultRows`,
 and `If`, `IfElse`, `Repeat`, `Forever` and `While` are drawn by
-`InstructionBlock` itself (`docs/hosting.md` lists these names). A
+`InstructionBlock` itself (`BlockRegistry.selfDrawnTypes`). A
 host registers a row for every other type; one without a row draws as its
 icon alone. A value piece's `unit` frames the slot with a caption (`"ms"`),
 and `keyCapture: true` turns a click on its text into `keyCaptureRequested`

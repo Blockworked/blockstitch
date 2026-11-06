@@ -325,7 +325,7 @@ Rectangle {
     onLayoutChanged: {
         searchText = "";
         flyoutOpen = false;
-        category = layout === "accordion" ? "input" : "all";
+        category = layout === "accordion" ? accordionCategory : "all";
     }
     onDragStarted: paletteDragging = true
     onDragEnded: paletteDragging = false
@@ -513,58 +513,30 @@ Rectangle {
             return qsTr("A dict reporter block that reads data without changing the dict.");
         return qsTr("A value or operator block that can be placed in an input.");
     }
-    // App-specific categories ({id, name, icon}), listed before Custom.
+    // The host's own categories ({id, name, icon, after}). One with `after`
+    // sits right behind that category; the rest go before Custom.
     property var appCategories: []
-    readonly property var categories: [
-        {
-            id: "all",
-            name: qsTr("All"),
-            icon: "layout-grid"
-        },
-        {
-            id: "events",
-            name: qsTr("Events"),
-            icon: "zap"
-        },
-        {
-            id: "input",
-            name: qsTr("Input"),
-            icon: "keyboard"
-        },
-        {
-            id: "control",
-            name: qsTr("Flow"),
-            icon: "git-branch"
-        },
-        {
-            id: "data",
-            name: qsTr("Data"),
-            icon: "variable"
-        },
-        {
-            id: "operators",
-            name: qsTr("Operators"),
-            icon: "equal"
-        },
-        {
-            id: "system",
-            name: qsTr("System"),
-            icon: "settings"
+    // The category the accordion layout opens on.
+    property string accordionCategory: "events"
+    readonly property var categories: {
+        const out = [
+            { id: "all", name: qsTr("All"), icon: "layout-grid" },
+            { id: "events", name: qsTr("Events"), icon: "zap" },
+            { id: "control", name: qsTr("Flow"), icon: "git-branch" },
+            { id: "data", name: qsTr("Data"), icon: "variable" },
+            { id: "operators", name: qsTr("Operators"), icon: "equal" }
+        ];
+        const extra = Array.from(appCategories || []);
+        for (const c of extra.filter(c => c.after)) {
+            const at = out.findIndex(o => o.id === c.after);
+            out.splice(at < 0 ? out.length : at + 1, 0, c);
         }
-    ].concat(Array.from(appCategories || [])).concat([
-        {
-            id: "custom",
-            name: qsTr("Custom"),
-            icon: "blocks"
-        }
-    ]).concat(root.blockLibraryEnabled ? [
-        {
-            id: "community",
-            name: qsTr("Community"),
-            icon: "package"
-        }
-    ] : [])
-    readonly property var systemOperators: ["CurrentTime"]
+        out.push(...extra.filter(c => !c.after));
+        out.push({ id: "custom", name: qsTr("Custom"), icon: "blocks" });
+        if (root.blockLibraryEnabled)
+            out.push({ id: "community", name: qsTr("Community"), icon: "package" });
+        return out;
+    }
     // Each name a host section lists -> that section's category (the first wins).
     readonly property var sectionCategories: {
         const out = {};
@@ -587,7 +559,7 @@ Rectangle {
         return "data";
     }
     function operatorCategory(op) {
-        return extraCategories[op] || sectionCategories[op] || (systemOperators.indexOf(op) >= 0 ? "system" : "operators");
+        return extraCategories[op] || sectionCategories[op] || "operators";
     }
     function humanize(s) {
         return String(s).replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
