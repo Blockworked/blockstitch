@@ -3,7 +3,7 @@ name = "blockstitch-ffi"
 version = "0.1.0"
 edition = "2024"
 description = "C ABI over blockstitch-core: handle-based sessions speaking JSON, for hosts that can't link Rust directly (Qt for WebAssembly)."
-license = "MIT"
+license = "GPL-3.0-or-later"
 
 # A host crate depends on this, implements `Host` for its document and
 # expands `export_abi!`; that crate is the staticlib a page links. Build it

@@ -18,3 +18,7 @@ lockfiles, so a plain `cargo test` at the root only builds the QML crate.
 
 Hosts pin all three crates to one commit and move them together (see
 "Pins" in `docs/hosting.md`).
+
+## License
+
+GPL-3.0-or-later. See [LICENSE](LICENSE).
