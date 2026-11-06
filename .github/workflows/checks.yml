@@ -1,0 +1,39 @@
+name: Checks
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  core:
+    name: Core and FFI tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/blockstitch-core
+            crates/blockstitch-ffi
+      - run: cd crates/blockstitch-core && cargo test
+      - run: cd crates/blockstitch-ffi && cargo test
+
+  qml:
+    name: QML tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install Qt
+        run: |
+          python -m pip install aqtinstall==3.3.0
+          python -m aqt install-qt linux desktop 6.10.3 linux_gcc_64 --outputdir "$RUNNER_TEMP/Qt"
+          runner=$(find "$RUNNER_TEMP/Qt/6.10.3" -maxdepth 3 -path '*/bin/*' -name qmltestrunner | head -n 1)
+          test -n "$runner"
+          dirname "$runner" >> "$GITHUB_PATH"
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgl-dev libxkbcommon0 libegl1
+      - run: tests/qml/run.sh

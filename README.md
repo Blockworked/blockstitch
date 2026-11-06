@@ -12,4 +12,4 @@ The block editor shared by Blockwork, Blockloom and the website.
 | `tests/qml` | QML tests (`QMLTESTRUNNER=qmltestrunner tests/qml/run.sh`) |
 | `docs/hosting.md` | How a host app puts the editor on its own blocks |
 
-Core tests: `cd crates/blockstitch-core && cargo test`.
+Tests: `just test` (or `just test-core`, which needs no Qt, and `just test-qml`). CI runs both (`.github/workflows/checks.yml`).

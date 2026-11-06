@@ -183,6 +183,28 @@ blockworked.com's `qt-demo/` (`core.cpp`, `DemoBackend.qml`) are the working
 example; the site pins one Blockwork commit in `qt-demo/sources.env` and
 reads blockstitch's from that commit's `Cargo.lock`.
 
+## Names blockstitch knows
+
+The QML draws a few instruction types itself, so a host's `InstructionKind`
+must use these names (the `type` tag) and field keys for them:
+
+| Type | Drawn as | Keys it reads |
+| --- | --- | --- |
+| `If`, `While` | wrap with a condition | `condition`, `body` |
+| `IfElse` | two mouths, "else" between | `condition`, `then_body`, `else_body` |
+| `Repeat` | wrap with a count | `count`, `body` |
+| `Forever` | wrap | `body` |
+| `Return`, `EscapeLoop`, `ContinueLoop` | cap (nothing snaps under) | `value` (`Return`) |
+| `SetVariable`, `ChangeVariable` | the Variables palette section | `name`, `value` |
+| `BlockHeader` | a custom block's definition hat | `block_id` |
+| `CallBlock`, `BranchCallBlock` | a call, the second with mouths | `block_id`, `args`, `branches` |
+| `RunBranch` | a call's branch placeholder | `name` |
+
+Any other type whose name starts with `When` is a header (a hat with nothing
+above it). Everything else comes from the host's rows in `BlockRegistry`.
+Reporters `Text`, `Number`, `Bool` and `Op` are the `Value` kinds from
+`blockstitch-core`.
+
 ## Pins
 
 A host pins `blockstitch-core`, `blockstitch-qml` (and `blockstitch-ffi` if
