@@ -62,7 +62,6 @@ Rectangle {
     signal paletteDragEnded(real sceneX, real sceneY)
     signal paletteDragCanceled()
     signal keyCaptureRequested(string strandId, var path)
-    signal appPickerRequested(string strandId, var path, var instruction)
     signal pieceActionRequested(string action, string strandId, var path, var instruction)
     signal detailsRequested(string type)
     signal valueTakeRequested(var location)
@@ -103,6 +102,7 @@ Rectangle {
             }
         }
     }
+    onVariablesChanged: BlockRegistry.variableNames = variables || []
     onDictsChanged: {
         BlockRegistry.dictNames = (dicts || []).map(d => d.name);
         syncDictEditors();
@@ -799,7 +799,6 @@ Rectangle {
         item.valueDragCanceled.connect(root.cancelValueDrag);
         item.runBranchRequested.connect(root.runBranchRequested);
         item.keyCaptureRequested.connect(root.keyCaptureRequested);
-        item.appPickerRequested.connect(root.appPickerRequested);
         item.detailsRequested.connect(root.detailsRequested);
         item.menuActionRequested.connect(root.blockMenuAction);
         item.pieceActionRequested.connect(root.pieceActionRequested);
@@ -1474,7 +1473,6 @@ Rectangle {
                             onCommentRequested:i=>root.commentForInstructionRequested(i)
                             onRecordingTargetRequested:sid=>root.recordingTargetRequested(sid)
                             onKeyCaptureRequested:(sid,p)=>root.keyCaptureRequested(sid,p)
-                            onAppPickerRequested:(sid,p,i)=>root.appPickerRequested(sid,p,i)
                             onPieceActionRequested:(a,sid,p,i)=>root.pieceActionRequested(a,sid,p,i)
                             onDetailsRequested:type=>root.detailsRequested(type)
                             onMenuActionRequested:(a,sid,p,i)=>root.blockMenuAction(a,sid,p,i)

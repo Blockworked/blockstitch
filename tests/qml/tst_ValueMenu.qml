@@ -1,10 +1,12 @@
 import QtQuick
 import QtTest
 import com.blockworked.Blockstitch 1.0
+import "testRows.js" as TestRows
 
 // One right-click on a value opens exactly one menu, and always the same one.
 Item {
     id: scene
+    Component.onCompleted: TestRows.register(BlockRegistry)
     width: 900; height: 600
     BlockCanvas {
         id: canvas

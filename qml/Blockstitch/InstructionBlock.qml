@@ -56,7 +56,6 @@ Item {
     signal valueDragCanceled()
     signal runBranchRequested(string strandId, var path, string name)
     signal keyCaptureRequested(string strandId, var path)
-    signal appPickerRequested(string strandId, var path, var instruction)
     // A registered row's "button" piece was clicked; `action` names it.
     signal pieceActionRequested(string action, string strandId, var path, var instruction)
     signal detailsRequested(string type)
@@ -490,322 +489,6 @@ Item {
             }
         }
     }
-    function fieldsComponent(t) {
-        switch (t) {
-        case "WhenRan": return fieldsFor0;
-        case "WhenBatteryDischargedTo": return fieldsFor1;
-        case "WhenBatteryChargedTo": return fieldsFor2;
-        case "WhenTime": return fieldsFor3;
-        case "WhenPowerPluggedIn": return fieldsFor4;
-        case "WhenPowerUnplugged": return fieldsFor5;
-        case "WhenClipboardChanged": return fieldsFor6;
-        case "Wait": return fieldsFor7;
-        case "Text": return fieldsFor8;
-        case "Key": return fieldsFor9;
-        case "WhenKey": return fieldsForWhenKey;
-        case "Button": return fieldsFor10;
-        case "MoveMouse": return fieldsFor11;
-        case "Scroll": return fieldsFor12;
-        case "Command": return fieldsFor13;
-        case "OpenApp": return fieldsFor14;
-        case "CloseApp": return fieldsFor15;
-        case "SetVariable": return fieldsFor16;
-        case "ChangeVariable": return fieldsFor17;
-        case "SetClipboard": return fieldsFor18;
-        case "AddToList": return fieldsFor19;
-        case "DeleteOfList": return fieldsFor20;
-        case "DeleteAllOfList": return fieldsFor21;
-        case "ShiftList": return fieldsFor22;
-        case "InsertIntoList": return fieldsFor24;
-        case "ReplaceItemOfList": return fieldsFor25;
-        case "ReverseList": return fieldsFor26;
-        case "Return": return fieldsFor27;
-        case "EscapeLoop": return fieldsFor28;
-        case "ContinueLoop": return fieldsFor29;
-        default: return null;
-        }
-    }
-    Component { id: fieldsFor0
-        Row {
-            spacing: 7
-                    Text { text:qsTr("WHEN RAN"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
-        }
-    }
-    Component { id: fieldsFor1
-        Row {
-            spacing: 7
-                    Text { text:qsTr("WHEN BATTERY DISCHARGED TO"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { valueData:instruction?instruction.threshold:null; location:root.fieldLocation("BatteryDischargeThreshold"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:"%"; color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-        }
-    }
-    Component { id: fieldsFor2
-        Row {
-            spacing: 7
-                    Text { text:qsTr("WHEN BATTERY CHARGED TO"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { valueData:instruction?instruction.threshold:null; location:root.fieldLocation("BatteryChargeThreshold"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:"%"; color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-        }
-    }
-    Component { id: fieldsFor3
-        Row {
-            spacing: 7
-                    Text { text:qsTr("WHEN"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("every day"),qsTr("weekly"),qsTr("monthly"),qsTr("yearly")]; implicitWidth:104; implicitHeight:30; font.pixelSize:Theme.blockText }
-                    Text { text:qsTr("at"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    BwTextField { anchors.verticalCenter:parent.verticalCenter; text: instruction&&instruction.schedule ? String(instruction.schedule.hour).padStart(2,"0")+":"+String(instruction.schedule.minute).padStart(2,"0") : "09:00"; implicitWidth:72; implicitHeight:30; font.pixelSize:Theme.blockText }
-        }
-    }
-    Component { id: fieldsFor4
-        Row {
-            spacing: 7
-                    Text { text:qsTr("WHEN POWER PLUGGED IN"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
-        }
-    }
-    Component { id: fieldsFor5
-        Row {
-            spacing: 7
-                    Text { text:qsTr("WHEN POWER UNPLUGGED"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
-        }
-    }
-    Component { id: fieldsFor6
-        Row {
-            spacing: 7
-                    Text { text:qsTr("WHEN CLIPBOARD CHANGES"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
-        }
-    }
-    Component { id: fieldsFor7
-        Row {
-            spacing: 7
-                    Text { text:qsTr("Wait"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    Rectangle {
-                        anchors.verticalCenter:parent.verticalCenter
-                        implicitHeight:Math.max(27,coordWait.implicitHeight+4); implicitWidth:coordLabelWait.implicitWidth+coordWait.implicitWidth+21
-                        width:implicitWidth; height:implicitHeight; radius:5; color:Theme.field
-                        border.color:coordWait.dropHighlighted?Theme.accent:Theme.border
-                        Text { id:coordLabelWait; x:7; text:qsTr("ms"); color:Theme.textDim; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                        ValueChip { id:coordWait; x:coordLabelWait.width+14; anchors.verticalCenter:parent.verticalCenter; flatLeaf:true; valueData:instruction?instruction.duration:null; location:root.fieldLocation("WaitDuration"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    }
-        }
-    }
-    Component { id: fieldsFor8
-        Row {
-            spacing: 7
-                    Text { text:qsTr("Text"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.text:null; location:root.fieldLocation("TextValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-        }
-    }
-    Component { id: fieldsFor9
-        Row {
-            spacing: 7
-                    Text { text:qsTr("Key"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; keyMode:true; keyCapturing:root.isCapturingKey(); onKeyCaptureRequested:root.keyCaptureRequested(root.strandId,root.path); valueData:instruction?instruction.key:null; location:root.fieldLocation("KeyValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Click"),qsTr("Press"),qsTr("Release")]; currentIndex: instruction?["Click","Press","Release"].indexOf(instruction.direction):0; implicitWidth:88; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("direction",["Click","Press","Release"][index]) }
-        }
-    }
-    Component { id: fieldsForWhenKey
-        Row {
-            spacing: 7
-                    Text { text:qsTr("WHEN"); color:Theme.text; font.pixelSize:Theme.blockText - 1; font.weight:Font.DemiBold; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; keyMode:true; keyCapturing:root.isCapturingKey(); onKeyCaptureRequested:root.keyCaptureRequested(root.strandId,root.path); valueData:instruction?instruction.key:null; location:root.fieldLocation("KeyValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Pressed"),qsTr("Released")]; currentIndex: instruction&&instruction.direction==="Release"?1:0; implicitWidth:104; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("direction",index===1?"Release":"Press") }
-        }
-    }
-    Component { id: fieldsFor10
-        Row {
-            spacing: 7
-                    Text { text:qsTr("Mouse button"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Left"),qsTr("Right"),qsTr("Middle"),qsTr("Side"),qsTr("Extra")]; currentIndex:instruction?["Left","Right","Middle","Side","Extra"].indexOf(instruction.button):0; implicitWidth:82; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("button",["Left","Right","Middle","Side","Extra"][index]) }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Click"),qsTr("Press"),qsTr("Release")]; currentIndex:instruction?["Click","Press","Release"].indexOf(instruction.direction):0; implicitWidth:88; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("direction",["Click","Press","Release"][index]) }
-        }
-    }
-    Component { id: fieldsFor11
-        Row {
-            spacing: 7
-                    Text { text:qsTr("Move mouse"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Relative"),qsTr("Absolute")]; currentIndex:instruction&&instruction.coordinate==="Absolute"?1:0; implicitWidth:88; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("coordinate",["Relative","Absolute"][index]) }
-                    Rectangle {
-                        anchors.verticalCenter:parent.verticalCenter
-                        implicitHeight:Math.max(27,coordX.implicitHeight+4); implicitWidth:coordLabelX.implicitWidth+coordX.implicitWidth+21
-                        width:implicitWidth; height:implicitHeight; radius:5; color:Theme.field
-                        border.color:coordX.dropHighlighted?Theme.accent:Theme.border
-                        Text { id:coordLabelX; x:7; text:qsTr("x"); color:Theme.textDim; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                        ValueChip { id:coordX; x:coordLabelX.width+14; anchors.verticalCenter:parent.verticalCenter; flatLeaf:true; valueData:instruction?instruction.x:null; location:root.fieldLocation("MoveMouseX"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    }
-                    Rectangle {
-                        anchors.verticalCenter:parent.verticalCenter
-                        implicitHeight:Math.max(27,coordY.implicitHeight+4); implicitWidth:coordLabelY.implicitWidth+coordY.implicitWidth+21
-                        width:implicitWidth; height:implicitHeight; radius:5; color:Theme.field
-                        border.color:coordY.dropHighlighted?Theme.accent:Theme.border
-                        Text { id:coordLabelY; x:7; text:qsTr("y"); color:Theme.textDim; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                        ValueChip { id:coordY; x:coordLabelY.width+14; anchors.verticalCenter:parent.verticalCenter; flatLeaf:true; valueData:instruction?instruction.y:null; location:root.fieldLocation("MoveMouseY"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    }
-        }
-    }
-    Component { id: fieldsFor12
-        Row {
-            spacing: 7
-                    Text { text:qsTr("Scroll"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    Rectangle {
-                        anchors.verticalCenter:parent.verticalCenter
-                        implicitHeight:Math.max(27,coordScroll.implicitHeight+4); implicitWidth:coordLabelScroll.implicitWidth+coordScroll.implicitWidth+21
-                        width:implicitWidth; height:implicitHeight; radius:5; color:Theme.field
-                        border.color:coordScroll.dropHighlighted?Theme.accent:Theme.border
-                        Text { id:coordLabelScroll; x:7; text:qsTr("amount"); color:Theme.textDim; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                        ValueChip { id:coordScroll; x:coordLabelScroll.width+14; anchors.verticalCenter:parent.verticalCenter; flatLeaf:true; valueData:instruction?instruction.amount:null; location:root.fieldLocation("ScrollAmount"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:[qsTr("Vertical"),qsTr("Horizontal")]; currentIndex:instruction&&instruction.axis==="Horizontal"?1:0; implicitWidth:92; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("axis",["Vertical","Horizontal"][index]) }
-        }
-    }
-    Component { id: fieldsFor13
-        Row {
-            spacing: 7
-                    Text { text:qsTr("Run command"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    BwTextField { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.command?instruction.command:""; placeholderText:qsTr("command"); implicitWidth:Math.max(92,Math.min(480,contentWidth+22)); implicitHeight:30; font.pixelSize:Theme.blockText; onEditingFinished:root.setField("command",text) }
-        }
-    }
-    Component { id: fieldsFor14
-        Row {
-            spacing: 7
-                    Text { text:qsTr("Open app"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.name?instruction.name:qsTr("Choose app..."); iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:Theme.blockText; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
-        }
-    }
-    Component { id: fieldsFor15
-        Row {
-            spacing: 7
-                    Text { text:qsTr("Close app"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    BwButton { anchors.verticalCenter:parent.verticalCenter; text:instruction&&instruction.name?instruction.name:qsTr("Choose app..."); iconSource:instruction&&instruction.icon?instruction.icon:""; iconName:instruction&&!instruction.icon&&instruction.name?"app-window":""; implicitHeight:30; font.pixelSize:Theme.blockText; onClicked: root.appPickerRequested(root.strandId, root.path, root.instruction) }
-        }
-    }
-    Component { id: fieldsFor16
-        Row {
-            spacing: 7
-                    Text { text:qsTr("set"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:BlockRegistry.variableChoices(root.variables).map(choice => choice.value); currentIndex:instruction?model.indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose variable")); implicitWidth:106; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("name",currentText) }
-                    Text { text:qsTr("to"); color:Theme.text; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("SetVariableValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-        }
-    }
-    Component { id: fieldsFor17
-        Row {
-            spacing: 7
-                    Text { text:qsTr("change"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    BwComboBox { anchors.verticalCenter:parent.verticalCenter; model:BlockRegistry.variableChoices(root.variables).map(choice => choice.value); currentIndex:instruction?model.indexOf(instruction.name):-1; displayText:currentIndex>=0?currentText:(instruction&&instruction.name?instruction.name:qsTr("Choose variable")); implicitWidth:106; implicitHeight:30; font.pixelSize:Theme.blockText; onActivated:index=>root.setField("name",currentText) }
-                    Text { text:qsTr("by"); color:Theme.text; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("ChangeVariableValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-        }
-    }
-    Component { id: fieldsFor18
-        Row {
-            spacing: 7
-                    Text { text:qsTr("set clipboard to"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("SetClipboardValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-        }
-    }
-    Component { id: fieldsFor19
-        Row {
-            spacing: 7
-                    Text { text:qsTr("add"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("AddToListValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:qsTr("to"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: fieldsFor23 }
-        }
-    }
-    Component { id: fieldsFor20
-        Row {
-            spacing: 7
-                    Text { text:qsTr("delete"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.index:null; location:root.fieldLocation("DeleteOfListIndex"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:qsTr("of"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: fieldsFor23 }
-        }
-    }
-    Component { id: fieldsFor21
-        Row {
-            spacing: 7
-                    Text { text:qsTr("delete all of"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: fieldsFor23 }
-        }
-    }
-    Component { id: fieldsFor22
-        Row {
-            spacing: 7
-                    Text { text:qsTr("shift"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: fieldsFor23 }
-                    Text { text:qsTr("by"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.amount:null; location:root.fieldLocation("ShiftListAmount"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-        }
-    }
-    Component {
-        id: listDropdown
-        BwComboBox {
-            readonly property var choices: BlockRegistry.listChoices(root.listNames())
-            model: choices; textRole: "label"
-            currentIndex: choices.findIndex(c => c.value === (root.instruction ? root.instruction.name : ""))
-            displayText: currentIndex >= 0 ? currentText : (root.instruction && root.instruction.name ? root.instruction.name : qsTr("Choose list"))
-            implicitWidth: 98; implicitHeight: 30; font.pixelSize: Theme.blockText
-            onActivated: index => {
-                const choice = choices[index];
-                if (choice.action) choice.action(name => root.setField("name", name));
-                else root.setField("name", choice.value);
-            }
-        }
-    }
-    Component { id: fieldsFor23
-        Row {
-            spacing: 7
-                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: listDropdown }
-        }
-    }
-    Component { id: fieldsFor24
-        Row {
-            spacing: 7
-                    Text { text:qsTr("insert"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("InsertIntoListValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:qsTr("at"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.index:null; location:root.fieldLocation("InsertIntoListIndex"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:qsTr("of"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: listDropdown }
-        }
-    }
-    Component { id: fieldsFor25
-        Row {
-            spacing: 7
-                    Text { text:qsTr("replace item"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.index:null; location:root.fieldLocation("ReplaceItemOfListIndex"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-                    Text { text:qsTr("of"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: listDropdown }
-                    Text { text:qsTr("with"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("ReplaceItemOfListValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-        }
-    }
-    Component { id: fieldsFor26
-        Row {
-            spacing: 7
-                    Text { text:qsTr("reverse"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    Loader { anchors.verticalCenter: parent.verticalCenter; sourceComponent: listDropdown }
-        }
-    }
-    Component { id: fieldsFor27
-        Row {
-            spacing: 7
-                    Text { text:qsTr("return"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-                    ValueChip { anchors.verticalCenter:parent.verticalCenter; valueData:instruction?instruction.value:null; location:root.fieldLocation("ReturnValue"); boxed:false; onEditRequested:(l,t)=>root.valueEdited(l,t); blockDefinitions:root.blockDefinitions; onValueDragBegan:(loc,val,sx,sy,ox,oy,w,h)=>root.valueDragBegan(loc,val,sx,sy,ox,oy,w,h); onValueDragMoved:(sx,sy)=>root.valueDragMoved(sx,sy); onValueDragEnded:(sx,sy)=>root.valueDragEnded(sx,sy); onValueDragCanceled:()=>root.valueDragCanceled() }
-        }
-    }
-    Component { id: fieldsFor28
-        Row {
-            spacing: 7
-                    Text { text:qsTr("break loop"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-        }
-    }
-    Component { id: fieldsFor29
-        Row {
-            spacing: 7
-                    Text { text:qsTr("continue loop"); color:Theme.text; font.pixelSize:Theme.blockText; anchors.verticalCenter:parent.verticalCenter }
-        }
-    }
     // Embedded call-site preview for a header with branches (see hasBranchHeader).
     Item {
         id: pvRoot
@@ -903,10 +586,6 @@ Item {
         id: fields; visible: !root.isWrap; x: root.hasBranchHeader ? 32 + root.pvPadX : 14; y: (root.hasBranchHeader ? root.pvTop + root.pvPadY : 0) + Math.round((root.rowHeight-height-8)/2); spacing: root.type === "RunBranch" ? 6 : 7
         LucideIcon { visible: !root.isWrap; name: root.isWrap ? "" : root.iconFor(root.type); color: root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : root.isHeader ? Theme.accent : Theme.text; width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter
             RecordBadge {}
-        }
-        Loader {
-            active: !!root.type && !root.isWrap && !root.rowSpec && !root.isCustomBlock && root.type !== "RunBranch"; visible: active; anchors.verticalCenter: parent.verticalCenter
-            sourceComponent: root.fieldsComponent(root.type)
         }
         // Custom block calls and definitions, drawn from their definition.
         Loader {
@@ -1077,7 +756,6 @@ Item {
                             item.valueDragCanceled.connect(() => root.valueDragCanceled());
                             item.runBranchRequested.connect((s, p, n) => root.runBranchRequested(s, p, n));
                             item.keyCaptureRequested.connect((s, p) => root.keyCaptureRequested(s, p));
-                            item.appPickerRequested.connect((s, p, i) => root.appPickerRequested(s, p, i));
                             item.detailsRequested.connect(t => root.detailsRequested(t));
                             item.menuActionRequested.connect((a, s, p, i) => root.menuActionRequested(a, s, p, i));
                             item.pieceActionRequested.connect((a, s, p, i) => root.pieceActionRequested(a, s, p, i));
@@ -1109,8 +787,8 @@ Item {
             id: piece
             required property var modelData
             readonly property string kind: modelData.kind
-            anchors.verticalCenter: parent.verticalCenter
-            sourceComponent: kind === "label" ? labelPiece : kind === "value" ? valuePiece : kind === "dropdown" ? dropdownPiece : kind === "button" ? buttonPiece
+            anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+            sourceComponent: kind === "label" ? labelPiece : kind === "value" ? (modelData.unit ? unitValuePiece : valuePiece) : kind === "dropdown" ? dropdownPiece : kind === "button" ? buttonPiece
                 : kind === "component" ? componentPiece : kind === "addComponent" ? addComponentPiece : kind === "removeComponent" ? removeComponentPiece : textPiece
             Component {
                 id: componentPiece
@@ -1150,6 +828,10 @@ Item {
                     pickOnClick: !piece.modelData.expression || !root.instruction || !root.instruction[piece.modelData.expression]
                     boxed: !!piece.modelData.bool; forceBoolean: !!piece.modelData.bool && (!valueData || valueData.kind === "Bool")
                     pick: piece.modelData.pick || null
+                    flatLeaf: !!piece.modelData.unit
+                    keyMode: !!piece.modelData.keyCapture
+                    keyCapturing: !!piece.modelData.keyCapture && root.isCapturingKey()
+                    onKeyCaptureRequested: root.keyCaptureRequested(root.strandId, root.path)
                     blockDefinitions: root.blockDefinitions
                     onEditRequested: (l, t) => root.valueEdited(l, t)
                     onLeafEdited: (p, leaf) => root.setLeaf(piece.modelData.key, p, leaf, piece.modelData.index)
@@ -1158,6 +840,17 @@ Item {
                     onValueDragMoved: (sx, sy) => root.valueDragMoved(sx, sy)
                     onValueDragEnded: (sx, sy) => root.valueDragEnded(sx, sy)
                     onValueDragCanceled: root.valueDragCanceled()
+                }
+            }
+            // { kind: "value", unit: "ms" }: the slot inside a field box with its unit in front.
+            Component {
+                id: unitValuePiece
+                Rectangle {
+                    implicitHeight: Math.max(27, unitChip.implicitHeight + 4); implicitWidth: unitLabel.implicitWidth + unitChip.implicitWidth + 21
+                    width: implicitWidth; height: implicitHeight; radius: 5; color: Theme.field
+                    border.color: unitChip.item && unitChip.item.dropHighlighted ? Theme.accent : Theme.border
+                    Text { id: unitLabel; x: 7; text: piece.modelData.unit; color: Theme.textDim; font.pixelSize: Theme.blockText; anchors.verticalCenter: parent.verticalCenter }
+                    Loader { id: unitChip; x: unitLabel.width + 14; anchors.verticalCenter: parent.verticalCenter; sourceComponent: valuePiece }
                 }
             }
             Component {
@@ -1295,24 +988,8 @@ Item {
         TapHandler { onTapped: BlockRegistry.markClicked(root.instruction.id) }
     }
 
-    // Readable cap label for a captured key (a character or a web key code).
-    function keyLabel(k) {
-        if (k === " " || k === "Space") return "Space";
-        const named = {
-            ArrowLeft: "\u2190", ArrowRight: "\u2192", ArrowUp: "\u2191", ArrowDown: "\u2193",
-            Escape: "Esc", Delete: "Del", Backspace: "Backspace", Enter: "Enter", NumpadEnter: "Enter", Tab: "Tab",
-            Control: "Ctrl", ControlLeft: "Ctrl", ControlRight: "Ctrl", Shift: "Shift", ShiftLeft: "Shift", ShiftRight: "Shift",
-            Alt: "Alt", AltLeft: "Alt", AltRight: "Alt", Meta: "Super", MetaLeft: "Super", MetaRight: "Super",
-            PageUp: "PgUp", PageDown: "PgDn", Insert: "Ins", CapsLock: "Caps", Minus: "-", Equal: "=", Comma: ",", Period: ".",
-            Slash: "/", Backslash: "\\", Semicolon: ";", Quote: "'", BracketLeft: "[", BracketRight: "]", Backquote: "`"
-        };
-        if (named[k] !== undefined) return named[k];
-        const m = /^(?:Key|Digit)(.)$/.exec(k);
-        if (m) return m[1].toUpperCase();
-        return k.length === 1 ? k.toUpperCase() : k;
-    }
     function isCapturingKey() {
-        if ((type !== "Key" && type !== "WhenKey") || !keyCapture) return false;
+        if (!keyCapture) return false;
         if (paletteMode) return keyCapture.kind === "Standalone";
         return keyCapture.kind === "Strand" && keyCapture.strand_id === strandId && samePath(keyCapture.index, path);
     }

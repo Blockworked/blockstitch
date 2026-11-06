@@ -1,10 +1,10 @@
 pragma Singleton
 import QtQuick
 
-// What a host's blocks look like, as data - the QML side of the Vue
-// frontend's register* calls. Built-in tables cover blockstitch's own
-// operators and control blocks; a host adds its vocabulary with
-// `registerRows`/`registerOperators`/`registerIcons`/`registerDescriptors`.
+// What a host's blocks look like, as data. Built-in tables cover
+// blockstitch's own operators and control blocks; a host adds its vocabulary
+// with `registerRows`/`registerOperators`/`registerIcons`/`registerDescriptors`.
+// A statement type with no registered row draws as its icon alone.
 QtObject {
     id: registry
 
@@ -14,6 +14,7 @@ QtObject {
     // Optional host dialog for creating and selecting a list.
     property var listCreationHandler: null
     property var dictNames: []
+    property var variableNames: []
     // Bump to re-evaluate option lists that read host state through a function.
     property int revision: 0
     // A host's summary of the state its option lists read (names, say). Bind
@@ -106,13 +107,15 @@ QtObject {
     // `head` may be a function(instruction) -> [piece] for a type whose row
     // depends on the instruction. Return the same piece objects each time:
     // a changed array rebuilds the row's controls.
-    // piece: {kind:"label",text} | {kind:"value",field,key,index,bool,pick,options,placeholder}
+    // piece: {kind:"label",text} | {kind:"value",field,key,index,bool,pick,options,placeholder,unit,keyCapture}
     //      | {kind:"dropdown",key,index,options,placeholder,encode,decode}
     //      | {kind:"text",key,index,placeholder}
     // A piece's `index`, when set, picks one entry of the array held under
     // `key`; without it `key` holds the value itself. A value piece's `pick`
     // shows typed text as a picker button (see ValueChip.pick); `options`
-    // gives its Text leaf a dropdown while still accepting reporters. A dropdown's
+    // gives its Text leaf a dropdown while still accepting reporters, `unit`
+    // frames the slot with a small caption ("ms", "x"), and `keyCapture` makes
+    // a click on its Text leaf ask the host to record a key (keyCaptureRequested). A dropdown's
     // `encode(chosen, instruction)` turns the choice into what's stored.
     // Any piece may carry `when: function(instruction) -> bool`.
     // A row may also list `components`: optional groups of pieces the user
@@ -123,9 +126,34 @@ QtObject {
     // overrides that test. Components follow the head in declared order, or
     // stand where the head has a {kind:"components"} piece.
     // `options` is an array of {value,label}, a function(instruction), or
-    // "lists"/"dicts" for the document's names. A choice may carry
+    // "lists"/"dicts"/"variables" for the document's names. A choice may carry
     // `action(select)` to open a host picker and call select(value) later.
     property var rows: ({})
+    // Rows for the shared variable, list and loop blocks; a host's own row
+    // for the same type wins.
+    property var builtinRows: defaultRows()
+    function defaultRows() {
+        const label = text => ({ kind: "label", text: text });
+        const value = (field, key) => ({ kind: "value", field: field, key: key });
+        const variable = { kind: "dropdown", key: "name", options: "variables" };
+        const list = { kind: "dropdown", key: "name", options: "lists", placeholder: qsTr("Choose list") };
+        return {
+            SetVariable: { head: [label(qsTr("set")), variable, label(qsTr("to")), value("SetVariableValue", "value")] },
+            ChangeVariable: { head: [label(qsTr("change")), variable, label(qsTr("by")), value("ChangeVariableValue", "value")] },
+            AddToList: { head: [label(qsTr("add")), value("AddToListValue", "value"), label(qsTr("to")), list] },
+            DeleteOfList: { head: [label(qsTr("delete")), value("DeleteOfListIndex", "index"), label(qsTr("of")), list] },
+            DeleteAllOfList: { head: [label(qsTr("delete all of")), list] },
+            ShiftList: { head: [label(qsTr("shift")), list, label(qsTr("by")), value("ShiftListAmount", "amount")] },
+            InsertIntoList: { head: [label(qsTr("insert")), value("InsertIntoListValue", "value"), label(qsTr("at")),
+                value("InsertIntoListIndex", "index"), label(qsTr("of")), list] },
+            ReplaceItemOfList: { head: [label(qsTr("replace item")), value("ReplaceItemOfListIndex", "index"), label(qsTr("of")), list,
+                label(qsTr("with")), value("ReplaceItemOfListValue", "value")] },
+            ReverseList: { head: [label(qsTr("reverse")), list] },
+            Return: { shape: "cap", head: [label(qsTr("return")), value("ReturnValue", "value")] },
+            EscapeLoop: { shape: "cap", head: [label(qsTr("break loop"))] },
+            ContinueLoop: { shape: "cap", head: [label(qsTr("continue loop"))] }
+        };
+    }
     // op -> { prefix, infix (one label, or a list: one per gap), suffix, result, enumArg: {index, options|source}, oneBased: [index],
     //        pickArg: {index, action, icon} (a button after that arg's text field, see pickHandler),
     //        pickOp: {action, icon, tip} (a button after the whole operator; pickHandler gets its own location) }
@@ -166,9 +194,9 @@ QtObject {
     }
     function registerRows(map) { rows = Object.assign({}, rows, map); }
     function registerOperators(map) { operators = Object.assign({}, operators, map); }
-    // Back to the built-in operators, labelled in the current language; a
-    // host re-registers its own after this.
-    function resetOperators() { operators = defaultOperators(); }
+    // Back to the built-in operators and rows, labelled in the current
+    // language; a host re-registers its own after this.
+    function resetOperators() { operators = defaultOperators(); builtinRows = defaultRows(); }
     function registerPrefabs(map) { prefabs = Object.assign({}, prefabs, map); }
 
     // Hosts register the variable targets used by their own instruction types.
@@ -370,6 +398,7 @@ QtObject {
         revision;
         if (options === "lists") return listChoices(listNames);
         if (options === "dicts") return nameChoices(dictNames, "dict");
+        if (options === "variables") return variableChoices(variableNames);
         if (typeof options === "function") return options(instruction) || [];
         return options || [];
     }
@@ -386,7 +415,7 @@ QtObject {
         return choices(enumArg.source || enumArg.options, null);
     }
 
-    function row(type) { return rows[type] || null; }
+    function row(type) { return rows[type] || builtinRows[type] || null; }
 
     // Components, see `rows`. Pieces are cached on the spec so a row keeps
     // the same piece objects, and so its controls, between edits.

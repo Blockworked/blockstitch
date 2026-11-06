@@ -42,7 +42,6 @@ Rectangle {
         return out;
     }
     property var keyCapture: null
-    property string standaloneKey: ""
     property bool trashActive: false  // a canvas block or value is being dragged
     property bool trashArmed: false   // ...and is currently over the panel
     signal blockActivated(string type, var instruction)
@@ -77,7 +76,6 @@ Rectangle {
     signal editBlockRequested(var definition)
     signal deleteBlockRequested(string blockId)
     signal standaloneKeyCaptureRequested()
-    signal appPickerRequested(var instruction)
     signal pieceActionRequested(string action, var instruction)
     signal detailsRequested(string name, string identifier, string explainer)
     implicitWidth: 318
@@ -86,16 +84,12 @@ Rectangle {
 
     function n(v) { return {kind:"Number",value:v}; }
     function t(v) { return {kind:"Text",value:v}; }
+    // A palette block's fresh instruction: the host's registered prefab, else
+    // defaults for the control, variable and list blocks every host shares.
     function prefab(type) {
         const registered=BlockRegistry.prefab(type); if(registered) return registered;
         const i={id:"palette-"+type,type:type};
-        if(type==="WhenBatteryDischargedTo") i.threshold=n(20); else if(type==="WhenBatteryChargedTo") i.threshold=n(100);
-        else if(type==="WhenTime") i.schedule={kind:"Daily",hour:9,minute:0}; else if(type==="Wait") i.duration=n(1000);
-        else if(type==="Text") i.text=t("text"); else if(type==="Key"){i.key=t(standaloneKey||"a");i.direction="Click";} else if(type==="WhenKey"){i.key=t(standaloneKey||"a");i.direction="Press";} else if(type==="Button"){i.button="Left";i.direction="Click";}
-        else if(type==="MoveMouse"){i.x=n(0);i.y=n(0);i.coordinate="Relative";} else if(type==="Scroll"){i.amount=n(4);i.axis="Vertical";}
-        else if(type==="Command") i.command=""; else if(type==="OpenApp"||type==="CloseApp"){i.name="";i.command="";i.icon=null;}
-        else if(type==="SetClipboard") i.value=t("text");
-        else if(type==="AddToList"){i.name=firstListName();i.value=t("thing");}
+        if(type==="AddToList"){i.name=firstListName();i.value=t("thing");}
         else if(type==="DeleteOfList"){i.name=firstListName();i.index=n(1);}
         else if(type==="DeleteAllOfList"||type==="ReverseList")i.name=firstListName();
         else if(type==="ShiftList"){i.name=firstListName();i.amount=n(1);}
@@ -352,7 +346,6 @@ Rectangle {
                                         variables:Array.from(root.variables||[]); lists:Array.from(root.lists||[]); blockDefinitions:root.blockDefinitions; keyCapture:root.keyCapture
                                         onDragStarted:(sp,sx,sy,ox,oy)=>root.dragStarted(sp,sx,sy,ox,oy); onDragMoved:(sx,sy)=>root.dragMoved(sx,sy); onDragEnded:(sx,sy)=>root.dragEnded(sx,sy); onDragCanceled:root.dragCanceled()
                                         onActivated:root.blockActivated(entry.modelData.name,instruction); onKeyCaptureRequested:root.standaloneKeyCaptureRequested()
-                                        onAppPickerRequested: instruction => root.appPickerRequested(instruction)
                                         onPieceActionRequested: (action, instruction) => root.pieceActionRequested(action, instruction)
                                         onDetailsRequested:type=>root.detailsRequested(type,type,qsTr("See what this block does and where it can be used."))
                                     }

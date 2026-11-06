@@ -1,8 +1,8 @@
 # blockstitch-core
 
 The backend half of blockstitch: the document model, value system and editing
-operations behind a Scratch-style block editor. The Vue components in this
-repo render a canvas; this crate is what the canvas edits.
+operations behind a Scratch-style block editor. The QML module in this
+repo renders the canvas; this crate is what the canvas edits.
 
 It knows nothing about any particular app's blocks. A host brings three
 things:

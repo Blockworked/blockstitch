@@ -1,16 +1,13 @@
 # Blockstitch QML frontend
 
-This directory is the Qt 6 counterpart to the existing Vue frontend in
-`src/`. It intentionally does not replace or modify the browser package.
-
 The components are registered as the `com.blockworked.Blockstitch` QML module
-by the `blockstitch-qml` crate. `BlockCanvas` renders draggable Scratch-style strands on a zoomable
-dotted workspace, while `PalettePanel` and the small controls share the same
-dark, beveled visual language as the browser UI.
+by the `blockstitch-qml` crate. `BlockCanvas` renders draggable Scratch-style
+strands on a zoomable dotted workspace, `PalettePanel` is the sidebar, and the
+small controls share one visual language through `Theme`.
 
 Native consumers depend on the repository's root Cargo package and call
-`blockstitch_qml::init()` before creating their QML engine. The existing npm
-package and everything under `src/` remain the browser implementation.
+`blockstitch_qml::init()` before creating their QML engine. The browser build
+of the same QML is the website's WebAssembly demo (see below).
 
 `qml/module.json` is the module's one manifest: its URI and version, every
 file, the singletons and the Qt modules it needs. `build.rs` registers the
@@ -28,7 +25,7 @@ is added to `module.json` and nowhere else.
 
 ## Registering an app's blocks
 
-`BlockRegistry` is the QML side of the Vue `register*` calls. An app describes
+`BlockRegistry` holds an app's block vocabulary. An app describes
 each instruction type once as a row of pieces and hands them over, and both
 `BlockCanvas` and `PalettePanel` draw from it:
 
@@ -42,7 +39,13 @@ BlockRegistry.registerOperators({ MyReporter: { prefix: "my reporter", result: "
 BlockRegistry.registerPrefabs({ Say: () => ({ text: { kind: "Text", value: "Hello" } }) });
 ```
 
-A type without a row falls back to the built-in classic rows. `shape`
+Blockstitch only ships rows for its own control and data blocks (`If`,
+`Repeat`, `Forever`, `While`, `Return`, the loop exits and the variable and
+list blocks, in `BlockRegistry.defaultRows`), so a
+host registers a row for every other type; one without a row draws as its
+icon alone. A value piece's `unit` frames the slot with a caption (`"ms"`),
+and `keyCapture: true` turns a click on its text into `keyCaptureRequested`
+so the host can record a key. `shape`
 (`"header"`/`"cap"`) and `mouths` (the instruction keys holding nested
 bodies) decide a block's outline; the comments in `BlockRegistry.qml` list
 every piece kind. `blockMenu`/`canvasMenu` add app-specific context menu
@@ -101,9 +104,9 @@ core's default. Labels, layouts and dropdown choices stay in
 ### What a neutral host gets
 
 Nothing host-specific: no recording-target menu entry (`recordingTargets` is
-off), no battery or clipboard reporters, and icon fallbacks only for the
-shared control and data blocks. A host turns its features on and registers
-the rest (`registerIcons({MoveMouse: "move"})`).
+off), no rows or icons beyond the shared control and data blocks, and no
+palette prefabs for host blocks. A host turns its features on and registers
+the rest (`registerRows`, `registerPrefabs`, `registerIcons({MoveMouse: "move"})`).
 
 A row whose pieces depend on the instruction (one generic type that many
 app-defined blocks share) gives `head` as a function of the instruction, and

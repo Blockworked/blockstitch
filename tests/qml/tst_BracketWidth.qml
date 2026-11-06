@@ -1,8 +1,10 @@
 import QtQuick
 import QtTest
 import com.blockworked.Blockstitch 1.0
+import "testRows.js" as TestRows
 
 Item {
+    Component.onCompleted: TestRows.register(BlockRegistry)
     width: 1800; height: 1000
     BlockCanvas { id: canvas; anchors.fill: parent }
     TestCase {

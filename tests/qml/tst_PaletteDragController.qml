@@ -1,9 +1,11 @@
 import QtQuick
 import QtTest
 import com.blockworked.Blockstitch 1.0
+import "testRows.js" as TestRows
 
 Item {
     id: scene
+    Component.onCompleted: TestRows.register(BlockRegistry)
     width: 1100; height: 760
     property var edits: []
     property var replies: []
