@@ -10,7 +10,7 @@ BwDialog {
     property string renameTarget: ""
     property string placeholder: ""
     property string error: ""
-    // Optional extra choice shown under the name (e.g. "this actor only").
+    // Optional extra choice shown under the name, like a scope switch.
     default property alias extra: extraColumn.data
     signal submitted(string name, string renameTarget)
 
