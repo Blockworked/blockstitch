@@ -698,7 +698,9 @@ Rectangle {
             instructions: branch.list
         } : null;
     }
-    function wireBranchInstruction(item) {
+    // Binds a block to the canvas and forwards every signal it raises.
+    // Strand blocks and blocks inside branch values both come through here.
+    function wireInstruction(item) {
         item.variables = Qt.binding(() => root.variables);
         item.lists = Qt.binding(() => root.lists);
         item.keyCapture = Qt.binding(() => root.keyCapture);
@@ -1366,28 +1368,8 @@ Rectangle {
                                     keyCapture: root.keyCapture
                                     locked: root.locked
                                     branchColor: strand.branchColor
-                                    onRemoveRequested: (sid, p) => root.instructionRemoved(sid, p)
-                                    onDuplicateRequested: (sid, p, i) => root.instructionDuplicated(sid, p, i)
-                                    onCommentRequested: i => root.commentForInstructionRequested(i)
-                                    onKeyCaptureRequested: (sid, p) => root.keyCaptureRequested(sid, p)
-                                    onPieceActionRequested: (a, sid, p, i) => root.pieceActionRequested(a, sid, p, i)
-                                    onDetailsRequested: type => root.detailsRequested(type)
-                                    onMenuActionRequested: (a, sid, p, i) => root.blockMenuAction(a, sid, p, i)
-                                    onPaletteDragStarted: (sp, sx, sy, ox, oy) => root.paletteDragStarted(sp, sx, sy, ox, oy)
-                                    onPaletteDragMoved: (sx, sy) => root.paletteDragMoved(sx, sy)
-                                    onPaletteDragEnded: (sx, sy) => root.paletteDragEnded(sx, sy)
-                                    onPaletteDragCanceled: root.paletteDragCanceled()
-                                    onInstructionEdited: (sid, p, i) => root.instructionEdited(sid, p, i)
-                                    onRunBranchRequested: (sid, p, n) => root.runBranchRequested(sid, p, n)
-                                    onValueEdited: (l, t) => root.valueEdited(l, t)
-                                    onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.beginValueDrag(loc, val, sx, sy, ox, oy, w, h)
-                                    onValueDragMoved: (sx, sy) => root.moveValueDrag(sx, sy)
-                                    onValueDragEnded: (sx, sy) => root.endValueDrag(sx, sy)
-                                    onValueDragCanceled: root.cancelValueDrag()
-                                    onDragBegan: (sid, p, tail, sx, sy, ox, oy, bw, bh) => root.beginDrag(sid, p, tail, sx, sy, ox, oy, bw, bh)
-                                    onDragMoved: (sx, sy) => root.moveDrag(sx, sy)
-                                    onDragEnded: (sx, sy) => root.endDrag(sx, sy)
-                                    onDragCanceled: root.cancelDrag()
+                                    // Signals go through wireInstruction, the one list branch blocks use too.
+                                    Component.onCompleted: root.wireInstruction(this)
                                 }
                             }
                         }

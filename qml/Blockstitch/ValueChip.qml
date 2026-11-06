@@ -618,7 +618,7 @@ Item {
                                 item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
                                 item.paletteMode = Qt.binding(() => root.paletteMode || root.dragPreview || !root.editable);
                                 if (root.branchCanvas)
-                                    root.branchCanvas.wireBranchInstruction(item);
+                                    root.branchCanvas.wireInstruction(item);
                                 else
                                     item.locked = true;
                             }
