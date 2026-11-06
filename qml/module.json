@@ -40,6 +40,7 @@
     "CanvasZoom.qml",
     "StrandBuilder.qml",
     "ValueDrag.qml",
+    "BlockDrag.qml",
     "ValueDropTargets.qml",
     "PaletteDragController.qml",
     "BlockCanvas.qml"

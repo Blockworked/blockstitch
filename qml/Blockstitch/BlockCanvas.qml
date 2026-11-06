@@ -545,63 +545,9 @@ Rectangle {
     // to open a gap; the translucent snapPreview rect sits in that gap.
     // The same snap state doubles for palette drags (only one drag runs at a
     // time): updatePaletteSnap writes it while dragSession.active is false.
-    QtObject {
+    BlockDrag {
         id: dragSession
-        readonly property bool externalPreview: root.externalDragPreview
-        property bool active: false
-        property string strandId: ""
-        property var path: []
-        property int tailCount: 1
-        property real startX: 0    // pointer, workspace coordinates, at pick-up
-        property real startY: 0
-        property real originX: 0   // dragged block top-left, workspace coordinates, at pick-up
-        property real originY: 0
-        property real dx: 0
-        property real dy: 0
-        property real sceneX: 0    // pointer, scene coordinates
-        property real sceneY: 0
-        property real draggedWidth: 200
-        property real draggedHeight: 58
-        // Silhouette of the dragged first block, so the preview is drawn
-        // with the same tabs/notches/C-shape as a real block.
-        property string draggedShape: "stack"
-        property var draggedMouths: []
-        property var draggedFlat: []
-        property bool draggedIsCap: false
-        // Attach preview (canvas drags and palette drags share it).
-        // snapHeight is the preview block's own height; snapShiftAmt is how
-        // far siblings after it move (height minus the 8px tab overlap that
-        // interlocks stacked blocks); snapGrowAmt is how much a target wrap
-        // mouth grows (same overlap logic, plus the empty-mouth fixed size).
-        property var snapTargetY: null
-        property bool snapValid: false
-        property string snapTargetId: ""
-        property var snapPath: []
-        property real snapX: 0
-        property real snapY: 0
-        property real snapWidth: 200
-        property real snapHeight: 58
-        property real snapShiftAmt: 50
-        property real snapGrowAmt: 50
-        // Publish animation inputs together so a new mouth never uses the old gap size.
-        property var snapLayout: null
-        // Source collapse: the mouth the dragged tail is being pulled out of
-        // renders as if the tail were already gone (the webapp splits the
-        // strand on pickup; here the model only changes on drop). Shrink is
-        // the mouth-height difference full-minus-prefix, computed from the
-        // data model in beginDrag; cleared when the drag ends.
-        property string sourceStrandId: ""
-        property var sourceBasePath: []
-        property real sourceShrink: 0
-        // Set on drop, cleared once the new strands confirm the move (or on timeout).
-        // An attach keeps the snap gap open while settling; a trash hides the tail.
-        property bool settling: false
-        property bool applyingDocument: false
-        property bool settleHidden: false
-        property string settleStrandId: ""
-        property var settlePath: []
-        property real settleDx: 0
-        property real settleDy: 0
+        canvas: root
     }
     // A host overlay can draw active drags outside the clipped canvas.
     property bool externalDragPreview: false
@@ -827,53 +773,8 @@ Rectangle {
     function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap) {
         return snapGeometryHelper.findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap);
     }
-    function applySnap(best, w, h, droppedIsCap, stackHeight) {
-        if (!best) {
-            clearSnap();
-            return;
-        }
-        dragSession.snapTargetId = best.targetId;
-        dragSession.snapTargetY = best.targetY === undefined ? null : best.targetY;
-        dragSession.snapPath = best.path;
-        dragSession.snapX = best.x;
-        dragSession.snapY = best.y;
-        dragSession.snapWidth = w;
-        dragSession.snapHeight = h;
-        const gapHeight = stackHeight === undefined ? h : stackHeight;
-        // Prepending keeps the target fixed; other insertions open a gap.
-        // Empty mouths start at 26px, and cap blocks have no bottom overlap.
-        dragSession.snapShiftAmt = dragSession.snapTargetY !== null ? 0 : Math.max(0, gapHeight - 8);
-        if (best.empty)
-            dragSession.snapGrowAmt = Math.max(0, Math.max(26, gapHeight - (droppedIsCap ? 0 : 8)) - 26);
-        else if (best.atEnd && droppedIsCap)
-            dragSession.snapGrowAmt = Math.max(0, gapHeight);
-        else
-            dragSession.snapGrowAmt = Math.max(0, gapHeight - 8);
-        dragSession.snapValid = true;
-        dragSession.snapLayout = {
-            snapValid: true,
-            snapTargetId: best.targetId,
-            snapPath: best.path,
-            snapShiftAmt: dragSession.snapShiftAmt,
-            snapGrowAmt: dragSession.snapGrowAmt,
-            snapWidth: w
-        };
-    }
-    function clearSnap() {
-        dragSession.snapLayout = null;
-        dragSession.snapValid = false;
-        dragSession.snapTargetY = null;
-        dragSession.snapTargetId = "";
-        dragSession.snapPath = [];
-    }
-    function prevSnapObj() {
-        if (!dragSession.snapValid)
-            return null;
-        return {
-            targetId: dragSession.snapTargetId,
-            path: dragSession.snapPath
-        };
-    }
+    function applySnap(best, w, h, droppedIsCap, stackHeight) { dragSession.applySnap(best, w, h, droppedIsCap, stackHeight); }
+    function clearSnap() { dragSession.clearSnap(); }
     // Stable strand model: a plain `Repeater { model: root.strands }` over a
     // JS array destroys and recreates *every* strand delegate whenever the
     // array identity changes (which is every daemon state push, since
@@ -959,170 +860,11 @@ Rectangle {
             strandModel.remove(strandModel.count - 1);
         }
     }
-    function beginDrag(strandId, path, tailCount, sx, sy, ox, oy, bw, bh) {
-        cancelValueDrag();
-        clearPaletteHighlight();
-        endSettle();
-        const p = workspace.mapFromItem(null, sx, sy);
-        dragSession.strandId = strandId;
-        dragSession.path = path;
-        dragSession.tailCount = tailCount;
-        dragSession.startX = p.x;
-        dragSession.startY = p.y;
-        dragSession.originX = p.x - ox;
-        dragSession.originY = p.y - oy;
-        dragSession.sceneX = sx;
-        dragSession.sceneY = sy;
-        dragSession.dx = 0;
-        dragSession.dy = 0;
-        dragSession.active = true;
-        dragSession.draggedWidth = bw || 200;
-        dragSession.draggedHeight = bh || 58;
-        const si = shapeInfoFor(instructionAt(strandById(strandId), path));
-        dragSession.draggedShape = si.shape;
-        dragSession.draggedMouths = si.mouths;
-        dragSession.draggedFlat = si.flat;
-        const di = instructionAt(strandById(strandId), path);
-        dragSession.draggedIsCap = !!(di && isCapBlock(di));
-        // Shrink the home mouth for the drag's duration (see sourceShrink).
-        // Top-level tails have no mouth shell, so only nested paths shrink.
-        dragSession.sourceStrandId = strandId;
-        dragSession.sourceBasePath = copyPath(path.slice(0, path.length - 1));
-        let shrink = 0;
-        if (path.length > 1) {
-            const strand = strandById(strandId);
-            if (strand) {
-                const full = listFor(strand, dragSession.sourceBasePath);
-                const idx = path[path.length - 1].index;
-                shrink = mouthHeightFor(full) - mouthHeightFor(full.slice(0, Math.max(0, idx)));
-            }
-        }
-        dragSession.sourceShrink = Math.max(0, shrink);
-        clearSnap();
-    }
-    function moveDrag(sx, sy) {
-        if (!dragSession.active)
-            return;
-        const p = workspace.mapFromItem(null, sx, sy);
-        dragSession.dx = p.x - dragSession.startX;
-        dragSession.dy = p.y - dragSession.startY;
-        dragSession.sceneX = sx;
-        dragSession.sceneY = sy;
-        updateSnap();
-    }
-    function updateSnap() {
-        if (!dragSession.active)
-            return;
-        const sourcePath = dragSession.path || [];
-        if (!sourcePath.length) {
-            clearSnap();
-            return;
-        }
-        const isWhole = sourcePath.length === 1 && sourcePath[0].index === 0;
-        const srcStrand = strandById(dragSession.strandId);
-        if (isWhole && srcStrand) {
-            const first = (srcStrand.instructions || [])[0];
-            if (first && isHeaderType(first.type)) {
-                clearSnap();
-                return;
-            }
-        } else if (!isWhole && srcStrand) {
-            const firstTail = instructionAt(srcStrand, sourcePath);
-            if (firstTail && isHeaderType(firstTail.type)) {
-                clearSnap();
-                return;
-            }
-        }
-        const ghostLeft = dragSession.originX + dragSession.dx;
-        const ghostTop = dragSession.originY + dragSession.dy;
-        const geometry = snapGeometry();
-        if (!geometry.tail) {
-            const tail = listFor(srcStrand, sourcePath.slice(0, -1)).slice(sourcePath[sourcePath.length - 1].index);
-            let width = dragSession.draggedWidth;
-            for (const instruction of tail) {
-                const item = findBlockItem(workspace, instruction.id);
-                if (item)
-                    width = Math.max(width, item.implicitWidth);
-            }
-            geometry.tail = {
-                endsCap: tail.length > 0 && isCapBlock(tail[tail.length - 1]),
-                height: contentHeightFor(tail),
-                width: width
-            };
-        }
-        const t = geometry.tail;
-        const best = findSnap(ghostLeft, ghostTop, dragSession.strandId, sourcePath, isWhole, prevSnapObj(), t.height, t.endsCap);
-        applySnap(best, t.width, dragSession.draggedHeight, t.endsCap, t.height);
-    }
-    // Palette (new-block) drags share the same preview: a header prefab can
-    // never snap into an existing strand, anything else uses the same
-    // boundaries/rules as a canvas tail (excludeId none).
-    function updatePaletteSnap(ghostLeft, ghostTop, instruction, w, h) {
-        endSettle();
-        if (!instruction || isHeaderType(instruction.type)) {
-            clearSnap();
-            return;
-        }
-        const si = shapeInfoFor(instruction);
-        dragSession.draggedShape = si.shape;
-        dragSession.draggedMouths = si.mouths;
-        dragSession.draggedFlat = si.flat;
-        dragSession.draggedIsCap = isCapBlock(instruction);
-        // The ghost's measured height wins: blockHeight only estimates blocks
-        // that aren't on the canvas, and calls every plain block one row.
-        dragSession.draggedWidth = w || 200;
-        dragSession.draggedHeight = h > 0 ? h : (blockHeight(instruction) || 58);
-        const best = findSnap(ghostLeft + root.originOffsetX, ghostTop + root.originOffsetY, null, [], false, prevSnapObj(), dragSession.draggedHeight, dragSession.draggedIsCap);
-        applySnap(best, dragSession.draggedWidth, dragSession.draggedHeight, dragSession.draggedIsCap);
-    }
-    function endDrag(sx, sy) {
-        if (!dragSession.active)
-            return;
-        moveDrag(sx, sy);
-        const strandId = dragSession.strandId, path = dragSession.path, tail = dragSession.tailCount;
-        const dx = dragSession.dx, dy = dragSession.dy, ox = dragSession.originX, oy = dragSession.originY;
-        const snapValid = dragSession.snapValid, snapTargetId = dragSession.snapTargetId, snapPath = copyPath(dragSession.snapPath || []);
-        const isWhole = path.length === 1 && path[0].index === 0;
-        dragSession.active = false;
-        dragSession.settleStrandId = strandId;
-        dragSession.settlePath = path;
-        dragSession.settleHidden = false;
-        root._lastDrop = "block";
-        if (!root.contains(root.mapFromItem(null, sx, sy))) {
-            // The host calls settleTrashed() if it actually deletes the tail.
-            clearSnap();
-            dragSession.settling = false;
-            root.blockDragOutside(strandId, path, tail, sx, sy);
-            return;
-        }
-        if (snapValid && snapTargetId) {
-            // Attach, just like the webapp: merge the whole strand, or move
-            // the tail atomically (no split-then-merge round trip). Settle on
-            // the preview spot, keeping the gap open, until the merge lands.
-            dragSession.settleDx = dragSession.snapX - ox;
-            dragSession.settleDy = dragSession.snapY - oy;
-            dragSession.settling = true;
-            armSettle();
-            if (isWhole)
-                root.strandsMerged(strandId, snapTargetId, snapPath, dragSession.snapTargetY);
-            else
-                root.tailMerged(strandId, path, snapTargetId, snapPath, dragSession.snapTargetY);
-            return;
-        }
-        // Optimistic settle: keep rendering the dragged tail at the drop
-        // point until the backend state confirms the move/split. Cleared in
-        // onStrandsChanged or by settleTimer below.
-        clearSnap();
-        dragSession.settleDx = dx;
-        dragSession.settleDy = dy;
-        dragSession.settling = true;
-        armSettle();
-        const strand = strandById(strandId);
-        if (isWhole && strand)
-            root.strandMoved(strandId, Math.round(strand.x + dx), Math.round(strand.y + dy));
-        else
-            root.instructionSplit(strandId, path, Math.round(ox + dx - root.originOffsetX), Math.round(oy + dy - root.originOffsetY));
-    }
+    function beginDrag(strandId, path, tailCount, sx, sy, ox, oy, bw, bh) { dragSession.begin(strandId, path, tailCount, sx, sy, ox, oy, bw, bh); }
+    function moveDrag(sx, sy) { dragSession.move(sx, sy); }
+    function updateSnap() { dragSession.updateSnap(); }
+    function updatePaletteSnap(ghostLeft, ghostTop, instruction, w, h) { dragSession.updatePaletteSnap(ghostLeft, ghostTop, instruction, w, h); }
+    function endDrag(sx, sy) { dragSession.end(sx, sy); }
     // Hides the block or value just dropped outside the canvas until its removal lands.
     function settleTrashed() {
         if (root._lastDrop === "value") {
@@ -1174,15 +916,7 @@ Rectangle {
         dragSession.settleHidden = false;
         clearSnap();
     }
-    function cancelDrag() {
-        dragSession.active = false;
-        dragSession.settling = false;
-        dragSession.settleHidden = false;
-        clearSnap();
-        dragSession.sourceStrandId = "";
-        dragSession.sourceBasePath = [];
-        dragSession.sourceShrink = 0;
-    }
+    function cancelDrag() { dragSession.cancel(); }
     // ---- value (operator) drag: hit-testing in ValueDropTargets.qml, the session here ----
     readonly property ValueDropTargets valueTargets: ValueDropTargets {
         canvas: root

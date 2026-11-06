@@ -27,8 +27,10 @@ is added to `module.json` and nowhere else.
 
 | File | What it is |
 | --- | --- |
-| `BlockCanvas.qml` | The workspace: strands, floating values, comments, list and dict editors, zoom and pan. |
-| `SnapGeometry.qml`, `ValueDropTargets.qml` | Where a dragged block or value would land, split out of the canvas. |
+| `BlockCanvas.qml` | The workspace: strands, floating values, comments, list and dict editors. The helpers below keep its public functions as one-line forwards. |
+| `BlockDrag.qml`, `SnapGeometry.qml` | A dragged block or tail: pick-up, attach preview, drop, and where it would snap. |
+| `ValueDrag.qml`, `ValueDropTargets.qml` | A dragged reporter and the slot it would drop into. |
+| `CanvasZoom.qml`, `StrandBuilder.qml` | The canvas's zoom, and building strands near the view first. |
 | `InstructionBlock.qml`, `ValueChip.qml`, `BooleanSlot.qml` | One block, one reporter, one boolean slot. |
 | `PalettePanel.qml`, `PaletteDragController.qml` | The sidebar and dragging out of it. |
 | `BlockRegistry.qml` | The host's vocabulary: rows, operators, prefabs, icons, descriptors. |
