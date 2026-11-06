@@ -42,6 +42,7 @@
     "BlockIconPopup.qml",
     "BlockInputsPopup.qml",
     "PalettePanel.qml",
+    "PaletteBlockList.qml",
     "SnapGeometry.qml",
     "CanvasZoom.qml",
     "CommentCard.qml",

@@ -36,7 +36,7 @@ is added to `module.json` and nowhere else.
 | `CommentCard.qml` | One comment on the canvas, with its line to the block it is attached to. |
 | `InstructionBlock.qml`, `ValueChip.qml`, `BooleanSlot.qml` | One block, one reporter, one boolean slot. |
 | `BlockPiece.qml`, `BlockMenu.qml` | One piece of a block's row, and a block's right-click menu (built the first time it opens). |
-| `PalettePanel.qml`, `PaletteDragController.qml` | The sidebar and dragging out of it. |
+| `PalettePanel.qml`, `PaletteBlockList.qml`, `PaletteDragController.qml` | The sidebar, its list of blocks, and dragging out of it. |
 | `PaletteBlock.qml`, `PaletteValue.qml` | One block, and one reporter, in the sidebar. |
 | `CollectionPanel.qml`, `NameDialog.qml` | The sidebar's lists and dicts, and the dialog that names or renames one. |
 | `InstructionList.qml` | A strand's blocks as a model keyed by id, so an edit rebuilds only the blocks it touched. |
