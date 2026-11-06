@@ -36,6 +36,8 @@
     "PaletteValue.qml",
     "CollectionPanel.qml",
     "NameDialog.qml",
+    "ListEditorCard.qml",
+    "DictEditorCard.qml",
     "BlockDefinitionEditor.qml",
     "BlockAppearancePopup.qml",
     "BlockIconPopup.qml",
