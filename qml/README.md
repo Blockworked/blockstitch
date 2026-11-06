@@ -34,11 +34,18 @@ is added to `module.json` and nowhere else.
 | `InstructionBlock.qml`, `ValueChip.qml`, `BooleanSlot.qml` | One block, one reporter, one boolean slot. |
 | `BlockPiece.qml`, `BlockMenu.qml` | One piece of a block's row, and a block's right-click menu (built the first time it opens). |
 | `PalettePanel.qml`, `PaletteDragController.qml` | The sidebar and dragging out of it. |
+| `PaletteBlock.qml`, `PaletteValue.qml` | One block, and one reporter, in the sidebar. |
+| `CollectionPanel.qml`, `NameDialog.qml` | The sidebar's lists and dicts, and the dialog that names or renames one. |
+| `InstructionList.qml` | A strand's blocks as a model keyed by id, so an edit rebuilds only the blocks it touched. |
+| `BlockSurface.qml`, `BlockDragArea.qml` | A block's painted silhouette, and the press-and-drag area on it. |
+| `TextEditorDialog.qml` | The bigger editor for a text slot with line breaks. |
+| `LucideIcon.qml` | One Lucide icon by name, drawn from `Icons.qml`. |
+| `SmoothScroll.qml`, `WheelPan.qml`, `TextSelectHold.qml` | Wheel scrolling that glides, and holding a view still while text is selected. |
 | `BlockRegistry.qml` | The host's vocabulary: rows, operators, prefabs, icons, descriptors. |
 | `BlockDefinitionEditor.qml` | "Make a Block". |
 | `BlockAppearancePopup.qml`, `BlockIconPopup.qml` | Its color and icon pickers. |
 | `Theme.qml`, `Motion.qml`, `Icons.qml` | Colors and sizes, animation timing, Lucide icon paths. |
-| `Bw*.qml` | The small controls (button, text field, menu, dialog, ...) every host uses for its own UI too. The `Bw` prefix is historical; they hold nothing Blockwork-specific. |
+| `Bw*.qml` | The small controls (button, check box, combo box, dialog, menu, slider, switch, text field, time picker) every host uses for its own UI too. The `Bw` prefix is historical; they hold nothing Blockwork-specific. |
 
 ## Registering an app's blocks
 
