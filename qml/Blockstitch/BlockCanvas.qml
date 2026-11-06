@@ -10,7 +10,7 @@ Rectangle {
     Accessible.role: Accessible.Grouping
     Accessible.name: qsTr("Block canvas")
     property var strands: []
-    // A strand the host marks with a badge (BlockRegistry.strandMark), like Blockwork's recording target.
+    // A strand the host marks with a badge (BlockRegistry.strandMark).
     property string markedStrandId: ""
     property var comments: []
     property Component textMenu: null

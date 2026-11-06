@@ -547,7 +547,7 @@ Rectangle {
             return sectionCategories[type];
         if (type.indexOf("When") === 0)
             return "events";
-        if (["Wait", "If", "IfElse", "Repeat", "Forever", "While", "EscapeLoop", "ContinueLoop", "Return"].indexOf(type) >= 0)
+        if (BlockRegistry.isControlBlock(type) || ["Wait", "EscapeLoop", "ContinueLoop", "Return"].indexOf(type) >= 0)
             return "control";
         return "data";
     }

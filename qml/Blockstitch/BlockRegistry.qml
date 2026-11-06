@@ -135,10 +135,17 @@ QtObject {
     // Rows for the shared variable, list and loop blocks; a host's own row
     // for the same type wins.
     property var builtinRows: defaultRows()
-    // Types InstructionBlock draws itself, with no row: the C-shaped control
-    // blocks and custom block headers, calls and branch slots.
-    readonly property var selfDrawnTypes: ["If", "IfElse", "Repeat", "Forever", "While",
-        "BlockHeader", "CallBlock", "BranchCallBlock", "RunBranch"]
+    // Blockstitch's own C-shaped control blocks and the bodies ("mouths")
+    // each wraps, top to bottom. The one list of them; other files read it.
+    readonly property var controlBlocks: ({
+        If: ["body"], IfElse: ["then_body", "else_body"], Repeat: ["body"],
+        Forever: ["body"], While: ["body"]
+    })
+    function isControlBlock(type) { return !!type && controlBlocks.hasOwnProperty(type); }
+    // Types InstructionBlock draws itself, with no row: the control blocks
+    // and custom block headers, calls and branch slots.
+    readonly property var selfDrawnTypes: Object.keys(controlBlocks).concat(
+        ["BlockHeader", "CallBlock", "BranchCallBlock", "RunBranch"])
     function defaultRows() {
         const label = text => ({ kind: "label", text: text });
         const value = (field, key) => ({ kind: "value", field: field, key: key });
@@ -492,9 +499,7 @@ QtObject {
     function mouthKeys(type) {
         const r = row(type);
         if (r && r.mouths) return r.mouths;
-        if (type === "IfElse") return ["then_body", "else_body"];
-        if (["If", "Repeat", "Forever", "While"].indexOf(type) >= 0) return ["body"];
-        return [];
+        return isControlBlock(type) ? controlBlocks[type] : [];
     }
     function isWrap(type) { return type === "BranchCallBlock" || mouthKeys(type).length > 0; }
     function isHeader(type) {

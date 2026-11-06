@@ -28,7 +28,7 @@ Item {
     property var blockDefinitions: []
     // Drops are refused while locked, and a drag in progress is cancelled.
     property bool locked: false
-    // A change cancels the drag and drops any held ghost (another macro or actor).
+    // A change (the host opened another document) cancels the drag and drops any held ghost.
     property string documentId: ""
     // The part of the document a drop changes. Once an accepted drop's edit
     // shows up here the held ghost goes; unrelated state pushes leave it.

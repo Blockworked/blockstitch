@@ -1,7 +1,7 @@
 import QtQuick
 
 // Builds a BlockCanvas's strands lazily: strands and their top-level blocks
-// near the view first, the rest in the background, so a big macro shows up
+// near the view first, the rest in the background, so a big document shows up
 // before blocks nobody is looking at yet.
 QtObject {
     id: builder
