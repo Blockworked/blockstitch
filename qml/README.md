@@ -23,6 +23,19 @@ Both builds fail when `qml/Blockstitch/` holds a `.qml` file the manifest
 doesn't list, or the manifest lists one that isn't there, so a new component
 is added to `module.json` and nowhere else.
 
+## Files
+
+| File | What it is |
+| --- | --- |
+| `BlockCanvas.qml` | The workspace: strands, floating values, comments, list and dict editors, zoom and pan. |
+| `SnapGeometry.qml`, `ValueDropTargets.qml` | Where a dragged block or value would land, split out of the canvas. |
+| `InstructionBlock.qml`, `ValueChip.qml`, `BooleanSlot.qml` | One block, one reporter, one boolean slot. |
+| `PalettePanel.qml`, `PaletteDragController.qml` | The sidebar and dragging out of it. |
+| `BlockRegistry.qml` | The host's vocabulary: rows, operators, prefabs, icons, descriptors. |
+| `BlockDefinitionEditor.qml` | "Make a Block". |
+| `Theme.qml`, `Motion.qml`, `Icons.qml` | Colors and sizes, animation timing, Lucide icon paths. |
+| `Bw*.qml` | The small controls (button, text field, menu, dialog, ...) every host uses for its own UI too. The `Bw` prefix is historical; they hold nothing Blockwork-specific. |
+
 ## Registering an app's blocks
 
 `BlockRegistry` holds an app's block vocabulary. An app describes

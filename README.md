@@ -4,6 +4,7 @@ The block editor shared by Blockwork, Blockloom and the website.
 
 | Path | What it is |
 | --- | --- |
+| `CONTRIBUTING.md` | Where a change goes and how to test it |
 | `crates/blockstitch-core` | Rust backend: document model, values, editing operations, undo |
 | `crates/blockstitch-ffi`, `include/` | C boundary for the browser build |
 | `qml/Blockstitch` | QML module `com.blockworked.Blockstitch`: canvas, palette, definition editor, theme |
