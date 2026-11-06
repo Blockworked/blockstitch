@@ -142,6 +142,10 @@ QtObject {
         Forever: ["body"], While: ["body"]
     })
     function isControlBlock(type) { return !!type && controlBlocks.hasOwnProperty(type); }
+    // The custom block definition with this id in `definitions`, or null.
+    function definitionById(definitions, id) {
+        return (definitions || []).find(d => d.id === id) || null;
+    }
     // Types InstructionBlock draws itself, with no row: the control blocks
     // and custom block headers, calls and branch slots.
     readonly property var selfDrawnTypes: Object.keys(controlBlocks).concat(

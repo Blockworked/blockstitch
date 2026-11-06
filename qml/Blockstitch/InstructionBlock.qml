@@ -486,12 +486,7 @@ Item {
     function setPiece(piece, chosen) {
         setPieceField(piece, piece.encode ? piece.encode(chosen, instruction) : chosen);
     }
-    function defFor(id) {
-        for (let i = 0; i < (blockDefinitions || []).length; i++)
-            if (blockDefinitions[i].id === id)
-                return blockDefinitions[i];
-        return null;
-    }
+    function defFor(id) { return BlockRegistry.definitionById(blockDefinitions, id); }
     function callLabel() {
         const d = instruction ? defFor(instruction.block_id) : null;
         if (!d)

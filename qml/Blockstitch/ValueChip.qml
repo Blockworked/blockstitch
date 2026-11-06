@@ -155,12 +155,7 @@ Item {
     }
 
     readonly property var opSpec: valueData && valueData.kind === "Op" ? BlockRegistry.operator(valueData.op) : null
-    function defFor(id) {
-        for (let i = 0; i < (blockDefinitions || []).length; ++i)
-            if (blockDefinitions[i].id === id)
-                return blockDefinitions[i];
-        return null;
-    }
+    function defFor(id) { return BlockRegistry.definitionById(blockDefinitions, id); }
     readonly property var callDef: valueData && valueData.kind === "Call" ? defFor(valueData.block_id) : null
     readonly property bool emptyBoolean: !!valueData && valueData.kind === "Bool"
     readonly property bool booleanShape: forceBoolean || booleanParameter || (!!valueData && (valueData.kind === "Bool" || (valueData.kind === "Op" && BlockRegistry.isBoolOp(valueData.op, valueData)) || (valueData.kind === "Call" && !!callDef && callDef.shape === "ReturnsBool")))
