@@ -263,6 +263,7 @@ committing.
 | JSON heuristics flattening `{id, kind}` objects for the frontend | `graph::to_frontend` / `from_frontend` |
 | Operator default args in each app's QML | `operator_descriptors()` and generated `BlockRegistry` tables |
 | Battery/clipboard reporters, recording menu and automation icons in the shared registry | registered by Blockwork (`registerIcons`, `blockMenu`, `strandMark` with `BlockCanvas.markedStrandId`) |
+| Icons only Blockwork's blocks drew (battery, clipboard, terminal, ...) in `Icons.qml` | the host passes its own set to `Icons.add` |
 | Each app's palette drag code | `PaletteDragController` |
 | Each app's Make a Block dialog | `BlockDefinitionEditor` |
 | Each app's custom-call argument builder | `BlockRegistry.freshCallArgs` |
