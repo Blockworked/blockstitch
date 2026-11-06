@@ -69,7 +69,8 @@ BlockRegistry.registerPrefabs({ Say: () => ({ text: { kind: "Text", value: "Hell
 Blockstitch draws its own control and data blocks: the variable and list
 blocks, `Return` and the loop exits have rows in `BlockRegistry.defaultRows`,
 and `If`, `IfElse`, `Repeat`, `Forever` and `While` are drawn by
-`InstructionBlock` itself (`BlockRegistry.selfDrawnTypes`). A
+`InstructionBlock` itself (`BlockRegistry.controlBlocks` lists them with
+their bodies; `selfDrawnTypes` adds the custom block types). A
 host registers a row for every other type; one without a row draws as its
 icon alone. A value piece's `unit` frames the slot with a caption (`"ms"`),
 and `keyCapture: true` turns a click on its text into `keyCaptureRequested`
