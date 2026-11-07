@@ -221,9 +221,9 @@ must use these names (the `type` tag) and field keys for them:
 | `CallBlock`, `BranchCallBlock` | a call, the second with mouths | `block_id`, `args`, `branches` |
 | `RunBranch` | a call's branch placeholder | `name` |
 
-`Wait` only gets a default icon and the "control" category; a host that has
-one draws its row. Any other type whose name starts with `When` is a header (a hat with nothing
-above it). Everything else comes from the host's rows in `BlockRegistry`.
+Everything else comes from the host's rows in `BlockRegistry`, including
+its triggers: a row with `shape: "header"` is a hat with nothing above it,
+and the palette files it under Events unless `sections` say otherwise.
 Reporters `Text`, `Number`, `Bool` and `Op` are the `Value` kinds from
 `blockstitch-core`.
 
@@ -272,6 +272,8 @@ committing.
 | Icons only Blockwork's blocks drew (battery, clipboard, terminal, ...) in `Icons.qml` | the host passes its own set to `Icons.add` |
 | `reporter_branch_ids(&args)` guessing Blockwork's argument names | `reporter_branch_ids(&args, BranchArgKeys { .. })` |
 | `BlockRegistry.runningIds`, `breakpointIds`, `pausedIds`, `blockMarks`, `markClicked`, `breakpointClicked` | the same names on `BlockCanvas` (held per canvas in its `CanvasState`) |
+| Types named `When...` drawn as headers, `Wait` as a control block | the host's row says `shape: "header"`; `sections` or `extraCategories` place `Wait` |
+| `BwButton`, `BwCheckBox`, `BwComboBox`, `BwDialog`, `BwMenu`, `BwMenuItem`, `BwSlider`, `BwSwitch`, `BwTextField` | `StitchButton`, `StitchCheckBox`, ... (same API) |
 | Each app's palette drag code | `PaletteDragController` |
 | Each app's Make a Block dialog | `BlockDefinitionEditor` |
 | Each app's custom-call argument builder | `BlockRegistry.freshCallArgs` |

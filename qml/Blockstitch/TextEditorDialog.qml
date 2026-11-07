@@ -3,7 +3,7 @@ import QtQuick.Controls
 
 // A bigger editor for a text slot, for text with line breaks. Enter adds a
 // line; Ctrl+Enter or Done saves, through `textAccepted`.
-BwDialog {
+StitchDialog {
     id: root
     property string text: ""
     property bool monospace: false

@@ -62,7 +62,7 @@ Popup {
                         Layout.fillWidth: true
                         spacing: 6
                         Label { text: defaultRow.pieceName; color: Theme.text; font.bold: true }
-                        BwCheckBox {
+                        StitchCheckBox {
                             objectName: "multilineInput"
                             visible: defaultRow.valueType !== "Bool"
                             text: qsTr("Multi-line text box under the block")
@@ -72,21 +72,21 @@ Popup {
                         RowLayout {
                             visible: editor.allowDefaults
                             Layout.fillWidth: true
-                            BwComboBox {
+                            StitchComboBox {
                                 objectName: "defaultParameterType"
                                 visible: defaultRow.valueType !== "Bool"
                                 model: [qsTr("Number"), qsTr("Text")]
                                 currentIndex: defaultRow.kind === "Text" ? 1 : 0
                                 onActivated: editor.setInputDefault(defaultRow.index, currentIndex === 1 ? "Text" : "Number", currentIndex === 1 ? "" : "0")
                             }
-                            BwTextField {
+                            StitchTextField {
                                 objectName: "defaultNumberValue"
                                 visible: defaultRow.kind === "Number"
                                 Layout.fillWidth: true
                                 text: defaultRow.value
                                 onTextEdited: editor.setInputDefault(defaultRow.index, "Number", text)
                             }
-                            BwCheckBox {
+                            StitchCheckBox {
                                 objectName: "defaultBooleanValue"
                                 visible: defaultRow.valueType === "Bool"
                                 text: checked ? qsTr("True") : qsTr("False")
@@ -121,7 +121,7 @@ Popup {
                 }
             }
         }
-        BwButton {
+        StitchButton {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Done")
             onClicked: { if (editor.defaultsValid()) defaultsPopup.close(); }

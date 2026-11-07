@@ -144,7 +144,7 @@ Rectangle {
                 elide: Text.ElideRight
                 anchors.verticalCenter: parent.verticalCenter
             }
-            BwButton {
+            StitchButton {
                 iconName: "x"
                 text: ""
                 flat: true
@@ -195,7 +195,7 @@ Rectangle {
                     spacing: 6
                     width: dictRows.width - 20
                     height: 34
-                    BwTextField {
+                    StitchTextField {
                         id: dictKey
                         objectName: "dictKey_" + index
                         Keys.onReturnPressed: event => entryRow.appendEntry(event)
@@ -226,7 +226,7 @@ Rectangle {
                         height: 13
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                    BwTextField {
+                    StitchTextField {
                         id: dictValue
                         objectName: "dictValue_" + index
                         Keys.onReturnPressed: event => entryRow.appendEntry(event)
@@ -240,7 +240,7 @@ Rectangle {
                         onEditingFinished: if (!entryRow.submitting && text !== String(modelData.value.value))
                             dictCard.editValue(index, text)
                     }
-                    BwButton {
+                    StitchButton {
                         iconName: "trash-2"
                         text: ""
                         flat: true
@@ -268,7 +268,7 @@ Rectangle {
             height: 1
             color: Theme.borderSoft
         }
-        BwButton {
+        StitchButton {
             objectName: "addDictEntry"
             iconName: "plus"
             text: qsTr("Add entry")

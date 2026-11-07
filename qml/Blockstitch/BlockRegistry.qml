@@ -449,7 +449,7 @@ QtObject {
     // type -> Lucide icon for a type drawn without a registered row.
     property var icons: ({})
     function registerIcons(map) { icons = Object.assign({}, icons, map); }
-    readonly property var builtinIcons: ({Wait:"clock",SetVariable:"equal",ChangeVariable:"trending-up",AddToList:"plus",DeleteOfList:"trash",DeleteAllOfList:"trash",ShiftList:"arrow-left",InsertIntoList:"plus",ReplaceItemOfList:"repeat",ReverseList:"rotate",Return:"undo",If:"git-branch",IfElse:"git-fork",Repeat:"repeat",Forever:"infinity",While:"rotate",EscapeLoop:"log-out",ContinueLoop:"skip-forward",BlockHeader:"blocks",CallBlock:"blocks",BranchCallBlock:"blocks",RunBranch:"git-branch"})
+    readonly property var builtinIcons: ({SetVariable:"equal",ChangeVariable:"trending-up",AddToList:"plus",DeleteOfList:"trash",DeleteAllOfList:"trash",ShiftList:"arrow-left",InsertIntoList:"plus",ReplaceItemOfList:"repeat",ReverseList:"rotate",Return:"undo",If:"git-branch",IfElse:"git-fork",Repeat:"repeat",Forever:"infinity",While:"rotate",EscapeLoop:"log-out",ContinueLoop:"skip-forward",BlockHeader:"blocks",CallBlock:"blocks",BranchCallBlock:"blocks",RunBranch:"git-branch"})
     function iconFor(type) {
         const r = row(type);
         if (r && r.icon) return r.icon;
@@ -466,7 +466,7 @@ QtObject {
     function isHeader(type) {
         const r = row(type);
         if (r && r.shape) return r.shape === "header";
-        return type === "BlockHeader" || (!!type && type.indexOf("When") === 0);
+        return type === "BlockHeader";
     }
     function isCapType(type) {
         const r = row(type);

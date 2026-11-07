@@ -1117,24 +1117,24 @@ Rectangle {
                     } else
                         flick.forceActiveFocus();
                 }
-                BwMenu {
+                StitchMenu {
                     id: canvasMenu
                     property int canvasX: 0
                     property int canvasY: 0
-                    BwMenuItem {
+                    StitchMenuItem {
                         visible: root.offerClear
                         iconName: root.clearIcon
                         danger: true
                         text: root.clearText
                         onTriggered: root.clearRequested()
                     }
-                    BwMenuItem {
+                    StitchMenuItem {
                         iconName: "clipboard-paste"
                         enabled: root.canPaste
                         text: qsTr("Paste")
                         onTriggered: root.canvasMenuAction("paste", canvasMenu.canvasX, canvasMenu.canvasY)
                     }
-                    BwMenuItem {
+                    StitchMenuItem {
                         iconName: "message-square"
                         text: qsTr("Add Comment")
                         onTriggered: root.canvasNoteRequested(canvasMenu.canvasX, canvasMenu.canvasY)
@@ -1142,7 +1142,7 @@ Rectangle {
                 }
                 Instantiator {
                     model: BlockRegistry.canvasMenu
-                    delegate: BwMenuItem {
+                    delegate: StitchMenuItem {
                         required property var modelData
                         iconName: modelData.icon || ""
                         text: modelData.text
@@ -1403,7 +1403,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.margins: 18
         spacing: 8
-        BwButton {
+        StitchButton {
             iconName: "zoom-in"
             text: ""
             implicitWidth: 40
@@ -1411,7 +1411,7 @@ Rectangle {
             radius: 20
             onClicked: root.stepZoom(.1)
         }
-        BwButton {
+        StitchButton {
             iconName: "zoom-out"
             text: ""
             implicitWidth: 40
@@ -1419,7 +1419,7 @@ Rectangle {
             radius: 20
             onClicked: root.stepZoom(-.1)
         }
-        BwButton {
+        StitchButton {
             iconName: "rotate-ccw"
             text: ""
             implicitWidth: 40

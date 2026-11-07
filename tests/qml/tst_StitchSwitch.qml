@@ -6,11 +6,11 @@ Item {
     width: 300; height: 200
 
     Item { id: before; focus: true; activeFocusOnTab: true; width: 10; height: 10 }
-    BwSwitch { id: toggle; x: 20; y: 40; Accessible.name: "Close to tray" }
+    StitchSwitch { id: toggle; x: 20; y: 40; Accessible.name: "Close to tray" }
     SignalSpy { id: toggled; target: toggle; signalName: "toggled" }
 
     TestCase {
-        name: "BwSwitch"
+        name: "StitchSwitch"
         when: windowShown
 
         function ring() {

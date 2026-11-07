@@ -1329,6 +1329,7 @@ Item {
         }
     }
 
+    // keyCapture is {kind: "Strand", strand_id, index} or {kind: "Standalone"} (see qml/README.md).
     function isCapturingKey() {
         if (!keyCapture)
             return false;

@@ -4,7 +4,7 @@ import QtQuick.Controls
 // "Make a ..." / "Rename ..." dialog for a named thing (variable, list, dict).
 // The host validates: `submitted` fires with the trimmed name, and the host
 // calls `fail(message)` to keep the dialog open with an error, or `close()`.
-BwDialog {
+StitchDialog {
     id: root
     property string noun: "list"
     property string renameTarget: ""
@@ -38,7 +38,7 @@ BwDialog {
     Column {
         width: 340; spacing: 8
         Text { text: root.phrase.label; color: Theme.text }
-        BwTextField {
+        StitchTextField {
             id: nameField; width: parent.width; placeholderText: root.placeholder
             onAccepted: root.accept()
             onTextChanged: root.error = ""

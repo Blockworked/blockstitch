@@ -14,6 +14,7 @@ Item {
 
         function block(id, type) { return { id: id, type: type || "If", body: [] }; }
         function strand(id, x, y, instructions) { return { id: id, x: x, y: y, instructions: instructions }; }
+        function initTestCase() { BlockRegistry.registerRows({ WhenStarted: { shape: "header", head: [{ kind: "label", text: "when started" }] } }); }
         function init() {
             canvas.cancelDrag(); canvas.endSettle();
             canvas.setZoom(1);

@@ -38,7 +38,7 @@ Dialog {
         visible: control.title.length > 0
         implicitHeight: visible ? 58 : 0
         Text { x: 22; anchors.verticalCenter: parent.verticalCenter; text: control.title; color: Theme.text; font.pixelSize: 16; font.weight: Font.Bold }
-        BwButton {
+        StitchButton {
             visible: control.showClose
             anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter
             iconName: "x"; text: ""; flat: true; radius: 15; implicitWidth: 30; implicitHeight: 30
@@ -51,7 +51,7 @@ Dialog {
         spacing: 8
         padding: 18; topPadding: 8
         background: null
-        delegate: BwButton {
+        delegate: StitchButton {
             primary: DialogButtonBox.buttonRole === DialogButtonBox.AcceptRole || DialogButtonBox.buttonRole === DialogButtonBox.YesRole
         }
     }

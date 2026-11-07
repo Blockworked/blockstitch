@@ -545,9 +545,9 @@ Rectangle {
             return extraCategories[type];
         if (sectionCategories[type])
             return sectionCategories[type];
-        if (type.indexOf("When") === 0)
+        if (BlockRegistry.isHeader(type))
             return "events";
-        if (BlockRegistry.isControlBlock(type) || ["Wait", "EscapeLoop", "ContinueLoop", "Return"].indexOf(type) >= 0)
+        if (BlockRegistry.isControlBlock(type) || ["EscapeLoop", "ContinueLoop", "Return"].indexOf(type) >= 0)
             return "control";
         return "data";
     }
@@ -671,7 +671,7 @@ Rectangle {
             Layout.fillHeight: true
             spacing: 0
             clip: true
-            BwTextField {
+            StitchTextField {
                 id: searchField
                 Layout.fillWidth: true
                 Layout.margins: 8

@@ -111,7 +111,7 @@ Loader {
     }
     Component {
         id: dropdownPiece
-        BwComboBox {
+        StitchComboBox {
             id: pieceDrop
             readonly property var choices: block.pieceOptions(piece.modelData)
             readonly property string current: block.pieceValue(piece.modelData)
@@ -227,12 +227,12 @@ Loader {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: addMenu.popup(0, addButton.height + 2)
             }
-            BwMenu {
+            StitchMenu {
                 id: addMenu
                 objectName: "addComponentMenu"
                 Instantiator {
                     model: BlockRegistry.missingComponents(block.rowSpec, block.instruction)
-                    delegate: BwMenuItem {
+                    delegate: StitchMenuItem {
                         required property var modelData
                         iconName: modelData.icon || "plus"
                         text: modelData.label
@@ -278,7 +278,7 @@ Loader {
     }
     Component {
         id: textPiece
-        BwTextField {
+        StitchTextField {
             text: block.pieceValue(piece.modelData)
             placeholderText: piece.modelData.placeholder || ""
             implicitWidth: Math.min(piece.modelData.maxWidth || 200, Math.max(piece.modelData.minWidth || 64, contentWidth + 20))

@@ -128,7 +128,7 @@ Rectangle {
                 elide: Text.ElideRight
                 anchors.verticalCenter: parent.verticalCenter
             }
-            BwButton {
+            StitchButton {
                 iconName: "x"
                 text: ""
                 flat: true
@@ -180,7 +180,7 @@ Rectangle {
                         horizontalAlignment: Text.AlignRight
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                    BwTextField {
+                    StitchTextField {
                         id: itemField
                         objectName: "listItem_" + index
                         property bool submitting: false
@@ -210,7 +210,7 @@ Rectangle {
                             listScroll.contentY = Math.max(0, Math.min(position.y, listScroll.contentHeight - listScroll.height));
                         })
                     }
-                    BwButton {
+                    StitchButton {
                         iconName: "trash-2"
                         text: ""
                         flat: true
@@ -238,7 +238,7 @@ Rectangle {
             height: 1
             color: Theme.borderSoft
         }
-        BwButton {
+        StitchButton {
             objectName: "addListItem"
             iconName: "plus"
             text: qsTr("Add item")

@@ -132,7 +132,7 @@ Item {
                 color: Theme.textDim
             }
             Label { text: qsTr("Identifier"); color: Theme.text }
-            BwTextField {
+            StitchTextField {
                 id: detailId
                 objectName: "detailsIdentifier"
                 Layout.fillWidth: true
@@ -140,7 +140,7 @@ Item {
                 placeholderText: root.identifierPlaceholder
             }
             Label { text: qsTr("Description"); color: Theme.text }
-            BwTextField {
+            StitchTextField {
                 id: detailDescription
                 objectName: "detailsDescription"
                 Layout.fillWidth: true
@@ -152,7 +152,7 @@ Item {
                 visible: active
                 sourceComponent: root.detailsPanel
             }
-            BwButton { Layout.alignment: Qt.AlignRight; text: qsTr("Done"); onClicked: detailsPopup.close() }
+            StitchButton { Layout.alignment: Qt.AlignRight; text: qsTr("Done"); onClicked: detailsPopup.close() }
         }
     }
 
@@ -1101,14 +1101,14 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            BwButton {
+            StitchButton {
                 objectName: "appearanceButton"
                 Layout.fillWidth: true
                 text: qsTr("Appearance")
                 iconName: root.blockIcon || "palette"
                 onClicked: appearancePopup.open()
             }
-            BwButton {
+            StitchButton {
                 objectName: "defaultParametersButton"
                 Layout.fillWidth: true
                 text: qsTr("Inputs")
@@ -1118,7 +1118,7 @@ Item {
                     defaultsPopup.open();
                 }
             }
-            BwButton {
+            StitchButton {
                 objectName: "detailsButton"
                 Layout.fillWidth: true
                 text: root.detailsTitle
@@ -1234,14 +1234,14 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            BwButton {
+            StitchButton {
                 Layout.fillWidth: true
                 visible: root.shapes.indexOf(root.returnsValue ? "ReturnsValue" : "Normal") >= 0
                 text: root.returnsValue ? qsTr("Return Text or Number") : qsTr("Normal block")
                 primary: root.blockShape === (root.returnsValue ? "ReturnsValue" : "Normal")
                 onClicked: root.blockShape = root.returnsValue ? "ReturnsValue" : "Normal"
             }
-            BwButton {
+            StitchButton {
                 Layout.fillWidth: true
                 visible: root.shapes.indexOf(root.returnsValue ? "ReturnsBool" : "Ending") >= 0
                 text: root.returnsValue ? qsTr("Return a Boolean") : qsTr("Ending block")
@@ -1250,7 +1250,7 @@ Item {
             }
         }
 
-        BwCheckBox {
+        StitchCheckBox {
             objectName: "returnsValueToggle"
             visible: root.offersCommands && root.offersReporters
             text: qsTr("Returns a value")
@@ -1273,12 +1273,12 @@ Item {
             Item {
                 Layout.fillWidth: true
             }
-            BwButton {
+            StitchButton {
                 objectName: "cancelButton"
                 text: qsTr("Cancel")
                 onClicked: root.cancelled()
             }
-            BwButton {
+            StitchButton {
                 objectName: "submitButton"
                 text: root.submitText
                 primary: true

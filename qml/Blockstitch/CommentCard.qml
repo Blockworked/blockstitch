@@ -70,7 +70,7 @@ Rectangle {
             width: Math.max(0, parent.width - 14 - commentLabel.width - collapseBtn.width - parent.spacing * 3)
             height: 1
         }
-        BwButton {
+        StitchButton {
             id: collapseBtn
             iconName: commentCard.modelData.collapsed ? "chevron-down" : "chevron-up"
             text: ""
@@ -129,9 +129,9 @@ Rectangle {
         gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: commentMenu.popup()
     }
-    BwMenu {
+    StitchMenu {
         id: commentMenu
-        BwMenuItem {
+        StitchMenuItem {
             iconName: "trash"
             danger: true
             text: qsTr("Delete comment")

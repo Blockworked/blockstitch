@@ -515,9 +515,9 @@ Item {
         }
         Component {
             id: valueMenu
-            BwMenu {
+            StitchMenu {
                 id: valueMenuPopup
-                BwMenuItem {
+                StitchMenuItem {
                     visible: !root.extraMenu || root.extraMenu.length === 0
                     iconName: "info"
                     text: qsTr("Details")
@@ -525,7 +525,7 @@ Item {
                 }
                 Instantiator {
                     model: root.extraMenu
-                    delegate: BwMenuItem {
+                    delegate: StitchMenuItem {
                         required property var modelData
                         iconName: modelData.icon || ""
                         text: modelData.text
@@ -685,7 +685,7 @@ Item {
                     height: item ? item.implicitHeight : 0
                     anchors.verticalCenter: parent.verticalCenter
                     sourceComponent: Component {
-                        BwComboBox {
+                        StitchComboBox {
                             id: enumBox
                             readonly property var choices: argRow.isEnum ? BlockRegistry.enumChoices(root.opSpec.enumArg) : []
                             readonly property int chosen: {
@@ -770,7 +770,7 @@ Item {
         }
         Component {
             id: enumLeaf
-            BwComboBox {
+            StitchComboBox {
                 id: leafBox
                 readonly property var choices: root.leafOptions || []
                 readonly property string current: root.valueData ? String(root.valueData.value || "") : ""
@@ -937,7 +937,7 @@ Item {
             Item {
                 implicitWidth: leafInput.implicitWidth
                 implicitHeight: leafInput.implicitHeight
-                BwTextField {
+                StitchTextField {
                     id: leafInput
                     readOnly: !root.editable
                     text: root.leafText
@@ -1211,12 +1211,12 @@ Item {
                                 root.toggleComponent(callPiece.modelData.component, false);
                         }
                     }
-                    BwMenu {
+                    StitchMenu {
                         id: customComponentMenu
                         objectName: "customComponentMenu"
                         Instantiator {
                             model: BlockRegistry.missingComponents(root.customRow, root.valueData)
-                            delegate: BwMenuItem {
+                            delegate: StitchMenuItem {
                                 required property var modelData
                                 text: modelData.label
                                 onTriggered: root.toggleComponent(modelData, true)

@@ -37,7 +37,7 @@ Popup {
     }
     contentItem: ColumnLayout {
         spacing: 10
-        BwTextField {
+        StitchTextField {
             id: iconSearchField
             Layout.fillWidth: true
             placeholderText: qsTr("Search icons")

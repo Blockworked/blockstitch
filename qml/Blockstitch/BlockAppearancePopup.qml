@@ -76,7 +76,7 @@ Popup {
                 font.pixelSize: 12
                 Layout.alignment: Qt.AlignVCenter
             }
-            BwButton {
+            StitchButton {
                 text: editor.blockIcon ? editor.blockIcon : qsTr("Default")
                 iconName: editor.blockIcon || "blocks"
                 implicitHeight: 32
@@ -87,7 +87,7 @@ Popup {
                     iconSearchField.forceActiveFocus();
                 }
             }
-            BwButton {
+            StitchButton {
                 visible: editor.blockIcon.length > 0
                 text: qsTr("Reset")
                 implicitHeight: 32
@@ -204,7 +204,7 @@ Popup {
                         color: editor.blockColor
                         border.color: Theme.border
                     }
-                    BwTextField {
+                    StitchTextField {
                         id: hexField
                         Layout.preferredWidth: 100
                         font.family: "monospace"
@@ -222,7 +222,7 @@ Popup {
                     Item {
                         Layout.fillWidth: true
                     }
-                    BwButton {
+                    StitchButton {
                         text: qsTr("Done")
                         primary: true
                         implicitWidth: 60
@@ -232,6 +232,6 @@ Popup {
             }
         }
 
-        BwButton { text: qsTr("Done"); Layout.alignment: Qt.AlignRight; onClicked: appearancePopup.close() }
+        StitchButton { text: qsTr("Done"); Layout.alignment: Qt.AlignRight; onClicked: appearancePopup.close() }
     }
 }

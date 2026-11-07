@@ -29,7 +29,7 @@ Column {
             width: root.rowWidth; height: 30; radius: Theme.radius; color: hover.hovered ? Theme.panelRaised : "transparent"
             Row {
                 anchors.fill: parent; anchors.leftMargin: 6; anchors.rightMargin: 6; spacing: 7
-                BwCheckBox {
+                StitchCheckBox {
                     anchors.verticalCenter: parent.verticalCenter; checked: row.modelData.editor_visible
                     Accessible.name: qsTr("Show %1 on canvas").arg(row.modelData.name)
                     onToggled: root.editorStateRequested(row.modelData.name, checked, row.modelData.editor_x || 36, row.modelData.editor_y || 36)
@@ -39,11 +39,11 @@ Column {
             }
             HoverHandler { id: hover }
             TapHandler { acceptedButtons: Qt.RightButton; gesturePolicy: TapHandler.ReleaseWithinBounds; onTapped: menu.popup() }
-            BwMenu {
+            StitchMenu {
                 id: menu
-                BwMenuItem { iconName: "equal"; text: root.noun === "dict" ? qsTr("Rename dict") : root.noun === "variable" ? qsTr("Rename variable") : qsTr("Rename list"); onTriggered: root.renameRequested(row.modelData.name) }
-                BwMenuItem { iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(row.modelData.name) }
-                BwMenuItem { iconName: "trash"; danger: true; text: root.noun === "dict" ? qsTr("Delete dict") : root.noun === "variable" ? qsTr("Delete variable") : qsTr("Delete list"); onTriggered: root.deleteRequested(row.modelData.name) }
+                StitchMenuItem { iconName: "equal"; text: root.noun === "dict" ? qsTr("Rename dict") : root.noun === "variable" ? qsTr("Rename variable") : qsTr("Rename list"); onTriggered: root.renameRequested(row.modelData.name) }
+                StitchMenuItem { iconName: "info"; text: qsTr("Details"); onTriggered: root.detailsRequested(row.modelData.name) }
+                StitchMenuItem { iconName: "trash"; danger: true; text: root.noun === "dict" ? qsTr("Delete dict") : root.noun === "variable" ? qsTr("Delete variable") : qsTr("Delete list"); onTriggered: root.deleteRequested(row.modelData.name) }
             }
         }
     }

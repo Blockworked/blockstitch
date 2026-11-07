@@ -49,7 +49,7 @@ Column {
                     text: sec.modelData.title
                     anchors.verticalCenter: parent.verticalCenter
                 }
-                BwButton {
+                StitchButton {
                     visible: sec.modelData.action !== ""
                     text: panel.actionText(sec.modelData.action, sec.modelData.actionText)
                     implicitHeight: 28
@@ -203,7 +203,7 @@ Column {
             text: qsTr("My blocks")
             anchors.verticalCenter: parent.verticalCenter
         }
-        BwButton {
+        StitchButton {
             text: qsTr("Make a Block")
             implicitHeight: 28
             font.pixelSize: 11
@@ -276,7 +276,7 @@ Column {
             text: qsTr("Community blocks")
             anchors.verticalCenter: parent.verticalCenter
         }
-        BwButton {
+        StitchButton {
             text: qsTr("Browse")
             iconName: "book-open"
             implicitHeight: 28

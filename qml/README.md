@@ -49,7 +49,7 @@ is added to `module.json` and nowhere else.
 | `BlockDefinitionEditor.qml` | "Make a Block". |
 | `BlockAppearancePopup.qml`, `BlockIconPopup.qml`, `BlockInputsPopup.qml` | Its color and icon pickers, and the Inputs dialog (starting values, multi-line boxes). |
 | `Theme.qml`, `Motion.qml`, `Icons.qml` | Colors and sizes, animation timing, Lucide icon paths. |
-| `Bw*.qml` | The small controls (button, check box, combo box, dialog, menu, slider, switch, text field) every host uses for its own UI too. The `Bw` prefix is historical; they hold nothing Blockwork-specific. |
+| `Stitch*.qml` | The small controls (button, check box, combo box, dialog, menu, slider, switch, text field) every host uses for its own UI too. |
 
 ## Registering an app's blocks
 
@@ -75,7 +75,10 @@ their bodies; `selfDrawnTypes` adds the custom block types). A
 host registers a row for every other type; one without a row draws as its
 icon alone. A value piece's `unit` frames the slot with a caption (`"ms"`),
 and `keyCapture: true` turns a click on its text into `keyCaptureRequested`
-so the host can record a key. `shape`
+so the host can record a key. While it does, set `BlockCanvas.keyCapture` (and
+the palette's) to `{kind: "Strand", strand_id, index}` (the block's path) or
+`{kind: "Standalone"}` for a palette block, and the slot shows it is waiting.
+`shape`
 (`"header"`/`"cap"`) and `mouths` (the instruction keys holding nested
 bodies) decide a block's outline; the comments in `BlockRegistry.qml` list
 every piece kind. `blockMenu`/`canvasMenu` add app-specific context menu

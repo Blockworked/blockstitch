@@ -3,54 +3,54 @@ import QtQuick.Controls
 
 // A block's right-click menu: edit, copy, cut, comment, details, delete, plus
 // the host's own items (BlockRegistry.blockMenu) or a palette block's extraMenu.
-BwMenu {
+StitchMenu {
     id: menu
     // The InstructionBlock this menu acts on.
     required property Item block
 
-    BwMenuItem {
+    StitchMenuItem {
         visible: !block.paletteMode && block.isCustomBlock && block.type === "BlockHeader"
         iconName: "blocks"
         text: qsTr("Edit block")
         onTriggered: block.menuActionRequested("edit_block", block.strandId, block.path, block.instruction)
     }
-    BwMenuItem {
+    StitchMenuItem {
         visible: !block.paletteMode
         iconName: "copy"
         text: qsTr("Copy block")
         onTriggered: block.menuActionRequested("copy", block.strandId, block.path, block.instruction)
     }
-    BwMenuItem {
+    StitchMenuItem {
         visible: !block.paletteMode
         iconName: "layers"
         text: qsTr("Copy all")
         onTriggered: block.menuActionRequested("copy_all", block.strandId, block.path, block.instruction)
     }
-    BwMenuItem {
+    StitchMenuItem {
         visible: !block.paletteMode
         iconName: "corner-down-right"
         text: qsTr("Duplicate block")
         onTriggered: block.duplicateRequested(block.strandId, block.path, block.instruction)
     }
-    BwMenuItem {
+    StitchMenuItem {
         visible: !block.paletteMode
         iconName: "scissors"
         text: qsTr("Cut block")
         onTriggered: block.menuActionRequested("cut", block.strandId, block.path, block.instruction)
     }
-    BwMenuItem {
+    StitchMenuItem {
         visible: !block.paletteMode
         iconName: "message-square"
         text: block.hasComment ? qsTr("Comment") : qsTr("Add Comment")
         onTriggered: block.commentRequested(block.instruction)
     }
-    BwMenuItem {
+    StitchMenuItem {
         visible: !block.paletteMode || !block.extraMenu || block.extraMenu.length === 0
         iconName: "info"
         text: qsTr("Details")
         onTriggered: block.detailsRequested(block.isCustomBlock && block.instruction ? block.instruction.block_id : block.type)
     }
-    BwMenuItem {
+    StitchMenuItem {
         id: deleteItem
         visible: !block.paletteMode
         iconName: "trash"
@@ -60,7 +60,7 @@ BwMenu {
     }
     Instantiator {
         model: block.paletteMode ? block.extraMenu : BlockRegistry.blockMenu
-        delegate: BwMenuItem {
+        delegate: StitchMenuItem {
             required property var modelData
             iconName: modelData.icon || ""
             // A host item may name itself per block: text(instruction, strandId, path).

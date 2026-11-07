@@ -17,7 +17,7 @@ Menu {
         currentIndex: control.currentIndex
         boundsBehavior: Flickable.StopAtBounds
     }
-    delegate: BwMenuItem {}
+    delegate: StitchMenuItem {}
 
     // Grows out of the corner it opened from while fading in.
     transformOrigin: Popup.TopLeft
