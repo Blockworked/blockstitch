@@ -583,200 +583,7 @@ Item {
         editor: root
     }
 
-    component PrototypePieces: Row {
-        spacing: 8
-        Repeater {
-            model: root.previewGroups
-            delegate: Rectangle {
-                id: group
-                required property var modelData
-                objectName: modelData.component ? "prototypeComponentGroup" : "prototypeBasePiece"
-                width: groupRow.implicitWidth + (modelData.component ? 16 : 0)
-                height: modelData.component ? 41 : 29
-                anchors.verticalCenter: parent.verticalCenter
-                radius: 7
-                color: modelData.component ? Theme.panelRaised : "transparent"
-                border.width: modelData.component ? 1 : 0
-                border.color: Theme.border
-                Row {
-                    id: groupRow
-                    anchors.centerIn: parent
-                    spacing: 5
-                    Repeater {
-                        model: group.modelData.indices
-                        delegate: PreviewPiece {
-                            required property int modelData
-                            index: modelData
-                            pieceIndex: modelData
-                            pieceKind: pieces.get(modelData).pieceKind
-                            pieceName: pieces.get(modelData).pieceName
-                            valueType: pieces.get(modelData).valueType
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-                }
-            }
-        }
-    }
 
-    component PreviewPiece: Item {
-        id: piece
-        required property int index
-        required property int pieceIndex
-        required property string pieceKind
-        required property string pieceName
-        required property string valueType
-        readonly property bool isComponent: pieceIndex >= 0 && pieceIndex < pieces.count && !!pieces.get(pieceIndex).component
-        readonly property bool isInput: pieceKind === "Input"
-        readonly property bool isBranch: pieceKind === "Branch"
-        readonly property bool isBool: isInput && valueType === "Bool" && !isComponent
-        readonly property bool selected: root.selectedPiece === pieceIndex
-        readonly property bool editing: root.editingPiece === pieceIndex
-        implicitWidth: Math.max(isInput ? 48 : isBranch ? 42 : 30, measure.implicitWidth + (isBool ? 24 : isInput || isBranch ? 20 : 12))
-        implicitHeight: 29
-        z: selected ? 20 : 1
-
-        function startEdit() {
-            root.beginEdit(pieceIndex, pieceEditor);
-        }
-
-        Rectangle {
-            anchors.fill: parent
-            visible: !piece.isBool
-            radius: 5
-            color: piece.isInput ? Theme.field : piece.selected ? Theme.hover : "transparent"
-            border.width: piece.selected ? 2 : piece.isInput ? 1 : 0
-            border.color: piece.selected ? Theme.accent : Theme.border
-        }
-        Canvas {
-            id: boolCanvas
-            anchors.fill: parent
-            visible: piece.isBool
-            antialiasing: true
-            onWidthChanged: requestPaint()
-            onHeightChanged: requestPaint()
-            Connections { target: Theme; function onDarkChanged() { boolCanvas.requestPaint(); } }
-            Connections {
-                target: piece
-                function onSelectedChanged() {
-                    boolCanvas.requestPaint();
-                }
-            }
-            onPaint: {
-                const c = getContext("2d");
-                c.reset();
-                const n = Math.min(height * .32, width / 2);
-                c.beginPath();
-                c.moveTo(n, .5);
-                c.lineTo(width - n, .5);
-                c.lineTo(width - .5, height / 2);
-                c.lineTo(width - n, height - .5);
-                c.lineTo(n, height - .5);
-                c.lineTo(.5, height / 2);
-                c.closePath();
-                c.fillStyle = Theme.field;
-                c.fill();
-                c.strokeStyle = piece.selected ? Theme.accent : Theme.border;
-                c.lineWidth = piece.selected ? 2 : 1;
-                c.stroke();
-            }
-        }
-        Text {
-            id: measure
-            anchors.centerIn: parent
-            text: piece.editing ? (pieceEditor.text || " ") : (piece.pieceName || (piece.isInput ? qsTr("value") : qsTr("Add label")))
-            color: piece.isInput ? Theme.accent : Theme.text
-            font.pixelSize: 13
-            font.weight: piece.isInput ? Font.DemiBold : Font.Normal
-            visible: !piece.editing
-        }
-        TextInput {
-            id: pieceEditor
-            ContextMenu.menu: root.textMenu ? root.textMenu.createObject(pieceEditor, { editor: pieceEditor }) : null
-            anchors.centerIn: parent
-            width: Math.max(20, measure.implicitWidth + 2)
-            height: parent.height
-            verticalAlignment: TextInput.AlignVCenter
-            horizontalAlignment: TextInput.AlignHCenter
-            text: piece.pieceName
-            visible: piece.editing
-            selectByMouse: true
-            color: piece.isInput ? Theme.accent : Theme.text
-            font.pixelSize: 13
-            font.weight: piece.isInput ? Font.DemiBold : Font.Normal
-            onActiveFocusChanged: if (!activeFocus && piece.editing)
-                root.commitPiece()
-            onAccepted: root.commitPiece()
-            Keys.onEscapePressed: {
-                root.activeEditor = null;
-                root.editingPiece = -1;
-            }
-        }
-        TapHandler {
-            enabled: !piece.editing
-            onTapped: piece.startEdit()
-        }
-
-        Rectangle {
-            visible: piece.selected && !piece.isBranch && pieces.count > 0
-            x: (piece.width - width) / 2
-            y: -39
-            z: 30
-            width: actions.implicitWidth + 6
-            height: 30
-            radius: 6
-            color: Theme.panelRaised
-            border.color: Theme.border
-            Row {
-                id: actions
-                anchors.centerIn: parent
-                spacing: 2
-                Repeater {
-                    model: [
-                        {
-                            icon: "chevron-down",
-                            tip: qsTr("Move left"),
-                            direction: -1
-                        },
-                        {
-                            icon: "x",
-                            tip: qsTr("Remove"),
-                            direction: 0
-                        },
-                        {
-                            icon: "chevron-down",
-                            tip: qsTr("Move right"),
-                            direction: 1
-                        }
-                    ]
-                    delegate: Button {
-                        id: actionButton
-                        required property var modelData
-                        width: 22
-                        height: 22
-                        padding: 0
-                        enabled: modelData.direction === 0 || (modelData.direction < 0 ? piece.pieceIndex > 0 : piece.pieceIndex < pieces.count - 1)
-                        ToolTip.visible: hovered
-                        ToolTip.text: modelData.tip
-                        onClicked: modelData.direction === 0 ? root.removeSelected() : root.moveSelected(modelData.direction)
-                        contentItem: LucideIcon {
-                            name: modelData.icon
-                            rotation: modelData.direction < 0 ? 90 : modelData.direction > 0 ? -90 : 0
-                            color: modelData.direction === 0 ? Theme.danger : Theme.textDim
-                            width: 14
-                            height: 14
-                            anchors.centerIn: parent
-                        }
-                        background: Rectangle {
-                            radius: 4
-                            color: actionButton.hovered ? Theme.hover : "transparent"
-                            Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
-                        }
-                    }
-                }
-            }
-        }
-    }
 
 
     ColumnLayout {
@@ -894,7 +701,7 @@ Item {
                             height: 16
                             anchors.verticalCenter: parent.verticalCenter
                         }
-                        PrototypePieces {}
+                        DefinitionPrototype { editor: root }
                     }
                 }
 
@@ -966,7 +773,7 @@ Item {
                             height: 16
                             anchors.verticalCenter: parent.verticalCenter
                         }
-                        PrototypePieces {}
+                        DefinitionPrototype { editor: root }
                     }
                     Repeater {
                         id: branchRows
@@ -1001,8 +808,9 @@ Item {
                                     height: 16
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
-                                PreviewPiece {
+                                DefinitionPiece {
                                     id: branchNamePiece
+                                    editor: root
                                     width: implicitWidth
                                     pieceIndex: modelData.index
                                     pieceKind: "Branch"

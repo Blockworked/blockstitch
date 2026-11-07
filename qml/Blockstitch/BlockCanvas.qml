@@ -517,6 +517,7 @@ Rectangle {
         strands: strandRepeater
     }
     function buildStrand(strand) { builder.buildStrand(strand); }
+    function startStrandBuilder() { builder.start(); }
     function bulkInsert(strand, repeater, at, n) { builder.bulkInsert(strand, repeater, at, n); }
     function slotCreated(strand, slot, estH) { builder.slotCreated(strand, slot, estH); }
     // How many strands still wait for their blocks.
@@ -1111,156 +1112,20 @@ Rectangle {
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 onClicked: mouse => {
                     if (mouse.button === Qt.RightButton) {
-                        canvasMenu.canvasX = Math.round(mouse.x - root.originOffsetX);
-                        canvasMenu.canvasY = Math.round(mouse.y - root.originOffsetY);
-                        canvasMenu.popup(mouse.x, mouse.y);
+                        canvasMenu.popupAt(mouse.x, mouse.y, Math.round(mouse.x - root.originOffsetX), Math.round(mouse.y - root.originOffsetY));
                     } else
                         flick.forceActiveFocus();
                 }
-                StitchMenu {
+                CanvasMenu {
                     id: canvasMenu
-                    property int canvasX: 0
-                    property int canvasY: 0
-                    StitchMenuItem {
-                        visible: root.offerClear
-                        iconName: root.clearIcon
-                        danger: true
-                        text: root.clearText
-                        onTriggered: root.clearRequested()
-                    }
-                    StitchMenuItem {
-                        iconName: "clipboard-paste"
-                        enabled: root.canPaste
-                        text: qsTr("Paste")
-                        onTriggered: root.canvasMenuAction("paste", canvasMenu.canvasX, canvasMenu.canvasY)
-                    }
-                    StitchMenuItem {
-                        iconName: "message-square"
-                        text: qsTr("Add Comment")
-                        onTriggered: root.canvasNoteRequested(canvasMenu.canvasX, canvasMenu.canvasY)
-                    }
-                }
-                Instantiator {
-                    model: BlockRegistry.canvasMenu
-                    delegate: StitchMenuItem {
-                        required property var modelData
-                        iconName: modelData.icon || ""
-                        text: modelData.text
-                        danger: !!modelData.danger
-                        onTriggered: root.canvasMenuAction(modelData.id, canvasMenu.canvasX, canvasMenu.canvasY)
-                    }
-                    onObjectAdded: (index, object) => canvasMenu.insertItem(index, object)
-                    onObjectRemoved: (index, object) => canvasMenu.removeItem(object)
+                    canvas: root
                 }
             }
             Repeater {
                 id: strandRepeater
                 model: strandModel
-                delegate: Column {
-                    id: strand
-                    Accessible.role: Accessible.Grouping
-                    Accessible.name: qsTr("Block strand")
-                    required property string sid
-                    required property real sx
-                    required property real sy
-                    required property string payload
-                    required property int index
-                    readonly property var blockList: JSON.parse(payload || "[]")
-                    readonly property color branchColor: root.branchColorForBlock(root.strandOrigins[sid] || "")
-                    // Blocks are built once the strand comes near the view, or
-                    // by the background builder; until then a placeholder of
-                    // about the right size stands in.
-                    property bool built: false
-                    property bool loading: false
-                    property real estY: 0
-                    readonly property bool nearView: root.nearView(x, y, Math.max(width, root.strandEstW), Math.max(height, 58))
-                    onNearViewChanged: if (nearView)
-                        root.buildStrand(strand)
-                    x: sx + root.originOffsetX
-                    y: sy + root.originOffsetY
-                    spacing: -8
-                    z: (dragSession.active && dragSession.strandId === sid) || (dragSession.settling && dragSession.settleStrandId === sid) ? 100 : 0
-                    // Report the real card width so the world extends past
-                    // actual strand content, not a fixed estimate.
-                    // (InstructionList below is a non-visual ListModel, so the
-                    // Column's implicitWidth is still the widest block.)
-                    onImplicitWidthChanged: root.noteStrandWidth(sid, implicitWidth)
-                    onImplicitHeightChanged: root.noteStrandHeight(sid, implicitHeight)
-                    Component.onCompleted: {
-                        if (nearView || !root.lazyStrands)
-                            root.buildStrand(strand);
-                        else
-                            builder.start();
-                        root.noteStrandWidth(sid, implicitWidth);
-                        root.noteStrandHeight(sid, implicitHeight);
-                    }
-                    Component.onDestruction: {
-                        root.clearStrandWidth(sid);
-                        root.clearStrandHeight(sid);
-                    }
-                    InstructionList {
-                        id: strandBlocks
-                        instructions: strand.built ? strand.blockList : []
-                        onAboutToInsert: (at, n) => root.bulkInsert(strand, blockRepeater, at, n)
-                    }
-                    Item {
-                        visible: !strand.built
-                        width: root.strandEstW
-                        height: Math.max(58, strand.blockList.length * 50)
-                    }
-                    Repeater {
-                        id: blockRepeater
-                        model: strandBlocks
-                        // Far blocks of a long strand stand in as a placeholder
-                        // of their estimated size until the builder reaches them.
-                        delegate: Loader {
-                            id: slot
-                            required property string payload
-                            required property int index
-                            property bool built: false
-                            readonly property Item strandItem: strand
-                            // Blocks stack among their siblings (a hovered or dragged
-                            // block over the next one), so the slot carries their z.
-                            z: item ? item.z : 0
-                            sourceComponent: built ? blockComponent : placeholderComponent
-                            Component.onCompleted: root.slotCreated(strand, slot, root.blockHeight(JSON.parse(payload)))
-                            Component {
-                                id: placeholderComponent
-                                Item {
-                                    width: root.strandEstW
-                                    height: root.blockHeight(JSON.parse(slot.payload))
-                                }
-                            }
-                            Component {
-                                id: blockComponent
-                                InstructionBlock {
-                                    id: block
-                                    readonly property string payload: slot.payload
-                                    readonly property int index: slot.index
-                                    visible: dragRole !== 0 || root.inCullBand(strand.x + slot.x, strand.y + slot.y + snapShift, Math.max(slot.width, 1), Math.max(slot.height, 1))
-                                    instruction: JSON.parse(payload)
-                                    strandId: strand.sid
-                                    path: [
-                                        {
-                                            index: index
-                                        }
-                                    ]
-                                    tailCount: strandBlocks.count - index
-                                    strandMarked: index === 0 && root.markedStrandId === strand.sid
-                                    dragState: dragSession
-                                    variables: root.variables
-                                    lists: root.lists
-                                    blockDefinitions: root.blockDefinitions
-                                    canvasState: root.canvasState
-                                    keyCapture: root.keyCapture
-                                    locked: root.locked
-                                    branchColor: strand.branchColor
-                                    // Signals go through wireInstruction, the one list branch blocks use too.
-                                    Component.onCompleted: root.wireInstruction(this)
-                                }
-                            }
-                        }
-                    }
+                delegate: StrandView {
+                    canvas: root
                 }
             }
             Repeater {
@@ -1271,51 +1136,8 @@ Rectangle {
             }
             Repeater {
                 model: root.floatingValues || []
-                delegate: Item {
-                    id: floatingItem
-                    required property var modelData
-                    x: modelData.x + root.originOffsetX
-                    y: modelData.y + root.originOffsetY
-                    z: 5
-                    width: floatingChip.implicitWidth
-                    height: floatingChip.implicitHeight
-                    ValueChip {
-                        id: floatingChip
-                        valueData: floatingItem.modelData.value
-                        originBlockId: floatingItem.modelData.origin_block_id || ""
-                        location: ({
-                                kind: "Floating",
-                                floating_id: floatingItem.modelData.id,
-                                path: []
-                            })
-                        boxed: true
-                        blockDefinitions: root.blockDefinitions
-                        canvasState: root.canvasState
-                        onEditRequested: (l, t) => root.valueEdited(l, t)
-                        onDetailsRequested: kind => root.detailsRequested(kind)
-                        onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.beginValueDrag(loc, val, sx, sy, ox, oy, w, h)
-                        onValueDragMoved: (sx, sy) => root.moveValueDrag(sx, sy)
-                        onValueDragEnded: (sx, sy) => root.endValueDrag(sx, sy)
-                        onValueDragCanceled: root.cancelValueDrag()
-                        // The chip's own menu, so one right-click opens one menu.
-                        extraMenu: [
-                            {
-                                id: "details",
-                                text: qsTr("Details"),
-                                icon: "info"
-                            },
-                            {
-                                id: "delete",
-                                text: qsTr("Delete value"),
-                                icon: "trash",
-                                danger: true
-                            }
-                        ]
-                        onExtraMenuTriggered: id => {
-                            if (id === "delete")
-                                root.floatingValueRemoved(floatingItem.modelData.id);
-                        }
-                    }
+                delegate: FloatingValue {
+                    canvas: root
                 }
             }
             // Attach preview: the dragged first block's own silhouette (same

@@ -770,374 +770,41 @@ Item {
         }
         Component {
             id: enumLeaf
-            StitchComboBox {
-                id: leafBox
-                readonly property var choices: root.leafOptions || []
-                readonly property string current: root.valueData ? String(root.valueData.value || "") : ""
-                readonly property int chosen: choices.findIndex(c => c.value === current)
-                model: choices
-                textRole: "label"
-                currentIndex: chosen
-                displayText: chosen >= 0 ? choices[chosen].label : (current || root.leafPlaceholder)
-                implicitWidth: Math.min(190, Math.max(56, leafMetrics.advanceWidth + 36))
-                implicitHeight: 28
-                font.pixelSize: Theme.blockText
-                leftPadding: 8
-                rightPadding: 26
-                enabled: root.editable
-                TextMetrics {
-                    id: leafMetrics
-                    font: leafBox.font
-                    text: leafBox.displayText
-                }
-                onActivated: index => {
-                    const choice = choices[index];
-                    const select = v => root.emitLeaf([], {
-                            kind: "Text",
-                            value: v
-                        }, v);
-                    if (choice.action)
-                        choice.action(select, root.location);
-                    else
-                        select(choice.value);
-                }
+            EnumLeaf {
+                chip: root
             }
         }
         Component {
             id: keycapLeaf
-            Item {
-                id: keycaps
-                readonly property var parts: root.keyParts(root.valueData && root.valueData.value !== undefined ? root.valueData.value : "")
-                readonly property bool showHint: root.keyCapturing || parts.length === 0
-                implicitHeight: 30
-                implicitWidth: showHint ? Math.max(36, hint.implicitWidth + 24) : Math.max(36, capRow.implicitWidth + 24)
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 5
-                    color: root.keyCapturing ? Theme.accent : (capHover.hovered ? Theme.hover : Theme.field)
-                    border.color: root.keyCapturing ? Theme.accentHover : Theme.border
-                }
-                Text {
-                    id: hint
-                    anchors.centerIn: parent
-                    font.pixelSize: Theme.blockText
-                    visible: keycaps.showHint
-                    text: root.keyCapturing ? qsTr("Press keys...") : qsTr("Click to set key")
-                    color: root.keyCapturing ? "white" : Theme.text
-                }
-                Row {
-                    id: capRow
-                    spacing: 4
-                    visible: !keycaps.showHint
-                    anchors.centerIn: parent
-                    Repeater {
-                        model: keycaps.parts
-                        delegate: Row {
-                            id: capPart
-                            required property var modelData
-                            required property int index
-                            spacing: 4
-                            anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                            Text {
-                                visible: capPart.index > 0
-                                text: "+"
-                                color: Theme.text
-                                font.pixelSize: Theme.blockText - 1
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Text {
-                                text: root.keyPartLabel(capPart.modelData)
-                                color: Theme.text
-                                font.pixelSize: Theme.blockText
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                        }
-                    }
-                }
-                HoverHandler {
-                    id: capHover
-                    enabled: root.editable
-                    cursorShape: Qt.PointingHandCursor
-                }
-                // Hold the press so dragging a key input cannot pan a surrounding view.
-                MouseArea {
-                    anchors.fill: parent
-                    enabled: root.editable
-                    acceptedButtons: Qt.LeftButton
-                    preventStealing: true
-                    cursorShape: Qt.PointingHandCursor
-                    TapHandler {
-                        onTapped: root.keyCaptureRequested()
-                    }
-                }
-                ToolTip.visible: capHover.hovered && !root.keyCapturing
-                ToolTip.delay: 500
-                ToolTip.text: qsTr("Click to set key, or drop a variable here")
+            KeycapLeaf {
+                chip: root
             }
         }
         Component {
             id: pickLeaf
-            Rectangle {
-                id: pickChip
-                readonly property bool live: root.editable && !!root.location && !root.paletteMode
-                implicitHeight: 27
-                implicitWidth: Math.max(36, pickRow.implicitWidth + 18)
-                radius: 5
-                color: pickHover.hovered && live ? Theme.hover : (root.flatLeaf ? "transparent" : Theme.field)
-                border.color: root.flatLeaf ? "transparent" : (pickHover.hovered && live ? Theme.accent : Theme.border)
-                Behavior on color {
-                    enabled: Motion.enabled
-                    ColorAnimation {
-                        duration: Motion.quick
-                    }
-                }
-                Behavior on border.color {
-                    enabled: Motion.enabled
-                    ColorAnimation {
-                        duration: Motion.quick
-                    }
-                }
-                Row {
-                    id: pickRow
-                    anchors.centerIn: parent
-                    spacing: 6
-                    LucideIcon {
-                        visible: !!root.activePick.icon
-                        name: root.activePick.icon || ""
-                        width: 13
-                        height: 13
-                        color: Theme.text
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        text: root.pickLabel
-                        color: Theme.text
-                        font.pixelSize: Theme.blockText
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-                HoverHandler {
-                    id: pickHover
-                    enabled: pickChip.live
-                    cursorShape: Qt.PointingHandCursor
-                }
-                TapHandler {
-                    enabled: pickChip.live
-                    onTapped: BlockRegistry.requestPick(root.activePick.action || "", root.location, root.valueData, pickChip)
-                }
-                ToolTip.visible: pickHover.hovered && !!root.activePick.tip
-                ToolTip.delay: 500
-                ToolTip.text: root.activePick.tip || ""
-                Accessible.role: Accessible.Button
-                Accessible.name: root.pickLabel
+            PickLeaf {
+                chip: root
             }
         }
         Component {
             id: textLeaf
-            Item {
-                implicitWidth: leafInput.implicitWidth
-                implicitHeight: leafInput.implicitHeight
-                StitchTextField {
-                    id: leafInput
-                    readOnly: !root.editable
-                    text: root.leafText
-                    selectByMouse: true
-                    font.pixelSize: Theme.blockText
-                    color: Theme.text
-                    implicitHeight: 27
-                    // Room on the right for the expand button while editing.
-                    readonly property bool expandShown: activeFocus && root.editable
-                    implicitWidth: Math.max(36, Math.min(600, contentWidth + 18 + (expandShown ? 20 : 0)))
-                    leftPadding: 7
-                    rightPadding: expandShown ? 27 : 7
-                    topPadding: 2
-                    bottomPadding: 2
-                    background: Rectangle {
-                        radius: 5
-                        color: root.flatLeaf ? "transparent" : Theme.field
-                        border.color: root.flatLeaf ? "transparent" : (leafInput.activeFocus ? Theme.accent : Theme.border)
-                    }
-                    onEditingFinished: root.commitText(text)
-                    // Shift+Enter starts a second line, in the bigger editor.
-                    Keys.onPressed: event => {
-                        if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && (event.modifiers & Qt.ShiftModifier) && root.editable) {
-                            event.accepted = true;
-                            const at = leafInput.cursorPosition;
-                            root.openTextEditor(leafInput.text.slice(0, at) + "\n" + leafInput.text.slice(at));
-                        }
-                    }
-                    Item {
-                        objectName: "expandTextButton"
-                        visible: leafInput.expandShown
-                        anchors.right: parent.right
-                        anchors.rightMargin: 3
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 21
-                        height: 21
-                        LucideIcon {
-                            anchors.centerIn: parent
-                            name: "maximize"
-                            width: 12
-                            height: 12
-                            color: expandMouse.containsMouse ? Theme.accent : Theme.textDim
-                        }
-                        ToolTip.visible: expandMouse.containsMouse
-                        ToolTip.delay: 400
-                        ToolTip.text: qsTr("Edit in a bigger box (Shift+Enter adds a line)")
-                        MouseArea {
-                            id: expandMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.openTextEditor(leafInput.text)
-                        }
-                    }
-                }
+            TextLeaf {
+                chip: root
             }
         }
         // Text with line breaks: its first line and how many follow.
         // A click opens the bigger editor.
         Component {
             id: summaryLeafComponent
-            Rectangle {
-                id: summaryLeaf
-                objectName: "multilineSummary"
-                implicitHeight: 27
-                implicitWidth: summaryRow.implicitWidth + 16
-                radius: 5
-                color: root.flatLeaf ? "transparent" : (summaryHover.hovered && root.editable ? Theme.hover : Theme.field)
-                border.color: root.flatLeaf ? "transparent" : (summaryHover.hovered && root.editable ? Theme.accent : Theme.border)
-                Row {
-                    id: summaryRow
-                    anchors.centerIn: parent
-                    spacing: 6
-                    Text {
-                        text: root.leafText.split("\n")[0]
-                        color: Theme.text
-                        font.pixelSize: Theme.blockText
-                        width: Math.min(implicitWidth, 260)
-                        elide: Text.ElideRight
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Rectangle {
-                        objectName: "multilineBadge"
-                        anchors.verticalCenter: parent.verticalCenter
-                        implicitWidth: badgeText.implicitWidth + 10
-                        implicitHeight: 17
-                        radius: 8.5
-                        color: Theme.panelRaised
-                        border.color: Theme.border
-                        Text {
-                            id: badgeText
-                            anchors.centerIn: parent
-                            text: root.leafLines === 2 ? qsTr("+1 line") : qsTr("+%1 lines").arg(root.leafLines - 1)
-                            color: Theme.textDim
-                            font.pixelSize: 10
-                        }
-                    }
-                }
-                HoverHandler {
-                    id: summaryHover
-                    enabled: root.editable
-                    cursorShape: Qt.PointingHandCursor
-                }
-                TapHandler {
-                    enabled: root.editable
-                    onTapped: root.openTextEditor(root.leafText)
-                }
-                ToolTip.visible: summaryHover.hovered
-                ToolTip.delay: 500
-                ToolTip.text: root.leafText
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Text, %1 lines. Click to edit.").arg(root.leafLines)
+            SummaryLeaf {
+                chip: root
             }
         }
         // A block's text box: every line shows, typed in place.
         Component {
             id: boxLeafComponent
-            Rectangle {
-                id: boxLeaf
-                objectName: "multilineBox"
-                readonly property real lineHeight: boxMetrics.height
-                readonly property int shownLines: Math.max(1, Math.min(10, boxArea.lineCount))
-                implicitWidth: Math.max(260, Math.min(600, boxArea.contentWidth + 44))
-                implicitHeight: shownLines * lineHeight + 14
-                radius: 5
-                color: Theme.field
-                border.color: boxArea.activeFocus ? Theme.accent : Theme.border
-                FontMetrics {
-                    id: boxMetrics
-                    font: boxArea.font
-                }
-                Flickable {
-                    id: boxFlick
-                    anchors.fill: parent
-                    anchors.margins: 1
-                    anchors.rightMargin: 24
-                    contentWidth: boxArea.contentWidth + 14
-                    contentHeight: boxArea.contentHeight + 12
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-                    interactive: (contentHeight > height || contentWidth > width) && textHolds === 0
-                    property int textHolds: 0
-                    TextEdit {
-                        id: boxArea
-                        objectName: "multilineBoxArea"
-                        x: 7
-                        y: 6
-                        // Fill the box, so a click anywhere in it starts typing.
-                        width: Math.max(contentWidth, boxFlick.width - 14)
-                        height: Math.max(contentHeight, boxFlick.height - 12)
-                        readOnly: !root.editable
-                        text: root.leafText
-                        selectByMouse: true
-                        font.pixelSize: Theme.blockText
-                        font.family: root.monospace ? "monospace" : font.family
-                        color: Theme.text
-                        selectionColor: Theme.accent
-                        selectedTextColor: "white"
-                        onEditingFinished: root.commitText(text)
-                        TextSelectHold {}
-                        onCursorRectangleChanged: {
-                            const r = cursorRectangle;
-                            if (r.y < boxFlick.contentY)
-                                boxFlick.contentY = r.y;
-                            else if (r.y + r.height + 12 > boxFlick.contentY + boxFlick.height)
-                                boxFlick.contentY = r.y + r.height + 12 - boxFlick.height;
-                        }
-                        Keys.onPressed: event => {
-                            if (event.key === Qt.Key_Escape) {
-                                event.accepted = true;
-                                boxArea.focus = false;
-                            }
-                        }
-                    }
-                }
-                Item {
-                    visible: root.editable
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 3
-                    width: 21
-                    height: 21
-                    LucideIcon {
-                        anchors.centerIn: parent
-                        name: "maximize"
-                        width: 12
-                        height: 12
-                        color: boxExpandMouse.containsMouse ? Theme.accent : Theme.textDim
-                    }
-                    ToolTip.visible: boxExpandMouse.containsMouse
-                    ToolTip.delay: 400
-                    ToolTip.text: qsTr("Edit in a bigger box")
-                    MouseArea {
-                        id: boxExpandMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.openTextEditor(boxArea.text)
-                    }
-                }
+            BoxLeaf {
+                chip: root
             }
         }
         Component {

@@ -86,78 +86,12 @@ Rectangle {
     color: Theme.panel
     border.color: Theme.borderSoft
 
-    function n(v) {
-        return {
-            kind: "Number",
-            value: v
-        };
-    }
-    function t(v) {
-        return {
-            kind: "Text",
-            value: v
-        };
-    }
+    function n(v) { return { kind: "Number", value: v }; }
+    function t(v) { return { kind: "Text", value: v }; }
     // A palette block's fresh instruction: the host's registered prefab, else
-    // defaults for the control, variable and list blocks every host shares.
+    // the shared control, variable and list blocks' defaults.
     function prefab(type) {
-        const registered = BlockRegistry.prefab(type);
-        if (registered)
-            return registered;
-        const i = {
-            id: "palette-" + type,
-            type: type
-        };
-        if (type === "AddToList") {
-            i.name = firstListName();
-            i.value = t("thing");
-        } else if (type === "DeleteOfList") {
-            i.name = firstListName();
-            i.index = n(1);
-        } else if (type === "DeleteAllOfList" || type === "ReverseList")
-            i.name = firstListName();
-        else if (type === "ShiftList") {
-            i.name = firstListName();
-            i.amount = n(1);
-        } else if (type === "InsertIntoList") {
-            i.name = firstListName();
-            i.value = t("thing");
-            i.index = n(1);
-        } else if (type === "ReplaceItemOfList") {
-            i.name = firstListName();
-            i.index = n(1);
-            i.value = t("thing");
-        } else if (type === "If") {
-            i.condition = {
-                kind: "Bool"
-            };
-            i.body = [];
-        } else if (type === "IfElse") {
-            i.condition = {
-                kind: "Bool"
-            };
-            i.then_body = [];
-            i.else_body = [];
-        } else if (type === "Repeat") {
-            i.count = n(10);
-            i.body = [];
-        } else if (type === "Forever") {
-            i.body = [];
-        } else if (type === "While") {
-            i.condition = {
-                kind: "Bool"
-            };
-            i.body = [];
-        } else if (type === "Return")
-            i.value = n(0);
-        else if (type === "SetVariable") {
-            i.name = BlockRegistry.defaultVariableName(variables);
-            i.value = n(0);
-        } else if (type === "ChangeVariable") {
-            i.name = BlockRegistry.defaultVariableName(variables);
-            i.value = n(1);
-        }
-        return i;
+        return BlockRegistry.prefab(type) || BlockRegistry.builtinPrefab(type, variables, lists);
     }
     function firstListName() {
         return lists && lists.length ? lists[0].name : "";

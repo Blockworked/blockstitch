@@ -34,8 +34,11 @@ is added to `module.json` and nowhere else.
 | `CanvasState.qml` | One canvas's run and debug marks, comment dots, reveal flash and settling value, handed to its blocks. |
 | `DropSettle.qml` | Holds a dropped block or value where it landed until the new document arrives. |
 | `CanvasZoom.qml`, `StrandBuilder.qml`, `StrandModel.qml` | The canvas's zoom, building strands near the view first, and the strand list that keeps unchanged strands alive. |
+| `StrandView.qml`, `FloatingValue.qml`, `CanvasMenu.qml` | One strand on the canvas, a loose reporter, and the canvas background's right-click menu. |
 | `CommentCard.qml` | One comment on the canvas, with its line to the block it is attached to. |
 | `InstructionBlock.qml`, `ValueChip.qml`, `BooleanSlot.qml` | One block, one reporter, one boolean slot. |
+| `BlockMouth.qml`, `BranchHeaderPreview.qml` | A wrap block's mouth, and a branching definition's header drawn as its call. |
+| `EnumLeaf.qml`, `KeycapLeaf.qml`, `PickLeaf.qml`, `TextLeaf.qml`, `SummaryLeaf.qml`, `BoxLeaf.qml` | The editors a reporter's slot uses: dropdown, keycaps, host picker, one-line text, multi-line summary, text box. |
 | `BlockPiece.qml`, `BlockMenu.qml` | One piece of a block's row, and a block's right-click menu (built the first time it opens). |
 | `PalettePanel.qml`, `PaletteBlockList.qml`, `PaletteDragController.qml` | The sidebar, its list of blocks, and dragging out of it. |
 | `PaletteBlock.qml`, `PaletteValue.qml` | One block, and one reporter, in the sidebar. |
@@ -47,6 +50,7 @@ is added to `module.json` and nowhere else.
 | `SmoothScroll.qml`, `WheelPan.qml`, `TextSelectHold.qml` | Wheel scrolling that glides, and holding a view still while text is selected. |
 | `BlockRegistry.qml` | The host's vocabulary: rows, operators, prefabs, icons, descriptors. |
 | `BlockDefinitionEditor.qml` | "Make a Block". |
+| `DefinitionPrototype.qml`, `DefinitionPiece.qml` | The definition editor's preview, and one piece in it. |
 | `BlockAppearancePopup.qml`, `BlockIconPopup.qml`, `BlockInputsPopup.qml` | Its color and icon pickers, and the Inputs dialog (starting values, multi-line boxes). |
 | `Theme.qml`, `Motion.qml`, `Icons.qml` | Colors and sizes, animation timing, Lucide icon paths. |
 | `Stitch*.qml` | The small controls (button, check box, combo box, dialog, menu, slider, switch, text field) every host uses for its own UI too. |

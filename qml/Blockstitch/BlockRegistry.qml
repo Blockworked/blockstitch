@@ -517,4 +517,62 @@ QtObject {
         if (!i.id) i.id = "palette-" + type;
         return i;
     }
+    // A fresh instruction for one of blockstitch's own control, variable and
+    // list blocks, named after the first variable or list.
+    function builtinPrefab(type, variables, lists) {
+        const n = v => ({ kind: "Number", value: v });
+        const t = v => ({ kind: "Text", value: v });
+        const list = lists && lists.length ? lists[0].name : "";
+        const i = { id: "palette-" + type, type: type };
+        if (type === "AddToList") {
+            i.name = list;
+            i.value = t("thing");
+        } else if (type === "DeleteOfList") {
+            i.name = list;
+            i.index = n(1);
+        } else if (type === "DeleteAllOfList" || type === "ReverseList")
+            i.name = list;
+        else if (type === "ShiftList") {
+            i.name = list;
+            i.amount = n(1);
+        } else if (type === "InsertIntoList") {
+            i.name = list;
+            i.value = t("thing");
+            i.index = n(1);
+        } else if (type === "ReplaceItemOfList") {
+            i.name = list;
+            i.index = n(1);
+            i.value = t("thing");
+        } else if (type === "If") {
+            i.condition = {
+                kind: "Bool"
+            };
+            i.body = [];
+        } else if (type === "IfElse") {
+            i.condition = {
+                kind: "Bool"
+            };
+            i.then_body = [];
+            i.else_body = [];
+        } else if (type === "Repeat") {
+            i.count = n(10);
+            i.body = [];
+        } else if (type === "Forever") {
+            i.body = [];
+        } else if (type === "While") {
+            i.condition = {
+                kind: "Bool"
+            };
+            i.body = [];
+        } else if (type === "Return")
+            i.value = n(0);
+        else if (type === "SetVariable") {
+            i.name = defaultVariableName(variables);
+            i.value = n(0);
+        } else if (type === "ChangeVariable") {
+            i.name = defaultVariableName(variables);
+            i.value = n(1);
+        }
+        return i;
+    }
 }

@@ -638,8 +638,8 @@ Item {
     readonly property real pvOuterWidth: pvWidth + 2 * pvPadX
     function recalcPieceMax() {
         let m = 0;
-        for (let i = 0; i < pvPieces.count; ++i) {
-            const it = pvPieces.itemAt(i);
+        for (let i = 0; i < pvRoot.pieces.count; ++i) {
+            const it = pvRoot.pieces.itemAt(i);
             if (it)
                 m = Math.max(m, it.pieceWidth);
         }
@@ -728,134 +728,9 @@ Item {
         contextMenu.popup(x, y);
     }
     // Embedded call-site preview for a header with branches (see hasBranchHeader).
-    Item {
+    BranchHeaderPreview {
         id: pvRoot
-        visible: root.hasBranchHeader
-        x: 14
-        y: root.pvTop
-        width: root.pvOuterWidth
-        height: root.pvOuterHeight
-        Shape {
-            id: pvShell
-            visible: root.pvReporter
-            anchors.fill: parent
-            preferredRendererType: Shape.CurveRenderer
-            readonly property string outline: {
-                const w = width, h = height;
-                if (w <= 0 || h <= 0)
-                    return "";
-                if (root.pvBool) {
-                    const n = Math.min(w / 2, h / 2);
-                    return "M" + n + " .5 L" + (w - n) + " .5 L" + (w - .5) + " " + h / 2 + " L" + (w - n) + " " + (h - .5) + " L" + n + " " + (h - .5) + " L.5 " + h / 2 + " Z";
-                }
-                const r = Math.min(24, h / 2), R = w - .5, B = h - .5;
-                return "M" + (.5 + r) + " .5 L" + (R - r) + " .5 Q" + R + " .5 " + R + " " + (.5 + r) + " L" + R + " " + (B - r) + " Q" + R + " " + B + " " + (R - r) + " " + B + " L" + (.5 + r) + " " + B + " Q.5 " + B + " .5 " + (B - r) + " L.5 " + (.5 + r) + " Q.5 .5 " + (.5 + r) + " .5 Z";
-            }
-            ShapePath {
-                strokeColor: Qt.rgba(root.customColor.r * .3 + Theme.border.r * .7, root.customColor.g * .3 + Theme.border.g * .7, root.customColor.b * .3 + Theme.border.b * .7, 1)
-                strokeWidth: 1.3
-                joinStyle: ShapePath.RoundJoin
-                fillColor: Theme.block
-                PathSvg {
-                    path: pvShell.outline
-                }
-            }
-        }
-        Item {
-            id: pvInner
-            x: root.pvPadX
-            y: root.pvPadY
-            width: root.pvWidth
-            height: root.pvHeight
-            BlockSurface {
-                anchors.fill: parent
-                shape: "wrap"
-                fill: Theme.block
-                outline: Theme.border
-                hoverColor: root.customColor
-                headNotch: !root.pvReporter
-                footTab: !root.pvNoTab
-                headHeight: root.pvHead
-                midHeight: root.pvMid
-                footHeight: root.pvFoot
-                spine: root.spine
-                mouthHeights: root.branchModel.map(() => root.pvMouth)
-            }
-            Repeater {
-                model: root.branchModel
-                delegate: Text {
-                    required property var modelData
-                    required property int index
-                    visible: index < root.branchModel.length - 1 && modelData.s.length > 0
-                    x: root.spine + 8
-                    y: root.pvHead + index * (root.pvMouth + root.pvMid) + root.pvMouth + Math.round((root.pvMid - height) / 2)
-                    text: modelData.s
-                    color: Theme.text
-                    font.pixelSize: Theme.blockText
-                }
-            }
-            Repeater {
-                id: pvPieces
-                model: root.branchModel
-                delegate: Item {
-                    id: pv
-                    required property var modelData
-                    required property int index
-                    readonly property real pieceWidth: Math.max(150, pvRow.implicitWidth + 28)
-                    onPieceWidthChanged: root.recalcPieceMax()
-                    Component.onCompleted: root.recalcPieceMax()
-                    x: root.spine
-                    y: root.pvHead + index * (root.pvMouth + root.pvMid)
-                    width: pieceWidth
-                    height: root.pvMouth + root.tabDepth
-                    BlockSurface {
-                        anchors.fill: parent
-                        shape: "stack"
-                        fill: Theme.panelRaised
-                        outline: Theme.border
-                        hoverColor: root.customColor
-                        hovered: pvDrag.hovered
-                    }
-                    Row {
-                        id: pvRow
-                        x: 14
-                        y: Math.round((root.pvMouth - height) / 2)
-                        spacing: 6
-                        LucideIcon {
-                            name: "git-branch"
-                            color: root.customColor
-                            width: 16
-                            height: 16
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        Text {
-                            text: pv.modelData.n
-                            color: Theme.text
-                            font.pixelSize: Theme.blockText
-                            font.weight: Font.DemiBold
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-                    BlockDragArea {
-                        id: pvDrag
-                        anchors.fill: parent
-                        onDragBegan: (sx, sy, ox, oy) => root.paletteDragStarted({
-                                kind: "branch",
-                                color: root.customColor,
-                                instruction: {
-                                    id: "palette-branch",
-                                    type: "RunBranch",
-                                    name: pv.modelData.n
-                                }
-                            }, sx, sy, ox, oy)
-                        onDragMoved: (sx, sy) => root.paletteDragMoved(sx, sy)
-                        onDragEnded: (sx, sy) => root.paletteDragEnded(sx, sy)
-                        onDragCanceled: root.paletteDragCanceled()
-                        onTapped: root.runBranchRequested(root.strandId, root.path, pv.modelData.n)
-                    }
-                }
-            }
-        }
+        block: root
     }
     // The marked strand's badge on the block's icon (BlockRegistry.strandMark).
     component StrandBadge: Rectangle {
@@ -1183,116 +1058,8 @@ Item {
     Repeater {
         id: mouthSlots
         model: root.isWrap ? root.slotCount() : 0
-        delegate: Item {
-            id: slotDelegate
-            required property int index
-            property real adjustment: root.mouthAdjustment(index)
-            Behavior on adjustment {
-                enabled: root.animateLayout
-                NumberAnimation {
-                    duration: Motion.dur(140)
-                    easing.type: Easing.OutCubic
-                }
-            }
-            readonly property real contentHeight: slotBody.implicitHeight
-            readonly property bool capEnd: root.lastIsCap(index)
-            // the block sitting last in a mouth overlaps the bar below by its connector tab
-            readonly property real mouthHeight: Math.max(root.emptyMouth, contentHeight - (capEnd || contentHeight === 0 ? 0 : root.tabDepth))
-            // Measure the remaining children and the incoming snap preview live.
-            readonly property real contentWidth: {
-                let widest = 0;
-                for (let i = 0; i < childBlocks.count; ++i) {
-                    const child = childBlocks.itemAt(i);
-                    if (child && child.item && child.item.dragRole !== 1)
-                        widest = Math.max(widest, child.item.implicitWidth);
-                }
-                const preview = root.snapLayout();
-                if (root.isSnapMouth(index) && preview)
-                    widest = Math.max(widest, preview.snapWidth || 0);
-                return widest;
-            }
-            function report() {
-                root.setMouth(index, mouthHeight, contentWidth, capEnd);
-            }
-            onMouthHeightChanged: report()
-            onContentWidthChanged: report()
-            onCapEndChanged: report()
-            Component.onCompleted: report()
-            x: 0
-            y: root.mouthTop(index)
-            width: root.width
-            height: mouthHeight
-            Column {
-                id: slotBody
-                x: root.spine
-                spacing: -8
-                InstructionList {
-                    id: slotBlocks
-                    instructions: root.body(slotDelegate.index)
-                }
-                Repeater {
-                    id: childBlocks
-                    model: slotBlocks
-                    delegate: Loader {
-                        id: child
-                        required property string payload
-                        required property int index
-                        readonly property var blockData: JSON.parse(payload)
-                        width: item ? item.implicitWidth : 0
-                        height: item ? item.implicitHeight : 0
-                        // A hovered or dragged block stacks over the next one.
-                        z: item ? item.z : 0
-                        // Supply bindings at creation to avoid rebuilding controls for each property.
-                        Component.onCompleted: setSource("InstructionBlock.qml", {
-                            instruction: Qt.binding(() => child.blockData),
-                            strandId: Qt.binding(() => root.strandId),
-                            path: Qt.binding(() => root.childPath(slotDelegate.index, child.index)),
-                            tailCount: Qt.binding(() => slotBlocks.count - child.index),
-                            variables: Qt.binding(() => root.variables),
-                            lists: Qt.binding(() => root.lists),
-                            blockDefinitions: Qt.binding(() => root.blockDefinitions),
-                            canvasState: Qt.binding(() => root.canvasState),
-                            branchColor: Qt.binding(() => root.branchColor),
-                            keyCapture: Qt.binding(() => root.keyCapture),
-                            locked: Qt.binding(() => root.locked),
-                            dragState: Qt.binding(() => root.dragState)
-                        })
-                        onLoaded: {
-                            item.removeRequested.connect((s, p) => root.removeRequested(s, p));
-                            item.duplicateRequested.connect((s, p, i) => root.duplicateRequested(s, p, i));
-                            item.commentRequested.connect(i => root.commentRequested(i));
-                            item.instructionEdited.connect((s, p, i) => root.instructionEdited(s, p, i));
-                            item.valueEdited.connect((l, t) => root.valueEdited(l, t));
-                            item.valueDragBegan.connect((loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h));
-                            item.valueDragMoved.connect((sx, sy) => root.valueDragMoved(sx, sy));
-                            item.valueDragEnded.connect((sx, sy) => root.valueDragEnded(sx, sy));
-                            item.valueDragCanceled.connect(() => root.valueDragCanceled());
-                            item.runBranchRequested.connect((s, p, n) => root.runBranchRequested(s, p, n));
-                            item.keyCaptureRequested.connect((s, p) => root.keyCaptureRequested(s, p));
-                            item.detailsRequested.connect(t => root.detailsRequested(t));
-                            item.menuActionRequested.connect((a, s, p, i) => root.menuActionRequested(a, s, p, i));
-                            item.pieceActionRequested.connect((a, s, p, i) => root.pieceActionRequested(a, s, p, i));
-                            item.paletteDragStarted.connect((sp, sx, sy, ox, oy) => root.paletteDragStarted(sp, sx, sy, ox, oy));
-                            item.paletteDragMoved.connect((sx, sy) => root.paletteDragMoved(sx, sy));
-                            item.paletteDragEnded.connect((sx, sy) => root.paletteDragEnded(sx, sy));
-                            item.paletteDragCanceled.connect(() => root.paletteDragCanceled());
-                            item.dragBegan.connect(root.dragBegan);
-                            item.dragMoved.connect(root.dragMoved);
-                            item.dragEnded.connect(root.dragEnded);
-                            item.dragCanceled.connect(root.dragCanceled);
-                        }
-                    }
-                }
-            }
-            // separator bar below this mouth (not for the last: that is the foot bar)
-            Text {
-                visible: slotDelegate.index < root.slotCount() - 1
-                x: root.spine + 8
-                y: root.effMouthHeights[slotDelegate.index] + Math.round((root.midHeight - height) / 2)
-                text: root.type === "BranchCallBlock" ? root.branchSeparator(slotDelegate.index) : BlockRegistry.separator(root.type, slotDelegate.index)
-                color: Theme.text
-                font.pixelSize: Theme.blockText
-            }
+        delegate: BlockMouth {
+            block: root
         }
     }
 
