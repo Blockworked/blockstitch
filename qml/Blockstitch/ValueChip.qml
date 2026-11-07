@@ -394,6 +394,7 @@ Item {
             item.valueData = Qt.binding(() => root.vacatedValue);
             item.boxed = false;
             item.editable = false;
+            item.dropHighlighted = Qt.binding(() => root.dropHighlighted);
             item.flatLeaf = Qt.binding(() => root.flatLeaf);
             item.leafOptions = Qt.binding(() => root.leafOptions);
             item.leafPlaceholder = Qt.binding(() => root.leafPlaceholder);
@@ -405,14 +406,6 @@ Item {
             item.canvasState = Qt.binding(() => root.canvasState);
             item.originBlockId = Qt.binding(() => root.originBlockId);
         }
-    }
-
-    Rectangle {
-        visible: root.vacated && !restoredValue.active
-        anchors.fill: parent
-        radius: 5
-        color: Theme.field
-        border.color: Theme.border
     }
 
     BooleanSlot {
@@ -427,8 +420,8 @@ Item {
     // A bare leaf has no box, so it doesn't pay for one until then.
     Loader {
         anchors.fill: parent
-        visible: !root.draggedOut
-        active: !root.emptyBoolean && (root.showBox || root.dropHighlighted)
+        visible: !root.draggedOut || (root.vacated && !restoredValue.active)
+        active: !root.emptyBoolean && (root.vacated || root.showBox || root.dropHighlighted)
         sourceComponent: chipBox
     }
     Component {
@@ -441,11 +434,11 @@ Item {
                 const w = width, h = height;
                 if (w <= 0 || h <= 0)
                     return "";
-                if (root.booleanShape) {
+                if (root.booleanShape && !root.vacated) {
                     const n = Math.min(root.hasBranches ? h / 2 : h * .32, w / 2);
                     return "M" + n + " .5 L" + (w - n) + " .5 L" + (w - .5) + " " + h / 2 + " L" + (w - n) + " " + (h - .5) + " L" + n + " " + (h - .5) + " L.5 " + h / 2 + " Z";
                 }
-                const r = root.hasBranches ? 24 : 5, R = w - .5, B = h - .5;
+                const r = root.hasBranches && !root.vacated ? 24 : 5, R = w - .5, B = h - .5;
                 return "M" + (.5 + r) + " .5 L" + (R - r) + " .5 Q" + R + " .5 " + R + " " + (.5 + r) + " L" + R + " " + (B - r) + " Q" + R + " " + B + " " + (R - r) + " " + B + " L" + (.5 + r) + " " + B + " Q.5 " + B + " .5 " + (B - r) + " L.5 " + (.5 + r) + " Q.5 .5 " + (.5 + r) + " .5 Z";
             }
             // Drop preview reads stronger than hover: a soft glow under a

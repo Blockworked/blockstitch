@@ -90,7 +90,7 @@ Rectangle {
         height: 1
         color: Theme.borderSoft
     }
-    ScrollView {
+    StitchScrollView {
         id: bodyScroll
         objectName: "commentScroll_" + commentCard.modelData.id
         visible: !commentCard.modelData.collapsed

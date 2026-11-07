@@ -22,6 +22,7 @@ Item {
 
         function init() {
             chipState.settlingValueKey = "";
+            chip.dropHighlighted = false;
             chip.location = { kind: "Field", strand_id: "s1", index: [{ index: 0 }], field_id: "TextValue", path: [] };
             chip.valueData = { kind: "Op", op: "Join", args: [{ kind: "Text", value: "long first input" }, { kind: "Text", value: "long second input" }], saved: { kind: "Text", value: "hello" } };
             began.clear(); moved.clear(); ended.clear();
@@ -29,6 +30,7 @@ Item {
         function cleanup() {
             mouseRelease(chip, 5, 5);
             chipState.settlingValueKey = "";
+            chip.dropHighlighted = false;
         }
         function startDrag() {
             waitForRendering(chip);
@@ -41,6 +43,35 @@ Item {
             compare(began.signalArguments[0][7], h);
         }
         function restored() { return findChild(chip, "restoredValue"); }
+
+        function test_originalSlotShowsDropOutline_data() {
+            return [
+                { tag: "saved text", saved: { kind: "Text", value: "hello" }, nested: false },
+                { tag: "saved boolean", saved: { kind: "Bool" }, nested: false },
+                { tag: "empty field", saved: null, nested: false },
+                { tag: "nested slot", saved: null, nested: true }
+            ];
+        }
+        function test_originalSlotShowsDropOutline(data) {
+            if (data.nested) chip.location = { kind: "Floating", floating_id: "f1", path: [0] };
+            chip.valueData = { kind: "Op", op: "Join", args: [], saved: data.saved };
+            startDrag();
+            waitForRendering(chip);
+            const plain = grabImage(chip);
+            // Returning to the source selects the same chip while it is vacated.
+            chip.dropHighlighted = true;
+            waitForRendering(chip);
+            const highlighted = grabImage(chip);
+            let changed = 0;
+            for (let x = 0; x < plain.width; ++x)
+                for (let y = 0; y < plain.height; ++y)
+                    if (plain.pixel(x, y) !== highlighted.pixel(x, y)) ++changed;
+            verify(changed > 20, "The vacated slot must paint its drop outline");
+            if (restored().item) compare(restored().item.dropHighlighted, true);
+            chip.dropHighlighted = false;
+            waitForRendering(chip);
+            verify(grabImage(chip).equals(plain), "Leaving the slot must clear its outline");
+        }
 
         function test_savedTextAppearsBeforeReleaseAndSlotShrinks() {
             waitForRendering(chip);
@@ -101,6 +132,7 @@ Item {
             tryCompare(chip, "draggedOut", true);
             compare(restored().item.valueData.value, "hello");
             chipState.settlingValueKey = "";
+            chip.dropHighlighted = false;
             compare(chip.draggedOut, false);
             compare(restored().item, null);
         }

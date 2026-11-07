@@ -17,7 +17,13 @@ WheelHandler {
     function pan(ad, pd, touchpad) { return smooth.wheelStep(ad, pd, touchpad, 3); }
 
     // Flickable must not also handle the wheel or it overrides this
-    onActiveChanged: if (flickable) flickable.interactive = !active
+    readonly property Binding interactionOverride: Binding {
+        target: handler.flickable
+        property: "interactive"
+        value: false
+        when: handler.active && handler.flickable !== null
+        restoreMode: Binding.RestoreBindingOrValue
+    }
 
     onWheel: event => {
         const f = flickable;

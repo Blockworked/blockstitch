@@ -26,7 +26,7 @@ StitchDialog {
             radius: 6
             color: Theme.field
             border.color: area.activeFocus ? Theme.accent : Theme.border
-            ScrollView {
+            StitchScrollView {
                 id: scroll
                 anchors.fill: parent; anchors.margins: 1
                 clip: true

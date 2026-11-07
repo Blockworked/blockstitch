@@ -15,7 +15,7 @@ ComboBox {
         Behavior on color { enabled:Motion.enabled; ColorAnimation { duration:Motion.quick } } }
     popup:Popup {
         y:control.height+3;width:Math.max(control.width,implicitWidth,Math.ceil(control.widestItem)+36);height:Math.min(264,control.count*32+8);padding:4;topInset:0;bottomInset:0;leftInset:0;rightInset:0
-        contentItem:ListView { clip:true;model:control.popup.visible?control.delegateModel:null;currentIndex:control.highlightedIndex;boundsBehavior:Flickable.StopAtBounds;ScrollBar.vertical:ScrollBar{policy:control.count*32>256?ScrollBar.AsNeeded:ScrollBar.AlwaysOff} }
+        contentItem:StitchListView { clip:true;model:control.popup.visible?control.delegateModel:null;currentIndex:control.highlightedIndex;boundsBehavior:Flickable.StopAtBounds;ScrollBar.vertical:ScrollBar{policy:control.count*32>256?ScrollBar.AsNeeded:ScrollBar.AlwaysOff} }
         background:Rectangle { radius:6;color:Theme.menu;border.color:Theme.border }
         // Drops open from the box: fades in while unfolding downward.
         transformOrigin:Popup.Top

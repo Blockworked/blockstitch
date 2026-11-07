@@ -9,7 +9,7 @@ Menu {
     topInset: 0; bottomInset: 0; leftInset: 0; rightInset: 0
     implicitWidth: 220
     background: Rectangle { implicitWidth: 220; radius: 8; color: Theme.panelRaised; border.color: Theme.border }
-    contentItem: ListView {
+    contentItem: StitchListView {
         implicitHeight: contentHeight
         model: control.contentModel
         interactive: Window.window ? contentHeight + control.topPadding + control.bottomPadding > Window.window.height : false

@@ -655,6 +655,17 @@ Item {
                     contentY = (contentHeight - height) / 2;
                 }
 
+                MouseArea {
+                    width: previewViewport.contentWidth
+                    height: previewViewport.contentHeight
+                    onClicked: {
+                        root.commitPiece();
+                        root.commitSeparatorEdits();
+                        root.selectedPiece = -1;
+                        previewViewport.forceActiveFocus();
+                    }
+                }
+
             Column {
                 id: previewPane
                 objectName: "definitionPreviewBlock"

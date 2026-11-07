@@ -36,8 +36,15 @@ Dialog {
     background: Rectangle { radius: 12; color: Theme.panel; border.color: Theme.border }
     header: Item {
         visible: control.title.length > 0
-        implicitHeight: visible ? 58 : 0
-        Text { x: 22; anchors.verticalCenter: parent.verticalCenter; text: control.title; color: Theme.text; font.pixelSize: 16; font.weight: Font.Bold }
+        implicitHeight: visible ? Math.max(58, heading.implicitHeight + 28) : 0
+        Text {
+            id: heading
+            x: 22; width: Math.max(0, parent.width - 44 - (control.showClose ? 38 : 0))
+            anchors.verticalCenter: parent.verticalCenter
+            text: control.title; textFormat: Text.PlainText
+            color: Theme.text; font.pixelSize: 16; font.weight: Font.Bold
+            wrapMode: Text.WordWrap
+        }
         StitchButton {
             visible: control.showClose
             anchors.right: parent.right; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter

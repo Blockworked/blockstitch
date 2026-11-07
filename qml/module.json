@@ -67,6 +67,10 @@
     "BlockDrag.qml",
     "ValueDropTargets.qml",
     "PaletteDragController.qml",
-    "BlockCanvas.qml"
+    "BlockCanvas.qml",
+    "StitchScrollView.qml",
+    "StitchListView.qml",
+    "StitchPage.qml",
+    "StitchScreenDialog.qml"
   ]
 }

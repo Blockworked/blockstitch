@@ -5,6 +5,14 @@ import com.blockworked.Blockstitch
 TestCase {
     name: "BlockRegistry"
 
+    function test_instructionDependentCaps() {
+        BlockRegistry.registerRows({ ConditionalStop: { shape: i => i.keepGoing ? "stack" : "cap" } });
+        verify(BlockRegistry.isCap({type: "ConditionalStop", keepGoing: false}, []));
+        verify(!BlockRegistry.isCap({type: "ConditionalStop", keepGoing: true}, []));
+        verify(!BlockRegistry.isCapType("ConditionalStop"));
+        verify(BlockRegistry.isCap({type: "Return"}, []));
+    }
+
     function test_aNeutralHostAdvertisesNoHostFeatures() {
         compare(BlockRegistry.strandMark.text, "");
         for (const op of ["BatteryPercentage", "PluggedIn", "ClipboardText", "ClipboardHasImage", "ClipboardHasFiles"])

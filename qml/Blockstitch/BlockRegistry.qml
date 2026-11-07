@@ -61,6 +61,7 @@ QtObject {
     property var previewTimer: Timer { interval: 2500; onTriggered: registry.preview = null }
 
     // type -> { shape, icon, head: [piece], mouths: [key], separators: [text] }
+    // `shape` may be a function(instruction) for a conditional cap.
     // `head` may be a function(instruction) -> [piece] for a type whose row
     // depends on the instruction. Return the same piece objects each time:
     // a changed array rebuilds the row's controls.
@@ -476,6 +477,8 @@ QtObject {
     // A call to a custom block shaped "Ending" also ends its stack.
     function isCap(ins, defs) {
         if (!ins) return false;
+        const r = row(ins.type);
+        if (r && typeof r.shape === "function") return r.shape(ins) === "cap";
         if (isCapType(ins.type)) return true;
         if ((ins.type === "CallBlock" || ins.type === "BranchCallBlock") && defs) {
             for (let i = 0; i < defs.length; ++i)

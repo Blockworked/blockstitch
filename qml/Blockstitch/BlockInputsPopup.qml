@@ -27,7 +27,7 @@ Popup {
             wrapMode: Text.WordWrap
             color: Theme.textDim
         }
-        ScrollView {
+        StitchScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -94,7 +94,7 @@ Popup {
                                 onToggled: editor.setInputDefault(defaultRow.index, "Bool", checked)
                             }
                         }
-                        ScrollView {
+                        StitchScrollView {
                             visible: editor.allowDefaults && defaultRow.kind === "Text"
                             Layout.fillWidth: true
                             Layout.preferredHeight: 80

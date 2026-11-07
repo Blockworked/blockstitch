@@ -54,6 +54,8 @@ is added to `module.json` and nowhere else.
 | `BlockAppearancePopup.qml`, `BlockIconPopup.qml`, `BlockInputsPopup.qml` | Its color and icon pickers, and the Inputs dialog (starting values, multi-line boxes). |
 | `Theme.qml`, `Motion.qml`, `Icons.qml` | Colors and sizes, animation timing, Lucide icon paths. |
 | `Stitch*.qml` | The small controls (button, check box, combo box, dialog, menu, slider, switch, text field) every host uses for its own UI too. |
+| `StitchScrollView.qml`, `StitchListView.qml` | Scroll areas with shared wheel handling. |
+| `StitchPage.qml`, `StitchScreenDialog.qml` | Scrolling forms with fixed headings and actions. |
 
 ## Registering an app's blocks
 
@@ -85,7 +87,9 @@ the palette's) to `{kind: "Strand", strand_id, index}` (the block's path) or
 `shape`
 (`"header"`/`"cap"`) and `mouths` (the instruction keys holding nested
 bodies) decide a block's outline; the comments in `BlockRegistry.qml` list
-every piece kind. `blockMenu`/`canvasMenu` add app-specific context menu
+every piece kind. For an instruction-dependent ending, `shape` may be a
+function of the instruction returning `"cap"` or `"stack"`.
+`blockMenu`/`canvasMenu` add app-specific context menu
 items, which come back through `blockMenuAction`/`canvasMenuAction`. An
 operator's `enumArg` may give its choices as an array, a function, or
 `"lists"`/`"dicts"` for the collection names the canvas was given. Its
@@ -191,3 +195,77 @@ Branches a definition already has stay editable when `allowBranches` is off.
 `detailsTitle`, `detailsNote` and `detailsPanel` are host hooks. The backend
 stays the authority: `BlockDef::validate_pieces` checks the pieces and
 `update_block` moves call-site arguments and branch bodies by piece id.
+
+## Scrolling and screens
+
+`StitchScrollView` and `StitchListView` are drop-in Qt Quick Controls `ScrollView`
+and Qt Quick `ListView` variants with clipping and smooth wheel scrolling
+already installed. `StitchListView` also supplies a vertical scrollbar. They
+keep the underlying controls' sizing, models, delegates and keyboard APIs.
+Use ordinary `contentWidth: availableWidth` for a vertically scrolling
+`StitchScrollView`; leave it unset when content should scroll horizontally too.
+
+```qml
+StitchScrollView {
+    anchors.fill: parent
+    contentWidth: availableWidth
+    Column {
+        width: parent.width
+        // Content...
+    }
+}
+StitchListView {
+    model: entries
+    delegate: Text { required property string modelData; text: modelData }
+}
+```
+
+For an existing `Flickable`, install `WheelPan { flickable: viewport }`
+instead. `WheelPan` shares the `SmoothScroll` engine, respects `Motion`, and
+keeps the existing distinction between mouse-wheel glides and touchpad pans.
+The wrappers expose `wheelHandler` for programmatic scrolling through its
+`smooth` object. `StitchListView.wheelScrolling` includes wheel activity and the
+remaining animation, useful for logs that pause automatic following while
+someone scrolls back.
+
+`StitchPage` is a themed `Page` with a vertically scrolling `ColumnLayout` body.
+Its default children go into that layout; use `Layout.fillWidth` for fields
+and sections, and give custom items an implicit or preferred height. `title`
+and `description` form a wrapping heading outside the scroll area. The
+inherited `header` and `footer` slots can be replaced with custom items and
+stay fixed while the body scrolls. `padding` and `contentSpacing` control the
+body's spacing. Keyboard focus reveals fields in the body automatically.
+
+```qml
+StitchPage {
+    anchors.fill: parent
+    title: qsTr("Preferences")
+    description: qsTr("Choose how the editor behaves.")
+    StitchTextField { Layout.fillWidth: true; placeholderText: qsTr("Name") }
+    StitchSwitch { text: qsTr("Enable hints") }
+    footer: RowLayout {
+        Item { Layout.fillWidth: true }
+        StitchButton { text: qsTr("Save"); onClicked: host.save() }
+    }
+}
+```
+
+`StitchScreenDialog` combines that form body with `StitchDialog`'s themed title,
+close button and standard footer actions. It sizes to its content up to the
+window bounds, then scrolls the body. `preferredWidth` defaults to 560 and
+`windowMargin` to 16. `description`, `contentSpacing` and `scrollView` are
+also available. Set an explicit `height` when a screen needs a stable size.
+Keep `StitchDialog` for specialized content that manages its own viewport.
+
+```qml
+StitchScreenDialog {
+    title: qsTr("Options")
+    standardButtons: Dialog.Ok | Dialog.Cancel
+    StitchTextField { Layout.fillWidth: true }
+    onAccepted: host.save()
+}
+```
+
+These examples need `QtQuick`, `QtQuick.Controls`, `QtQuick.Layouts` and
+`com.blockworked.Blockstitch 1.0`. The host owns navigation, validation,
+persistence and commands; these components supply presentation and scrolling.
