@@ -7,7 +7,7 @@ website. The README has the layout; `docs/hosting.md` is how a host uses it.
 
 ```bash
 just test-core   # Rust: crates/blockstitch-core and crates/blockstitch-ffi (no Qt)
-just test-qml    # QML: tests/qml (needs Qt 6.10's qmltestrunner on PATH)
+just test-qml    # QML: tests/qml (needs Qt 6.10 or newer's qmltestrunner on PATH; CI uses 6.12.0)
 just build       # the QML crate (needs qmake6, or QMAKE set)
 just fmt         # rustfmt, as CI checks it
 ```
