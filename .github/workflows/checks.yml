@@ -16,7 +16,8 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      # The QML crate needs Qt, so the QML job lints it.
+      - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
       - name: Minimum Rust version
         run: |
@@ -45,6 +46,8 @@ jobs:
       # Hosts compile the module with qmlcachegen; catch its errors here
       # rather than after a pin bump.
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Build the QML crate
-        run: QMAKE="$(dirname "$(command -v qmltestrunner)")/qmake" cargo build -p blockstitch-qml
+      - name: Build and lint the QML crate
+        run: QMAKE="$(dirname "$(command -v qmltestrunner)")/qmake" cargo clippy -p blockstitch-qml --all-targets -- -D warnings
