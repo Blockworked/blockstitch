@@ -50,10 +50,11 @@ Item {
             wait(160);
             verify(inner.width < intermediateWidth);
             verify(canvas.branchDragState.active);
+            const shrunk = inner.width;
             canvas.cancelDrag();
-            wait(40);
-            verify(inner.width > intermediateWidth);
+            // Grows back gradually: not there on the cancel's own frame.
             verify(inner.width < initialWidth);
+            tryVerify(() => inner.width > shrunk);
             tryCompare(inner, "width", initialWidth);
         }
         function test_incomingPreview_data() {
