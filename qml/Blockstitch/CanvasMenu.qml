@@ -1,7 +1,7 @@
 import QtQuick
 
-// The canvas background's right-click menu: delete all, paste, add a comment,
-// then the host's BlockRegistry.canvasMenu entries.
+// The canvas background's right-click menu: the host's BlockRegistry.canvasMenu
+// entries first, then delete all, paste and add a comment.
 Item {
     id: menuHost
     required property Item canvas

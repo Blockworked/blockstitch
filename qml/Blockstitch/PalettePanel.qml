@@ -93,9 +93,6 @@ Rectangle {
     function prefab(type) {
         return BlockRegistry.prefab(type) || BlockRegistry.builtinPrefab(type, variables, lists);
     }
-    function firstListName() {
-        return lists && lists.length ? lists[0].name : "";
-    }
     readonly property var operators: [["Add", "number", 2], ["Sub", "number", 2], ["Mul", "number", 2], ["Div", "number", 2], ["Mod", "number", 2], ["Round", "number", 1], ["Math", "number", 2], ["Random", "number", 2], ["Join", "text", 2], ["Join3", "text", 3], ["NewLine", "text", 0], ["Tab", "text", 0], ["IndexOf", "text", 2], ["LastIndexOf", "text", 2], ["LetterOf", "text", 2], ["Length", "text", 1], ["Case", "text", 2], ["Eq", "bool", 2], ["Neq", "bool", 2], ["Gt", "bool", 2], ["Lt", "bool", 2], ["Gte", "bool", 2], ["Lte", "bool", 2], ["And", "bool", 2], ["Or", "bool", 2], ["Not", "bool", 1], ["True", "bool", 0], ["False", "bool", 0], ["CurrentTime", "number", 1]]
     readonly property var listOperators: [["ListItem", "text", 2], ["ListItemNumber", "number", 2], ["ListAmount", "number", 2], ["ListLength", "number", 1], ["ListContains", "bool", 2], ["ListItemExists", "bool", 2], ["ListIsEmpty", "bool", 1], ["ListAsJson", "text", 1]]
     readonly property var dictOperators: [["DictValue", "text", 2], ["DictHasKey", "bool", 2], ["DictSize", "number", 1], ["DictKeys", "text", 1], ["DictAsJson", "text", 1], ["DictIsEmpty", "bool", 1]]
