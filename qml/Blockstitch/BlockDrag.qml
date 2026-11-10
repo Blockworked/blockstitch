@@ -17,6 +17,8 @@ QtObject {
     property real originY: 0
     property real dx: 0
     property real dy: 0
+    // Pickup positions in document coordinates, independent of preview layout.
+    property var pickupPositions: ({})
     property real sceneX: 0    // pointer, scene coordinates
     property real sceneY: 0
     property real draggedWidth: 200
@@ -124,6 +126,17 @@ QtObject {
         drag.sceneY = sy;
         drag.dx = 0;
         drag.dy = 0;
+        const positions = {};
+        const strand = canvas.strandById(strandId);
+        const list = canvas.listFor(strand, path.slice(0, -1));
+        for (const instruction of list.slice(path[path.length - 1].index)) {
+            const item = canvas.findBlockItem(canvas.workspaceItem, instruction.id);
+            if (item) {
+                const at = item.mapToItem(canvas.workspaceItem, 0, 0);
+                positions[instruction.id] = {x: at.x - canvas.originOffsetX, y: at.y - canvas.originOffsetY};
+            }
+        }
+        drag.pickupPositions = positions;
         drag.active = true;
         drag.draggedWidth = bw || 200;
         drag.draggedHeight = bh || 58;

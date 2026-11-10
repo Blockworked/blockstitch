@@ -123,6 +123,77 @@ Item {
                 Motion.durationScale = previousScale;
             }
         }
+        function test_drag_stays_under_pointer_during_layout_data() {
+            const rows = [];
+            for (const zoom of [0.5, 1, 1.8])
+                for (const nested of [false, true])
+                    rows.push({tag:zoom + (nested ? "_else-branch" : "_following-wrap"),zoom:zoom,nested:nested});
+            return rows;
+        }
+        function test_drag_stays_under_pointer_during_layout(data) {
+            const setup = createTemporaryObject(setupComponent, scene);
+            const canvas = setup.canvas;
+            canvas.externalDragPreview = false;
+            const moved = instruction("moved"), follower = instruction("follower");
+            const wrap = {id:"wrap",type:"IfElse",then_body:[],else_body:data.nested ? [moved,follower] : []};
+            canvas.strands = [{id:"source",x:40,y:40,instructions:data.nested ? [wrap] : [wrap,moved,follower]}];
+            wait(40);
+            canvas.setZoom(data.zoom);
+            const block = canvas.findBlockItem(canvas,"moved");
+            const outer = canvas.findBlockItem(canvas,"wrap");
+            const start = block.mapToItem(null,10,10);
+            const path = data.nested ? [{index:0,slot:1},{index:0}] : [{index:1}];
+            canvas.beginDrag("source",path,2,start.x,start.y,10,10,block.width,block.height);
+            const destination = outer.mapToItem(null,outer.spine,outer.headHeight);
+            canvas.moveDrag(destination.x+10*data.zoom,destination.y+10*data.zoom);
+            verify(canvas.branchDragState.snapValid);
+            compare(canvas.branchDragState.snapPath,[{index:0,slot:0},{index:0}]);
+            watchedCanvas = canvas; watchedId = "moved"; expected = destination;
+            wait(220);
+            watchedCanvas = null;
+            fuzzyCompare(block.mapToItem(null,0,0).y,destination.y,1,"dragged block remains at pointer after layout");
+            compare(misses,[],"opening an earlier mouth must not move the dragged block away from the pointer");
+            const following = canvas.findBlockItem(canvas,"follower");
+            fuzzyCompare(following.mapToItem(null,0,0).y,destination.y+50*data.zoom,1,"tail keeps its spacing");
+            canvas.cancelDrag();
+        }
+        function test_nested_drop_keeps_preview_position_data() {
+            return [{tag:"detach",attach:false},{tag:"attach",attach:true}];
+        }
+        function test_nested_drop_keeps_preview_position(data) {
+            const setup = createTemporaryObject(setupComponent, scene);
+            const canvas = setup.canvas;
+            const moved = instruction("moved"), wrap = {id:"wrap",type:"IfElse",then_body:[],else_body:[moved]};
+            canvas.strands = [{id:"source",x:40,y:40,instructions:[wrap]}];
+            wait(40);
+            const block = canvas.findBlockItem(canvas,"moved");
+            const outer = canvas.findBlockItem(canvas,"wrap");
+            const start = block.mapToItem(null,10,10);
+            const path = [{index:0,slot:1},{index:0}];
+            canvas.beginDrag("source",path,1,start.x,start.y,10,10,block.width,block.height);
+            const attachPoint = outer.mapToItem(null,outer.spine,outer.headHeight);
+            canvas.moveDrag(attachPoint.x+10,attachPoint.y+10);
+            wait(180);
+            const destination = data.attach ? attachPoint : canvas.mapToItem(null,650,300);
+            canvas.moveDrag(destination.x+10,destination.y+10);
+            compare(canvas.branchDragState.snapValid,data.attach);
+            canvas.endDrag(destination.x+10,destination.y+10);
+            for (let i = 0; i < 10; ++i) {
+                const position = block.mapToItem(null,0,0);
+                fuzzyCompare(position.x,destination.x,1,"drop x while the layout settles");
+                fuzzyCompare(position.y,destination.y,1,"drop y while the layout settles");
+                wait(20);
+            }
+            const at = canvas.workspacePoint(destination.x,destination.y);
+            const updated = {id:"wrap",type:"IfElse",then_body:data.attach ? [moved] : [],else_body:[]};
+            canvas.strands = [{id:"source",x:40,y:40,instructions:[updated]}];
+            if (!data.attach)
+                canvas.strands = canvas.strands.concat([{id:"detached",x:Math.round(at.x),y:Math.round(at.y),instructions:[moved]}]);
+            wait(180);
+            const landed = canvas.findBlockItem(canvas,"moved").mapToItem(null,0,0);
+            fuzzyCompare(landed.x,destination.x,1,"confirmed x");
+            fuzzyCompare(landed.y,destination.y,1,"confirmed y");
+        }
         function test_canvas_resize_during_drag() {
             const setup = createTemporaryObject(setupComponent, scene);
             const canvas = setup.canvas;

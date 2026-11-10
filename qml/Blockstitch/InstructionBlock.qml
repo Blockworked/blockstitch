@@ -180,24 +180,43 @@ Item {
     z: dragRole > 0 ? 50 : hovered ? 2 : 1
     // The overlay draws active tails; trashed tails wait for their removal.
     opacity: dragRole === 1 && dragState && ((dragState.active && dragState.externalPreview) || (!dragState.active && dragState.settling && dragState.settleHidden)) ? 0 : 1
+    // Follow the pointer even when an earlier mouth or sibling changes size.
+    // Read each ancestor's position so Column layout and mouth animations
+    // invalidate this binding. The workspace's scale is outside this sum.
+    readonly property point dragLayoutCorrection: {
+        if (!dragState || dragRole !== 1 || (dragState.active && dragState.externalPreview) || !dragState.pickupPositions || !dragState.pickupPositions[instruction.id])
+            return Qt.point(0, 0);
+        let px = root.x, py = root.y;
+        for (let item = root.parent; item && item !== dragState.canvas.workspaceItem; item = item.parent) {
+            px += item.x;
+            py += item.y;
+            if (item.dragOffsetX !== undefined) {
+                px += item.dragOffsetX;
+                py += item.dragOffsetY + item.displayedSnapShift;
+            }
+        }
+        const pickup = dragState.pickupPositions[instruction.id];
+        return Qt.point(pickup.x + dragState.canvas.originOffsetX - px,
+                        pickup.y + dragState.canvas.originOffsetY - py);
+    }
     readonly property real dragOffsetX: {
         if (!dragState || dragRole !== 1)
             return 0;
         // An overlay draws the moving tail and this copy is hidden, so it
         // stays put rather than moving every block of a long tail each step.
         if (dragState.active)
-            return dragState.externalPreview ? 0 : dragState.dx;
+            return dragState.externalPreview ? 0 : dragState.dx + dragLayoutCorrection.x;
         if (dragState.settling)
-            return dragState.settleDx;
+            return dragState.settleDx + dragLayoutCorrection.x;
         return 0;
     }
     readonly property real dragOffsetY: {
         if (!dragState || dragRole !== 1)
             return 0;
         if (dragState.active)
-            return dragState.externalPreview ? 0 : dragState.dy;
+            return dragState.externalPreview ? 0 : dragState.dy + dragLayoutCorrection.y;
         if (dragState.settling)
-            return dragState.settleDy;
+            return dragState.settleDy + dragLayoutCorrection.y;
         return 0;
     }
     // Attach preview gap: stationary rows at/after the snap insertion point
