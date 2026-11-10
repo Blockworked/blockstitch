@@ -152,24 +152,21 @@ QtObject {
         drag.active = true;
         drag.draggedWidth = bw || 200;
         drag.draggedHeight = bh || 58;
-        const si = canvas.shapeInfoFor(canvas.instructionAt(canvas.strandById(strandId), path));
+        const instruction = canvas.instructionAt(strand, path);
+        const si = canvas.shapeInfoFor(instruction);
         drag.draggedShape = si.shape;
         drag.draggedMouths = si.mouths;
         drag.draggedFlat = si.flat;
-        const di = canvas.instructionAt(canvas.strandById(strandId), path);
-        drag.draggedIsCap = !!(di && canvas.isCapBlock(di));
+        drag.draggedIsCap = !!(instruction && canvas.isCapBlock(instruction));
         // Shrink the home mouth for the drag's duration (see sourceShrink).
         // Top-level tails have no mouth shell, so only nested paths shrink.
         drag.sourceStrandId = strandId;
         drag.sourceBasePath = canvas.copyPath(path.slice(0, path.length - 1));
         let shrink = 0;
-        if (path.length > 1) {
-            const strand = canvas.strandById(strandId);
-            if (strand) {
-                const full = canvas.listFor(strand, drag.sourceBasePath);
-                const idx = path[path.length - 1].index;
-                shrink = canvas.mouthHeightFor(full) - canvas.mouthHeightFor(full.slice(0, Math.max(0, idx)));
-            }
+        if (path.length > 1 && strand) {
+            const full = canvas.listFor(strand, drag.sourceBasePath);
+            const idx = path[path.length - 1].index;
+            shrink = canvas.mouthHeightFor(full) - canvas.mouthHeightFor(full.slice(0, Math.max(0, idx)));
         }
         drag.sourceShrink = Math.max(0, shrink);
         clearSnap();
@@ -270,32 +267,24 @@ QtObject {
             canvas.blockDragOutside(strandId, path, tail, sx, sy);
             return;
         }
-        if (snapValid && snapTargetId) {
-            // Attach, just like the webapp: merge the whole strand, or move
-            // the tail atomically (no split-then-merge round trip). Settle on
-            // the preview spot, keeping the gap open, until the merge lands.
-            drag.settleDx = drag.snapX - ox;
-            drag.settleDy = drag.snapY - oy;
-            drag.settling = true;
-            drag.active = false;
-            rememberDropHover(sx, sy);
-            canvas.armSettle();
+        const attaching = snapValid && snapTargetId;
+        if (!attaching)
+            clearSnap();
+        // Keep the source collapsed and the tail at its landing point until
+        // the document confirms the edit. An attach also keeps the gap open.
+        drag.settleDx = attaching ? drag.snapX - ox : dx;
+        drag.settleDy = attaching ? drag.snapY - oy : dy;
+        drag.settling = true;
+        drag.active = false;
+        rememberDropHover(sx, sy);
+        canvas.armSettle();
+        if (attaching) {
             if (isWhole)
                 canvas.strandsMerged(strandId, snapTargetId, snapPath, drag.snapTargetY);
             else
                 canvas.tailMerged(strandId, path, snapTargetId, snapPath, drag.snapTargetY);
             return;
         }
-        // Optimistic settle: keep rendering the dragged tail at the drop
-        // point until the backend state confirms the move/split. Cleared in
-        // onStrandsChanged or by settleTimer below.
-        clearSnap();
-        drag.settleDx = dx;
-        drag.settleDy = dy;
-        drag.settling = true;
-        drag.active = false;
-        rememberDropHover(sx, sy);
-        canvas.armSettle();
         const strand = canvas.strandById(strandId);
         if (isWhole && strand)
             canvas.strandMoved(strandId, Math.round(strand.x + dx), Math.round(strand.y + dy));

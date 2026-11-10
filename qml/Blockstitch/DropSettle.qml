@@ -37,6 +37,8 @@ Item {
         armSettle();
     }
     function endSettle() {
+        settleTimer.stop();
+        _settleDoc = "";
         if (canvas.valueDragState.settling) {
             canvas.valueDragState.settling = false;
             canvas.valueDragState.settleHidden = false;

@@ -152,13 +152,14 @@ Item {
             canvas.moveDrag(destination.x+10*data.zoom,destination.y+10*data.zoom);
             verify(canvas.branchDragState.snapValid);
             compare(canvas.branchDragState.snapPath,[{index:0,slot:0},{index:0}]);
-            watchedCanvas = canvas; watchedId = "moved"; expected = destination;
-            wait(220);
-            watchedCanvas = null;
-            fuzzyCompare(block.mapToItem(null,0,0).y,destination.y,1,"dragged block remains at pointer after layout");
-            compare(misses,[],"opening an earlier mouth must not move the dragged block away from the pointer");
             const following = canvas.findBlockItem(canvas,"follower");
-            fuzzyCompare(following.mapToItem(null,0,0).y,destination.y+50*data.zoom,1,"tail keeps its spacing");
+            for (let i = 0; i < 12; ++i) {
+                const position = block.mapToItem(null,0,0);
+                fuzzyCompare(position.x,destination.x,1,"dragged block x stays under the pointer");
+                fuzzyCompare(position.y,destination.y,1,"dragged block y stays under the pointer");
+                fuzzyCompare(following.mapToItem(null,0,0).y,destination.y+50*data.zoom,1,"tail keeps its spacing");
+                wait(20);
+            }
             canvas.cancelDrag();
         }
         function test_nested_drop_keeps_preview_position_data() {
@@ -197,6 +198,9 @@ Item {
             const landed = canvas.findBlockItem(canvas,"moved").mapToItem(null,0,0);
             fuzzyCompare(landed.x,destination.x,1,"confirmed x");
             fuzzyCompare(landed.y,destination.y,1,"confirmed y");
+            const timeout = Array.from(canvas.dropSettle.resources).find(o => o.interval !== undefined);
+            verify(!!timeout);
+            compare(timeout.running,false,"document confirmation must stop the settle timeout");
         }
         function test_release_preserves_source_collapse_data() {
             return [{tag:"detach",attach:false},{tag:"attach",attach:true}];
@@ -279,8 +283,8 @@ Item {
                 {id:"detached",x:Math.round(at.x),y:Math.round(at.y),instructions:[moved]}];
             const landed = canvas.findBlockItem(canvas,"moved");
             const surface = all(landed).find(o => o.outlinePath !== undefined);
-            compare(surface.hovered,!data.moveAway,"retain the outline only while the pointer stays at the drop point");
             waitForRendering(canvas);
+            compare(surface.hovered,!data.moveAway,"the first frame must reflect the pointer position");
             const image = grabImage(setup);
             const position = landed.mapToItem(setup,0,0);
             const color = image.pixel(Math.round(position.x),Math.round(position.y+25));
