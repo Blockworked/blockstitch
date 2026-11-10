@@ -244,6 +244,10 @@ Item {
             canvas.strands = [{id:"source",x:40,y:40,instructions:[
                 {id:"wrap",type:"IfElse",then_body:[],else_body:[]}
             ]},{id:"detached",x:Math.round(at.x),y:Math.round(at.y),instructions:[moved]}];
+            waitForRendering(canvas);
+            const surface = all(outer).find(o => o.outlinePath !== undefined);
+            const writer = surface.writer(); surface.trace(writer);
+            compare(surface.outlinePath,writer.text(),"first rendered frame must draw the collapsed branch geometry");
             for (let i = 0; i < 12; ++i) {
                 wait(20);
                 const height = outer.effMouthHeights[0];
@@ -276,6 +280,12 @@ Item {
             const landed = canvas.findBlockItem(canvas,"moved");
             const surface = all(landed).find(o => o.outlinePath !== undefined);
             compare(surface.hovered,!data.moveAway,"retain the outline only while the pointer stays at the drop point");
+            waitForRendering(canvas);
+            const image = grabImage(setup);
+            const position = landed.mapToItem(setup,0,0);
+            const color = image.pixel(Math.round(position.x),Math.round(position.y+25));
+            if (!data.moveAway)
+                verify(color.b - color.r > 0.4,"first rendered frame must show the hover outline: " + color);
             mouseMove(scene,900,600);
             tryCompare(surface,"hovered",false);
         }

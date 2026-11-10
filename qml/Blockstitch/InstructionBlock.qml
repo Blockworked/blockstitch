@@ -18,6 +18,7 @@ Item {
     property CanvasState canvasState: null
     property var keyCapture: null
     property bool paletteMode: false
+    property bool dragPreview: false
     property bool locked: false
     // The first block of the host's marked strand (BlockCanvas.markedStrandId).
     property bool strandMarked: false
@@ -694,7 +695,7 @@ Item {
         anchors.fill: parent
         shape: root.isWrap ? "wrap" : root.isHeader ? "header" : root.isCap ? "cap" : "stack"
         fill: root.displayColor
-        hovered: root.hovered || root.dragRole === 1 || root.flashing || root.running || root.pausedHere
+        hovered: root.dragPreview || root.hovered || root.dragRole === 1 || root.flashing || root.running || root.pausedHere
         hoverColor: root.pausedHere ? Theme.warning : root.running ? Theme.running : root.flashing && root.markText ? Theme.danger : root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : Theme.accent
         outlineWidth: root.running || root.pausedHere ? 2.6 : 1.3
         headHeight: root.headHeight

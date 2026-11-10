@@ -115,21 +115,15 @@ Shape {
             text: () => parts.join(" ")
         };
     }
-    // Traced at most once per event loop pass: a new block changes its width
-    // and height several times while it lays out.
-    property string outlinePath: ""
-    function retrace() {
-        if (width <= 0 || height <= 0) { outlinePath = ""; return; }
+    // Layout can change during polish, after timers have run for this frame.
+    // Keep the path bound to its geometry so the first frame uses the new shape.
+    readonly property string outlinePath: {
+        if (width <= 0 || height <= 0)
+            return "";
         const w = writer();
         trace(w);
-        outlinePath = w.text();
+        return w.text();
     }
-    readonly property var traceKey: [width, height, shape, headHeight, midHeight, footHeight, spine, mouthHeights, headNotch, footTab, flatEnds]
-    onTraceKeyChanged: retraceSoon.start()
-    Component.onCompleted: retrace()
-    // A child timer rather than Qt.callLater, which would still call into a
-    // block destroyed in the meantime.
-    Timer { id: retraceSoon; interval: 0; onTriggered: root.retrace() }
 
     ShapePath {
         strokeColor: root.hovered ? root.hoverColor : root.outline

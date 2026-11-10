@@ -261,7 +261,7 @@ Item {
                 model: canvasGhost.visible && !root.canvas.dragIsValue ? canvasGhost.instructions : []
                 delegate: InstructionBlock {
                     required property var modelData
-                    instruction: modelData; paletteMode: true; locked: true
+                    instruction: modelData; paletteMode: true; locked: true; dragPreview: true
                     branchColor: root.canvas ? root.canvas.dragBranchColor : Theme.accent
                     variables: root.variables; lists: root.lists; blockDefinitions: root.blockDefinitions
                 }
@@ -294,7 +294,7 @@ Item {
             id: ghostBlock
             active: ghost.visible && !!ghost.spec && ghost.spec.kind !== "value"
             sourceComponent: InstructionBlock {
-                instruction: ghost.instruction; paletteMode: true; locked: true
+                instruction: ghost.instruction; paletteMode: true; locked: true; dragPreview: true
                 blockColor: ghost.spec.color || Theme.block
                 branchColor: ghost.spec.color || Theme.accent
                 variables: root.variables; lists: root.lists; blockDefinitions: root.blockDefinitions
