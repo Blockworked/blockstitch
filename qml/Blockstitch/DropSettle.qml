@@ -66,6 +66,9 @@ Item {
     Timer {
         id: settleTimer
         interval: 1500
-        onTriggered: helper.endSettle()
+        onTriggered: {
+            canvas.branchDragState.hoveredDropId = "";
+            helper.endSettle();
+        }
     }
 }

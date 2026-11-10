@@ -131,7 +131,8 @@ Item {
     readonly property real midHeight: 34
     readonly property real footHeight: 26
     readonly property real emptyMouth: 26
-    readonly property bool hovered: grab.hovered && !grab.dragging
+    readonly property bool hovered: !grab.dragging && (grab.hovered
+        || (!!dragState && !!dragState.hoveredDropId && !!instruction && dragState.hoveredDropId === instruction.id))
     // 0: unaffected, 1: moves with the dragged block (it or a later sibling), 2: contains the dragged block.
     // While `settling` (dropped, waiting for the host's next state) the tail
     // keeps its drop offset so it doesn't visibly snap back and teleport.

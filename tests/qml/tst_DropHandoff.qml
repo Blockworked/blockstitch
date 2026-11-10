@@ -5,6 +5,10 @@ import com.blockworked.Blockstitch 1.0
 Item {
     id: scene
     width: 1200; height: 800
+    property var observedSource: null
+    property var sourceAdjustments: []
+    readonly property real sourceAdjustment: observedSource ? observedSource.mouthAdjustment(0) : 0
+    onSourceAdjustmentChanged: sourceAdjustments = sourceAdjustments.concat([sourceAdjustment])
     Component {
         id: setupComponent
         Item {
@@ -49,7 +53,7 @@ Item {
             return found;
         }
         function instruction(id) { return {id:id,type:"Wait",duration:{kind:"Number",value:100}}; }
-        function cleanup() { watchedCanvas = null; expected = null; misses = []; }
+        function cleanup() { watchedCanvas = null; expected = null; misses = []; scene.observedSource = null; }
         function test_attach_does_not_animate_the_preview_gap_twice_data() {
             return [{tag:"canvas",palette:false},{tag:"palette",palette:true}];
         }
@@ -193,6 +197,87 @@ Item {
             const landed = canvas.findBlockItem(canvas,"moved").mapToItem(null,0,0);
             fuzzyCompare(landed.x,destination.x,1,"confirmed x");
             fuzzyCompare(landed.y,destination.y,1,"confirmed y");
+        }
+        function test_release_preserves_source_collapse_data() {
+            return [{tag:"detach",attach:false},{tag:"attach",attach:true}];
+        }
+        function test_release_preserves_source_collapse(data) {
+            const setup = createTemporaryObject(setupComponent, scene);
+            const canvas = setup.canvas;
+            canvas.strands = [{id:"source",x:40,y:40,instructions:[{id:"wrap",type:"If",body:[instruction("moved")]}]},
+                {id:"target",x:400,y:40,instructions:[instruction("target-block")]}];
+            wait(40);
+            const block = canvas.findBlockItem(canvas,"moved");
+            const start = block.mapToItem(null,10,10);
+            canvas.beginDrag("source",[{index:0,slot:0},{index:0}],1,start.x,start.y,10,10,block.width,block.height);
+            const target = canvas.findBlockItem(canvas,"target-block");
+            const destination = data.attach ? target.mapToItem(null,0,50) : canvas.mapToItem(null,600,300);
+            canvas.moveDrag(destination.x+10,destination.y+10);
+            compare(canvas.branchDragState.snapValid,data.attach);
+            scene.observedSource = canvas.findBlockItem(canvas,"wrap");
+            compare(scene.sourceAdjustment,-24);
+            scene.sourceAdjustments = [];
+            canvas.endDrag(destination.x+10,destination.y+10);
+            compare(scene.sourceAdjustments,[],"release must not briefly reopen the source branch");
+        }
+        function test_detach_confirmation_does_not_reopen_source_data() {
+            return [{tag:"immediate",delay:0}, {tag:"mid-collapse",delay:40}, {tag:"collapsed",delay:180}];
+        }
+        function test_detach_confirmation_does_not_reopen_source(data) {
+            const setup = createTemporaryObject(setupComponent, scene);
+            const canvas = setup.canvas;
+            const moved = instruction("moved");
+            canvas.strands = [{id:"source",x:40,y:40,instructions:[
+                {id:"wrap",type:"IfElse",then_body:[moved],else_body:[]}
+            ]}];
+            wait(40);
+            const block = canvas.findBlockItem(canvas,"moved");
+            const outer = canvas.findBlockItem(canvas,"wrap");
+            const start = block.mapToItem(null,10,10);
+            const destination = canvas.mapToItem(null,600,300);
+            canvas.beginDrag("source",[{index:0,slot:0},{index:0}],1,start.x,start.y,10,10,block.width,block.height);
+            canvas.moveDrag(destination.x+10,destination.y+10);
+            wait(data.delay);
+            canvas.endDrag(destination.x+10,destination.y+10);
+            const at = canvas.workspacePoint(destination.x,destination.y);
+            let previous = outer.effMouthHeights[0];
+            canvas.strands = [{id:"source",x:40,y:40,instructions:[
+                {id:"wrap",type:"IfElse",then_body:[],else_body:[]}
+            ]},{id:"detached",x:Math.round(at.x),y:Math.round(at.y),instructions:[moved]}];
+            for (let i = 0; i < 12; ++i) {
+                wait(20);
+                const height = outer.effMouthHeights[0];
+                verify(height <= previous + 0.1,"source reopened from " + previous + " to " + height);
+                previous = height;
+            }
+            compare(outer.effMouthHeights[0],26);
+        }
+        function test_detached_block_keeps_outline_during_confirmation_data() {
+            return [{tag:"stationary",moveAway:false},{tag:"moved-away",moveAway:true}];
+        }
+        function test_detached_block_keeps_outline_during_confirmation(data) {
+            const setup = createTemporaryObject(setupComponent, scene);
+            const canvas = setup.canvas;
+            const moved = instruction("moved");
+            canvas.strands = [{id:"source",x:40,y:40,instructions:[{id:"wrap",type:"If",body:[moved]}]}];
+            wait(40);
+            const block = canvas.findBlockItem(canvas,"moved");
+            const start = block.mapToItem(null,10,25);
+            const destination = canvas.mapToItem(null,600,300);
+            canvas.beginDrag("source",[{index:0,slot:0},{index:0}],1,start.x,start.y,10,25,block.width,block.height);
+            canvas.moveDrag(destination.x+10,destination.y+25);
+            mouseMove(scene,destination.x+10,destination.y+25);
+            canvas.endDrag(destination.x+10,destination.y+25);
+            if (data.moveAway)
+                mouseMove(scene,900,600);
+            const at = canvas.workspacePoint(destination.x,destination.y);
+            canvas.strands = [{id:"source",x:40,y:40,instructions:[{id:"wrap",type:"If",body:[]}]},
+                {id:"detached",x:Math.round(at.x),y:Math.round(at.y),instructions:[moved]}];
+            const landed = canvas.findBlockItem(canvas,"moved");
+            const surface = all(landed).find(o => o.outlinePath !== undefined);
+            compare(surface.hovered,!data.moveAway,"retain the outline only while the pointer stays at the drop point");
+            mouseMove(scene,900,600);
+            tryCompare(surface,"hovered",false);
         }
         function test_canvas_resize_during_drag() {
             const setup = createTemporaryObject(setupComponent, scene);

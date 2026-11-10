@@ -559,6 +559,16 @@ Rectangle {
         id: dragSession
         canvas: root
     }
+    // A new delegate may wait a frame for Qt's hover event after a drop.
+    // Retain its outline until the pointer actually moves or leaves the canvas.
+    HoverHandler {
+        onPointChanged: {
+            if (dragSession.hoveredDropId && Math.hypot(point.scenePosition.x - dragSession.hoveredDropScene.x,
+                    point.scenePosition.y - dragSession.hoveredDropScene.y) > 0.5)
+                dragSession.hoveredDropId = "";
+        }
+        onHoveredChanged: if (!hovered) dragSession.hoveredDropId = ""
+    }
     // A host overlay can draw active drags outside the clipped canvas.
     property bool externalDragPreview: false
     readonly property bool dragging: dragSession.active || valueDrag.active

@@ -8,6 +8,17 @@ QtObject {
     required property Item canvas
     readonly property bool externalPreview: canvas.externalDragPreview
     property bool active: false
+    // Carry the outline across replacement of a detached block's delegate.
+    property string hoveredDropId: ""
+    property point hoveredDropScene: Qt.point(0, 0)
+    function rememberDropHover(sx, sy) {
+        const instruction = canvas.instructionAt(canvas.strandById(drag.strandId), drag.path);
+        const item = instruction ? canvas.findBlockItem(canvas.workspaceItem, instruction.id) : null;
+        if (item && item.contains(item.mapFromItem(null, sx, sy))) {
+            drag.hoveredDropScene = Qt.point(sx, sy);
+            drag.hoveredDropId = instruction.id;
+        }
+    }
     property string strandId: ""
     property var path: []
     property int tailCount: 1
@@ -111,6 +122,7 @@ QtObject {
         };
     }
     function begin(strandId, path, tailCount, sx, sy, ox, oy, bw, bh) {
+        drag.hoveredDropId = "";
         canvas.cancelValueDrag();
         canvas.clearPaletteHighlight();
         canvas.endSettle();
@@ -245,13 +257,14 @@ QtObject {
         const dx = drag.dx, dy = drag.dy, ox = drag.originX, oy = drag.originY;
         const snapValid = drag.snapValid, snapTargetId = drag.snapTargetId, snapPath = canvas.copyPath(drag.snapPath || []);
         const isWhole = path.length === 1 && path[0].index === 0;
-        drag.active = false;
+        // Keep the drag active until settling preserves the source collapse.
         drag.settleStrandId = strandId;
         drag.settlePath = path;
         drag.settleHidden = false;
         canvas._lastDrop = "block";
         if (!canvas.contains(canvas.mapFromItem(null, sx, sy))) {
             // The host calls settleTrashed() if it actually deletes the tail.
+            drag.active = false;
             clearSnap();
             drag.settling = false;
             canvas.blockDragOutside(strandId, path, tail, sx, sy);
@@ -264,6 +277,8 @@ QtObject {
             drag.settleDx = drag.snapX - ox;
             drag.settleDy = drag.snapY - oy;
             drag.settling = true;
+            drag.active = false;
+            rememberDropHover(sx, sy);
             canvas.armSettle();
             if (isWhole)
                 canvas.strandsMerged(strandId, snapTargetId, snapPath, drag.snapTargetY);
@@ -278,6 +293,8 @@ QtObject {
         drag.settleDx = dx;
         drag.settleDy = dy;
         drag.settling = true;
+        drag.active = false;
+        rememberDropHover(sx, sy);
         canvas.armSettle();
         const strand = canvas.strandById(strandId);
         if (isWhole && strand)
@@ -286,6 +303,7 @@ QtObject {
             canvas.instructionSplit(strandId, path, Math.round(ox + dx - canvas.originOffsetX), Math.round(oy + dy - canvas.originOffsetY));
     }
     function cancel() {
+        drag.hoveredDropId = "";
         drag.active = false;
         drag.settling = false;
         drag.settleHidden = false;
