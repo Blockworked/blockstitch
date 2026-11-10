@@ -147,6 +147,60 @@ Item {
             const result = snap(nested, nested.y - first.height + 8, first.height);
             compare(result.path, [{ index: 1, slot: 0 }, { index: 0 }]);
         }
+        function test_between_branches_data() {
+            return [
+                { tag: "then-to-else", source: 0, zoom: 1 },
+                { tag: "else-to-then", source: 1, zoom: 1 },
+                { tag: "zoomed", source: 0, zoom: 0.7 },
+                { tag: "nested-source", source: 0, zoom: 1, nested: true },
+                { tag: "following-wrap", source: 0, zoom: 1, following: true }
+            ];
+        }
+        function test_between_branches(data) {
+            const tail = [block("dragged", "Wait"), block("last", "Wait")];
+            const source = data.nested ? [{ id: "inner", type: "If", body: tail }] : tail;
+            const wrap = { id: "branches", type: "IfElse",
+                then_body: data.source === 0 ? source : [], else_body: data.source === 1 ? source : [] };
+            const instructions = [wrap];
+            if (data.following) instructions.push({ id: "following", type: "If", body: [] });
+            canvas.strands = [strand("target", 40, 100, instructions)];
+            canvas.setZoom(data.zoom);
+            wait(200);
+            const first = canvas.findBlockItem(canvas, "dragged");
+            const start = first.mapToItem(null, 4, 4);
+            const sourcePath = [{ index: 0, slot: data.source }];
+            if (data.nested) sourcePath.push({ index: 0, slot: 0 });
+            sourcePath.push({ index: 0 });
+            canvas.beginDrag("target", sourcePath, 2, start.x, start.y, 4, 4, first.width, first.height);
+            // Cache immediately, while the source collapse is still animating.
+            canvas.snapGeometry().containers = canvas.collectContainers();
+            wait(200);
+            const owner = canvas.findBlockItem(canvas, data.following ? "following" : "branches");
+            const targetSlot = data.following ? 0 : 1 - data.source;
+            const destination = owner.mapToItem(null, owner.spine + 4, owner.mouthTop(targetSlot) + 4);
+            canvas.moveDrag(destination.x, destination.y);
+            const expectedPath = [{ index: data.following ? 1 : 0, slot: targetSlot }, { index: 0 }];
+            compare(canvas.branchDragState.snapPath, expectedPath);
+            const expected = canvas.workspaceItem.mapFromItem(null, destination.x, destination.y);
+            fuzzyCompare(canvas.branchDragState.snapY, expected.y - 4, 0.01);
+            const stableY = canvas.branchDragState.snapY;
+            wait(200);
+            canvas.moveDrag(destination.x, destination.y);
+            compare(canvas.branchDragState.snapPath, expectedPath);
+            compare(canvas.branchDragState.snapY, stableY);
+            canvas.endDrag(destination.x, destination.y);
+            compare(tailMerged.count, 1);
+            compare(tailMerged.signalArguments[0][3], expectedPath);
+            // Apply the move and compare the landed block with its preview.
+            const emptySource = data.nested ? [{ id: "inner", type: "If", body: [] }] : [];
+            wrap.then_body = data.source === 0 ? emptySource : (data.following ? [] : tail);
+            wrap.else_body = data.source === 1 ? emptySource : (data.following ? [] : tail);
+            if (data.following) instructions[1].body = tail;
+            canvas.strands = [strand("target", 40, 100, instructions)];
+            wait(200);
+            const landed = canvas.findBlockItem(canvas, "dragged").mapToItem(canvas.workspaceItem, 0, 0);
+            fuzzyCompare(landed.y, stableY, 0.01);
+        }
         function test_header_rejects_above() {
             canvas.strands = [strand("target", 40, 240, [block("header", "WhenStarted")])];
             const c = container("target");

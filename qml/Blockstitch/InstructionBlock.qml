@@ -801,6 +801,7 @@ Item {
                             boxed: !!modelData.bool
                             anchors.centerIn: parent
                             onEditRequested: (l, t) => root.valueEdited(l, t)
+                            onDetailsRequested: kind => root.detailsRequested(kind)
                             blockDefinitions: root.blockDefinitions
                             canvasState: root.canvasState
                             onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)
@@ -957,6 +958,7 @@ Item {
                     location: root.fieldLocation("Condition")
                     boxed: true
                     onEditRequested: (l, t) => root.valueEdited(l, t)
+                    onDetailsRequested: kind => root.detailsRequested(kind)
                     blockDefinitions: root.blockDefinitions
                     canvasState: root.canvasState
                     onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)
@@ -987,6 +989,7 @@ Item {
                             location: root.fieldLocation("RepeatCount")
                             boxed: false
                             onEditRequested: (l, t) => root.valueEdited(l, t)
+                            onDetailsRequested: kind => root.detailsRequested(kind)
                             blockDefinitions: root.blockDefinitions
                             canvasState: root.canvasState
                             onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)
@@ -1044,6 +1047,7 @@ Item {
                     boxed: !!modelData.bool
                     anchors.centerIn: parent
                     onEditRequested: (l, t) => root.valueEdited(l, t)
+                    onDetailsRequested: kind => root.detailsRequested(kind)
                     blockDefinitions: root.blockDefinitions
                     canvasState: root.canvasState
                     onValueDragBegan: (loc, val, sx, sy, ox, oy, w, h) => root.valueDragBegan(loc, val, sx, sy, ox, oy, w, h)

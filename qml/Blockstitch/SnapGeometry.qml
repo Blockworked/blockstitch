@@ -106,10 +106,42 @@ QtObject {
     readonly property var _snapCache: ({ key: null })
     function snapGeometry() {
         const key = [canvas.strands, canvas.originOffsetX, canvas.originOffsetY, BlockRegistry.indexSerial,
-                     canvas.branchDragState.strandId, JSON.stringify(canvas.branchDragState.path || []), canvas.branchDragState.draggedWidth];
+                     canvas.branchDragState.strandId, JSON.stringify(canvas.branchDragState.path || []), canvas.branchDragState.draggedWidth,
+                     canvas.branchDragState.active, canvas.branchDragState.settling, canvas.branchDragState.sourceShrink];
         const c = _snapCache;
         if (!c.key || c.key.some((v, i) => v !== key[i])) { c.key = key; c.containers = null; c.tail = null; }
         return c;
+    }
+    // Measure the document with the source tail removed, without animated
+    // mouth adjustments or the incoming preview feeding back into snap points.
+    function layoutList(list, strandId, base) {
+        const d = canvas.branchDragState;
+        if ((d.active || d.settling) && strandId === d.sourceStrandId && baseEqual(base, d.sourceBasePath))
+            return list.slice(0, d.path[d.path.length - 1].index);
+        return list;
+    }
+    function layoutHeights(list, strandId, base) {
+        return list.map((ins, index) => layoutBlockHeight(ins, strandId, copyPath(base).concat([{ index: index }])));
+    }
+    function layoutMouthHeight(list, strandId, base) {
+        const remaining = layoutList(list, strandId, base);
+        const heights = layoutHeights(remaining, strandId, base);
+        const height = heights.reduce((sum, h) => sum + h - 8, 0);
+        const cap = remaining.length && isCapBlock(remaining[remaining.length - 1]);
+        return Math.max(26, height + (cap ? 8 : 0));
+    }
+    function layoutBlockHeight(ins, strandId, path) {
+        if (!isWrapType(ins.type)) return blockHeight(ins);
+        const live = canvas.findBlockItem(canvas.workspaceItem, ins.id);
+        const n = slotCountFor(ins);
+        let height = (live ? live.headHeight + live.footHeight : 76)
+            + Math.max(0, n - 1) * (live ? live.midHeight : 34) + (isCapBlock(ins) ? 0 : 8);
+        for (let k = 0; k < n; ++k) {
+            const base = copyPath(path);
+            base[base.length - 1].slot = k;
+            height += layoutMouthHeight(bodyFor(ins, k), strandId, base);
+        }
+        return height;
     }
     function collectContainers() {
         const out = [];
@@ -117,8 +149,7 @@ QtObject {
         for (let s = 0; s < strands.length; ++s) {
             const st = strands[s];
             const topList = st.instructions || [];
-            const topHeights = [];
-            for (let i = 0; i < topList.length; ++i) topHeights.push(blockHeight(topList[i]));
+            const topHeights = layoutHeights(topList, st.id, []);
             const lx = st.x + canvas.originOffsetX, ly = st.y + canvas.originOffsetY;
             out.push({ strandId: st.id, basePath: [], x: lx, y: ly, list: topList, heights: topHeights });
             let top = ly;
@@ -130,6 +161,7 @@ QtObject {
         const branches = [];
         canvas.branchContainers(canvas.workspaceItem, branches);
         for (const branch of branches) {
+            branch.heights = layoutHeights(branch.list, branch.strandId, branch.basePath);
             out.push(branch);
             let y = branch.y;
             for (let i = 0; i < branch.list.length; ++i) {
@@ -142,8 +174,6 @@ QtObject {
     function collectChildren(strandId, ins, pathToBlock, blockX, blockY, depth, out) {
         if (!ins || !isWrapType(ins.type)) return;
         const n = slotCountFor(ins);
-        const mouthHs = [];
-        for (let k = 0; k < n; ++k) mouthHs.push(mouthHeightFor(bodyFor(ins, k)));
         const live = canvas.findBlockItem(canvas.workspaceItem, ins.id);
         let mTop = live ? live.headHeight : 50;
         for (let k = 0; k < n; ++k) {
@@ -151,8 +181,7 @@ QtObject {
             const body = bodyFor(ins, k);
             const base = copyPath(pathToBlock);
             base[base.length - 1].slot = k;
-            const heights = [];
-            for (let i = 0; i < body.length; ++i) heights.push(blockHeight(body[i]));
+            const heights = layoutHeights(body, strandId, base);
             out.push({ strandId: strandId, basePath: base, x: cX, y: cY, list: body, heights: heights });
             let childTop = cY;
             for (let ci = 0; ci < body.length; ++ci) {
@@ -161,7 +190,7 @@ QtObject {
                 collectChildren(strandId, body[ci], childPath, cX, childTop, depth + 1, out);
                 childTop += heights[ci] - 8;
             }
-            mTop = live && k + 1 < n ? live.mouthTop(k + 1) : mTop + mouthHs[k] + 34;
+            mTop += layoutMouthHeight(body, strandId, base) + (live ? live.midHeight : 34);
         }
     }
     function isBaseInsideTail(containerBase, srcParentBase, srcIdx) {
