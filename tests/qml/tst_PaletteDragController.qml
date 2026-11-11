@@ -157,7 +157,8 @@ Item {
             controller.end(top.x + 6, top.y - height + 8 + 6);
             wait(20);
             compare(scene.edits.length, 1);
-            compare(scene.edits[0].targetY, scene.pristine[0].y - Math.round(height) + 8);
+            // Fractional ghost heights are rounded as part of the final coordinate.
+            compare(scene.edits[0].targetY, Math.round(scene.pristine[0].y - height + 8));
         }
         function test_top_level_gap() {
             drop(waitSpec, below("if1").x + 2, below("if1").y + 4);
