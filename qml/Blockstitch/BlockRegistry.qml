@@ -104,6 +104,10 @@ QtObject {
     function definitionById(definitions, id) {
         return (definitions || []).find(d => d.id === id) || null;
     }
+    function definitionLabel(definition, includeBranches) {
+        return ((definition && definition.pieces) || []).filter(p => includeBranches || p.kind !== "Branch")
+            .map(p => p.kind === "Label" || p.kind === "Button" ? p.text : "(" + p.name + ")").join(" ");
+    }
     // Types InstructionBlock draws itself, with no row: the control blocks
     // and custom block headers, calls and branch slots.
     readonly property var selfDrawnTypes: Object.keys(controlBlocks).concat(
@@ -278,10 +282,14 @@ QtObject {
     function replaceValue(location, value) {
         if (valueReplacementHandler) valueReplacementHandler(location, value);
     }
+    property var customRowCache: ({})
     function customCallRow(definition) {
         // Plain definitions draw from their pieces; components and
         // multi-line boxes need a registered-style row.
-        if (!definition || !(definition.pieces || []).some(p => p.component || (p.kind === "Input" && p.multiline))) return null;
+        if (!definition || !(definition.pieces || []).some(p => p.component || p.kind === "Button" || (p.kind === "Input" && (p.multiline || p.ui)))) return null;
+        const key = JSON.stringify(definition.pieces);
+        if (customRowCache[key]) return customRowCache[key];
+        if (Object.keys(customRowCache).length > 256) delete customRowCache[Object.keys(customRowCache)[0]];
         const spec = {head: [], components: []};
         let group = null, arg = 0, branched = false;
         for (const p of definition.pieces || []) {
@@ -293,17 +301,21 @@ QtObject {
                 spec.components.push(group);
                 continue;
             }
-            const piece = p.kind === "Input"
-                ? Object.assign({kind: "value", key: "args", index: arg, field: "CallArg:" + arg++, bool: p.value_type === "Bool"},
+            const index = p.kind === "Input" ? arg++ : -1;
+            if (p.kind === "Input" && p.ui && p.ui.screen_only) continue;
+            const piece = p.kind === "Button" ? {kind: "button", text: p.text, icon: "settings-2", screen: p.id}
+                : p.kind === "Input"
+                ? Object.assign({kind: "value", key: "args", index: index, field: "CallArg:" + index, options: p.ui && (p.ui.choices || []).length ? p.ui.choices : null, bool: p.value_type === "Bool"},
                     p.multiline && p.value_type !== "Bool" ? {box: true, boxLabel: p.name} : {})
                 : p.kind === "Label" && !branched ? {kind: "label", text: p.text} : null;
             if (piece) (group ? group.pieces : spec.head).push(piece);
         }
+        customRowCache[key] = spec;
         return spec;
     }
     function freshCallArgs(definition) {
         return ((definition && definition.pieces) || []).filter(p => p.kind === "Input").map(p => {
-            const d = p.default_value, bool = p.value_type === "Bool";
+            const d = p.default_value || (p.ui && p.ui.choices && p.ui.choices.length ? {kind: "Text", value: p.ui.choices[0].value} : null), bool = p.value_type === "Bool";
             if (d && bool && d.kind === "Bool" && typeof d.value === "boolean")
                 return { kind: "Op", op: d.value ? "True" : "False", args: [], saved: { kind: "Number", value: 0 } };
             if (d && !bool && ((d.kind === "Number" && typeof d.value === "number" && isFinite(d.value))
@@ -375,8 +387,7 @@ QtObject {
         if (options === "lists") return listChoices(listNames);
         if (options === "dicts") return nameChoices(dictNames, "dict");
         if (options === "variables") return variableChoices(variableNames);
-        if (typeof options === "function") return options(instruction) || [];
-        return options || [];
+        return BlockUi.choices(options, instruction);
     }
     function listChoices(names) {
         const options = nameChoices(names, "list");

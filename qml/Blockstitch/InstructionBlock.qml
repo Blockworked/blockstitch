@@ -132,8 +132,7 @@ Item {
     readonly property real midHeight: 34
     readonly property real footHeight: 26
     readonly property real emptyMouth: 26
-    readonly property bool hovered: !grab.dragging && (grab.hovered
-        || (!!dragState && !!dragState.hoveredDropId && !!instruction && dragState.hoveredDropId === instruction.id))
+    readonly property bool hovered: !grab.dragging && (grab.hovered || (!!dragState && !!dragState.hoveredDropId && !!instruction && dragState.hoveredDropId === instruction.id))
     // 0: unaffected, 1: moves with the dragged block (it or a later sibling), 2: contains the dragged block.
     // While `settling` (dropped, waiting for the host's next state) the tail
     // keeps its drop offset so it doesn't visibly snap back and teleport.
@@ -198,8 +197,7 @@ Item {
             }
         }
         const pickup = dragState.pickupPositions[instruction.id];
-        return Qt.point(pickup.x + dragState.canvas.originOffsetX - px,
-                        pickup.y + dragState.canvas.originOffsetY - py);
+        return Qt.point(pickup.x + dragState.canvas.originOffsetX - px, pickup.y + dragState.canvas.originOffsetY - py);
     }
     readonly property real dragOffsetX: {
         if (!dragState || dragRole !== 1)
@@ -466,6 +464,18 @@ Item {
         }
         instructionEdited(strandId, root.path, n);
     }
+    function openCustomScreen(buttonId) {
+        if (paletteMode || locked || !instruction)
+            return;
+        const before = JSON.parse(JSON.stringify(instruction)), def = defFor(instruction.block_id);
+        if (!def)
+            return;
+        const documentId = canvasState ? canvasState.documentId : "";
+        BlockUi.openCustom(root, def, buttonId, before, () => !root.locked && (root.canvasState ? root.canvasState.documentId : "") === documentId && root.instruction && root.instruction.id === before.id ? {
+                definition: root.defFor(before.block_id),
+                value: root.instruction
+            } : null, updated => root.instructionEdited(root.strandId, root.path, updated));
+    }
     function pieceOptions(piece) {
         return BlockRegistry.choices(piece.options, instruction);
     }
@@ -509,12 +519,14 @@ Item {
     function setPiece(piece, chosen) {
         setPieceField(piece, piece.encode ? piece.encode(chosen, instruction) : chosen);
     }
-    function defFor(id) { return BlockRegistry.definitionById(blockDefinitions, id); }
+    function defFor(id) {
+        return BlockRegistry.definitionById(blockDefinitions, id);
+    }
     function callLabel() {
         const d = instruction ? defFor(instruction.block_id) : null;
         if (!d)
             return qsTr("custom block");
-        return (d.pieces || []).filter(p => p.kind !== "Branch").map(p => p.kind === "Label" ? p.text : ("(" + p.name + ")")).join(" ");
+        return BlockRegistry.definitionLabel(d);
     }
     function callHeadPieces() {
         const d = instruction ? defFor(instruction.block_id) : null;
@@ -582,7 +594,7 @@ Item {
                     text: qsTr("(deleted block)")
                 }
             ];
-        return (d.pieces || []).filter(p => p.kind !== "Branch");
+        return (d.pieces || []).filter(p => p.kind !== "Branch" && p.kind !== "Button");
     }
     function headerGroups() {
         const groups = [];
@@ -601,6 +613,8 @@ Item {
                 }
             ];
         for (const p of d.pieces || []) {
+            if (p.kind === "Button")
+                continue;
             if (p.kind === "Branch") {
                 current = null;
                 continue;
@@ -742,10 +756,14 @@ Item {
     }
     // Built on first use: a menu per block costs more than the block itself.
     property var contextMenu: null
-    readonly property Component blockMenu: Component { BlockMenu {} }
+    readonly property Component blockMenu: Component {
+        BlockMenu {}
+    }
     function openMenu(x, y) {
         if (!contextMenu)
-            contextMenu = blockMenu.createObject(grab, { block: root });
+            contextMenu = blockMenu.createObject(grab, {
+                block: root
+            });
         contextMenu.popup(x, y);
     }
     // Embedded call-site preview for a header with branches (see hasBranchHeader).
@@ -1089,7 +1107,11 @@ Item {
     }
 
     // One piece of a row (BlockPiece.qml). Nested rows reach it as `block.pieceDelegate`.
-    readonly property Component pieceDelegate: Component { BlockPiece { block: root } }
+    readonly property Component pieceDelegate: Component {
+        BlockPiece {
+            block: root
+        }
+    }
 
     Rectangle {
         visible: root.markText.length > 0

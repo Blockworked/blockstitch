@@ -294,3 +294,12 @@ without them load.
 - `Value::Call::branches` is opaque JSON; ids inside it aren't renamed on
   paste, and a host has to route reporter-branch edits itself (see above).
 - A panic in the browser core aborts the module; the page offers a reload.
+
+### Custom block UI metadata
+
+Inputs now have an optional `ui: Option<InputUi>` field; Rust construction sites
+add `ui: None` to retain previous behavior. Exhaustive `BlockPiece` matches must
+handle `Button {id, text, title, inputs}`. Buttons are presentation only: keep
+filtering `Input` for arguments and `Branch` for callback bodies. Existing JSON
+definitions need no migration. Hosts that version saved files should advance
+that version so older builds refuse new button pieces clearly.

@@ -22,7 +22,7 @@ Popup {
         Label {
             Layout.fillWidth: true
             text: editor.allowDefaults
-                ? qsTr("Starting values for new blocks added from the sidebar (existing blocks keep their values), and which inputs get a text box of their own.")
+                ? qsTr("Starting values for new blocks added from the sidebar (existing blocks keep their values), dropdown choices, settings buttons and text boxes.")
                 : qsTr("Which inputs get a text box of their own, for text with several lines.")
             wrapMode: Text.WordWrap
             color: Theme.textDim
@@ -54,23 +54,83 @@ Popup {
                         required property string defaultKind
                         required property string defaultText
                         required property bool multiline
+                        required property string pieceJson
+                        readonly property var saved: pieceJson ? JSON.parse(pieceJson) : ({})
+                        readonly property var ui: saved.ui || ({})
                         // With no default, a multi-line input starts as empty text.
                         readonly property string kind: defaultKind || (valueType === "Bool" ? "Bool" : multiline ? "Text" : "Number")
                         readonly property string value: defaultKind ? defaultText : (valueType === "Bool" ? "false" : multiline ? "" : "0")
                         objectName: "defaultParameterRow" + index
-                        visible: pieceKind === "Input"
+                        visible: pieceKind === "Input" || pieceKind === "Button"
                         Layout.fillWidth: true
                         spacing: 6
-                        Label { text: defaultRow.pieceName; color: Theme.text; font.bold: true }
+                        Label { textFormat: Text.PlainText; text: defaultRow.pieceName; color: Theme.text; font.bold: true }
                         StitchCheckBox {
                             objectName: "multilineInput"
-                            visible: defaultRow.valueType !== "Bool"
+                            visible: defaultRow.pieceKind === "Input" && defaultRow.valueType !== "Bool" && !(defaultRow.ui.choices || []).length
                             text: qsTr("Multi-line text box under the block")
                             checked: defaultRow.multiline
                             onToggled: editor.pieceModel.setProperty(defaultRow.index, "multiline", checked)
                         }
+                        ColumnLayout {
+                            visible: defaultRow.pieceKind === "Input" && defaultRow.valueType !== "Bool"
+                            Layout.fillWidth: true
+                            Label { text: qsTr("Dropdown choices (one per line; label | value)"); color: Theme.textDim; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                            TextArea {
+                                objectName: "inputChoices"
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 90
+                                Component.onCompleted: text = (defaultRow.ui.choices || []).map(c => c.label === c.value ? c.label : c.label + " | " + c.value).join("\n")
+                                color: Theme.text
+                                wrapMode: TextEdit.Wrap
+                                selectByMouse: true
+                                background: Rectangle { color: Theme.field; border.color: Theme.border; radius: 6 }
+                                onTextChanged: if (activeFocus) editor.setChoices(defaultRow.index, text)
+                            }
+                        }
+                        StitchCheckBox {
+                            objectName: "screenOnlyInput"
+                            visible: defaultRow.pieceKind === "Input"
+                            text: qsTr("Show only in a settings screen")
+                            checked: !!defaultRow.ui.screen_only
+                            onToggled: editor.updatePieceUi(defaultRow.index, {screen_only: checked})
+                        }
+                        ColumnLayout {
+                            visible: defaultRow.pieceKind === "Button"
+                            Layout.fillWidth: true
+                            StitchTextField {
+                                objectName: "settingsScreenTitle"
+                                Layout.fillWidth: true
+                                placeholderText: qsTr("Screen title")
+                                text: defaultRow.saved.title || defaultRow.pieceName
+                                onTextEdited: editor.updateButton(defaultRow.index, {title: text})
+                            }
+                            Label { text: qsTr("Inputs on this screen"); color: Theme.textDim }
+                            Repeater {
+                                model: editor.screenInputChoices()
+                                delegate: StitchCheckBox {
+                                    required property var modelData
+                                    text: modelData.label
+                                    checked: (defaultRow.saved.inputs || []).includes(modelData.id)
+                                    onToggled: {
+                                        let selected = (defaultRow.saved.inputs || []).filter(id => id !== modelData.id);
+                                        if (checked) selected.push(modelData.id);
+                                        editor.updateButton(defaultRow.index, {inputs: selected});
+                                    }
+                                }
+                            }
+                        }
+                        StitchComboBox {
+                            objectName: "defaultChoiceValue"
+                            visible: defaultRow.pieceKind === "Input" && editor.allowDefaults && (defaultRow.ui.choices || []).length > 0
+                            Layout.fillWidth: true
+                            model: defaultRow.ui.choices || []
+                            textRole: "label"
+                            currentIndex: model.findIndex(c => c.value === defaultRow.defaultText)
+                            onActivated: index => editor.setInputDefault(defaultRow.index, "Text", model[index].value)
+                        }
                         RowLayout {
-                            visible: editor.allowDefaults
+                            visible: defaultRow.pieceKind === "Input" && editor.allowDefaults && !(defaultRow.ui.choices || []).length
                             Layout.fillWidth: true
                             StitchComboBox {
                                 objectName: "defaultParameterType"
@@ -95,7 +155,7 @@ Popup {
                             }
                         }
                         StitchScrollView {
-                            visible: editor.allowDefaults && defaultRow.kind === "Text"
+                            visible: defaultRow.pieceKind === "Input" && editor.allowDefaults && !(defaultRow.ui.choices || []).length && defaultRow.kind === "Text"
                             Layout.fillWidth: true
                             Layout.preferredHeight: 80
                             contentWidth: availableWidth
@@ -113,7 +173,7 @@ Popup {
                             }
                         }
                         Label {
-                            visible: editor.allowDefaults && defaultRow.kind === "Number" && (!defaultRow.value.trim().length || !isFinite(Number(defaultRow.value)))
+                            visible: defaultRow.pieceKind === "Input" && editor.allowDefaults && defaultRow.kind === "Number" && (!defaultRow.value.trim().length || !isFinite(Number(defaultRow.value)))
                             text: qsTr("Enter a finite number")
                             color: Theme.danger
                         }

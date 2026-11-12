@@ -2,8 +2,19 @@
   "uri": "com.blockworked.Blockstitch",
   "version": "1.0",
   "dir": "Blockstitch",
-  "qt_modules": ["Qml", "Quick", "QuickControls2", "QuickShapes"],
-  "singletons": ["Theme.qml", "BlockRegistry.qml", "Icons.qml", "Motion.qml"],
+  "qt_modules": [
+    "Qml",
+    "Quick",
+    "QuickControls2",
+    "QuickShapes"
+  ],
+  "singletons": [
+    "Theme.qml",
+    "BlockRegistry.qml",
+    "Icons.qml",
+    "Motion.qml",
+    "BlockUi.qml"
+  ],
   "files": [
     "Theme.qml",
     "BlockRegistry.qml",
@@ -71,6 +82,8 @@
     "StitchScrollView.qml",
     "StitchListView.qml",
     "StitchPage.qml",
-    "StitchScreenDialog.qml"
+    "StitchScreenDialog.qml",
+    "BlockUi.qml",
+    "BlockSettingsDialog.qml"
   ]
 }

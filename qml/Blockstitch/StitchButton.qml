@@ -34,7 +34,7 @@ Button {
             anchors.centerIn: parent
             Image { visible: contentRow.hasImage; source: control.iconSource; width: 16; height: 16; fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true; anchors.verticalCenter: parent.verticalCenter }
             LucideIcon { visible: contentRow.hasGlyph; name: control.iconName; filled: control.iconFilled; color: control.iconColor.a > 0 ? control.iconColor : (control.danger ? Theme.danger : (control.primary ? "white" : control.flat ? Theme.textDim : Theme.text)); width: 16; height: 16; anchors.verticalCenter: parent.verticalCenter }
-            Text { id: label; visible: control.text.length > 0; text: control.text; color: control.danger ? Theme.danger : (control.primary ? "white" : Theme.text); font: control.font; elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter; verticalAlignment: Text.AlignVCenter }
+            Text { id: label; visible: control.text.length > 0; textFormat: Text.PlainText; text: control.text; color: control.danger ? Theme.danger : (control.primary ? "white" : Theme.text); font: control.font; elide: Text.ElideRight; anchors.verticalCenter: parent.verticalCenter; verticalAlignment: Text.AlignVCenter }
         }
     }
     background: Rectangle {

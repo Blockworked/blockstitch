@@ -156,7 +156,9 @@ Item {
     }
 
     readonly property var opSpec: valueData && valueData.kind === "Op" ? BlockRegistry.operator(valueData.op) : null
-    function defFor(id) { return BlockRegistry.definitionById(blockDefinitions, id); }
+    function defFor(id) {
+        return BlockRegistry.definitionById(blockDefinitions, id);
+    }
     readonly property var callDef: valueData && valueData.kind === "Call" ? defFor(valueData.block_id) : null
     readonly property bool emptyBoolean: !!valueData && valueData.kind === "Bool"
     readonly property bool booleanShape: forceBoolean || booleanParameter || (!!valueData && (valueData.kind === "Bool" || (valueData.kind === "Op" && BlockRegistry.isBoolOp(valueData.op, valueData)) || (valueData.kind === "Call" && !!callDef && callDef.shape === "ReturnsBool")))
@@ -224,6 +226,23 @@ Item {
     }
     // What a Call renders: its definition's labels, and one slot per input.
     readonly property var customRow: BlockRegistry.customCallRow(callDef)
+    function openCustomScreen(buttonId) {
+        if (!editable || paletteMode || !callDef)
+            return;
+        const before = JSON.parse(JSON.stringify(valueData)), id = before.block_id;
+        const documentId = canvasState ? canvasState.documentId : "";
+        BlockUi.openCustom(root, callDef, buttonId, before, () => root.editable && (root.canvasState ? root.canvasState.documentId : "") === documentId && root.callDef && root.valueData && root.valueData.block_id === id ? {
+                definition: root.callDef,
+                value: root.valueData
+            } : null, value => {
+            if (root.location) {
+                if (!BlockRegistry.valueReplacementHandler)
+                    return qsTr("This editor cannot replace reporter values.");
+                BlockRegistry.replaceValue(root.location, value);
+            } else
+                root.leafEdited([], value);
+        });
+    }
     function toggleComponent(component, enabled) {
         const value = BlockRegistry.componentValue(enabled);
         if (location)
@@ -242,13 +261,15 @@ Item {
                     return {
                         label: "",
                         arg: p.index,
-                        bool: p.bool
+                        bool: p.bool,
+                        choices: p.options
                     };
                 return {
                     label: p.text || "",
                     arg: -1,
                     bool: false,
                     kind: p.kind,
+                    screen: p.screen,
                     component: p.component
                 };
             });
@@ -830,17 +851,28 @@ Item {
                 id: callPiece
                 required property var modelData
                 required property int index
+                readonly property bool screenButton: modelData.kind === "button"
                 readonly property bool componentControl: modelData.kind === "addComponent" || modelData.kind === "removeComponent"
-                width: componentControl ? 24 : modelData.arg < 0 ? callText.implicitWidth : (callArg.item ? callArg.item.implicitWidth : 0)
-                height: componentControl ? 24 : modelData.arg < 0 ? callText.implicitHeight : (callArg.item ? callArg.item.implicitHeight : 0)
+                width: screenButton ? screenControl.implicitWidth : componentControl ? 24 : modelData.arg < 0 ? callText.implicitWidth : (callArg.item ? callArg.item.implicitWidth : 0)
+                height: screenButton ? screenControl.implicitHeight : componentControl ? 24 : modelData.arg < 0 ? callText.implicitHeight : (callArg.item ? callArg.item.implicitHeight : 0)
                 anchors.verticalCenter: parent ? parent.verticalCenter : undefined
                 Text {
                     id: callText
-                    visible: callPiece.modelData.arg < 0 && !callPiece.componentControl
+                    visible: callPiece.modelData.arg < 0 && !callPiece.componentControl && !callPiece.screenButton
+                    textFormat: Text.PlainText
                     text: callPiece.modelData.label
                     color: Theme.text
                     font.pixelSize: Theme.blockText
                     font.weight: Font.DemiBold
+                }
+                StitchButton {
+                    id: screenControl
+                    objectName: callPiece.screenButton ? "customSettingsButton" : ""
+                    visible: callPiece.screenButton
+                    enabled: root.editable && !root.paletteMode
+                    text: callPiece.modelData.label || ""
+                    iconName: "settings-2"
+                    onClicked: root.openCustomScreen(callPiece.modelData.screen)
                 }
                 Rectangle {
                     anchors.fill: parent
@@ -892,6 +924,7 @@ Item {
                     source: "ValueChip.qml"
                     onLoaded: {
                         const i = callPiece.modelData.arg, args = root.valueData.args || [];
+                        item.leafOptions = callPiece.modelData.choices || null;
                         root.wireNested(item, i, args[i] || (callPiece.modelData.bool ? {
                                 kind: "Bool"
                             } : {

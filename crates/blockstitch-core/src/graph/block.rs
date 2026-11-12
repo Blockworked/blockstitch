@@ -14,6 +14,22 @@ pub enum InputValueType {
     Bool,
 }
 
+/// A text choice shown by both inline inputs and settings screens.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct InputChoice {
+    pub label: String,
+    pub value: String,
+}
+
+/// Optional presentation for an ordinary argument. No code runs from this data.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub struct InputUi {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub choices: Vec<InputChoice>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub screen_only: bool,
+}
+
 /// One piece of a custom block's prototype: static label text, a named
 /// input read in the body via `Value::Param`, or a named branch callback
 /// supplied at the call site and run by the host's branch-execution block.
@@ -39,6 +55,15 @@ pub enum BlockPiece {
         /// Calls draw this input as a multi-line text box under the row.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         multiline: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ui: Option<InputUi>,
+    },
+    /// Opens a settings screen for existing arguments, addressed by stable IDs.
+    Button {
+        id: String,
+        text: String,
+        title: String,
+        inputs: Vec<String>,
     },
     Branch {
         id: String,
@@ -55,10 +80,17 @@ impl BlockPiece {
                 value_type,
                 default_value,
                 multiline,
+                ui,
                 ..
             } => Some(
                 default_value
                     .clone()
+                    .or_else(|| {
+                        ui.as_ref()?
+                            .choices
+                            .first()
+                            .map(|c| Evaluated::Text(c.value.clone()))
+                    })
                     .map(Evaluated::into_value)
                     .unwrap_or_else(|| match value_type {
                         // A text box takes typed lines, which a number slot refuses.
@@ -75,7 +107,8 @@ impl BlockPiece {
         match self {
             BlockPiece::Label { id, .. }
             | BlockPiece::Input { id, .. }
-            | BlockPiece::Branch { id, .. } => id,
+            | BlockPiece::Branch { id, .. }
+            | BlockPiece::Button { id, .. } => id,
         }
     }
 }
@@ -194,7 +227,9 @@ impl BlockDef {
     pub fn input_names(&self) -> impl Iterator<Item = &str> {
         self.pieces.iter().filter_map(|p| match p {
             BlockPiece::Input { name, .. } => Some(name.as_str()),
-            BlockPiece::Label { .. } | BlockPiece::Branch { .. } => None,
+            BlockPiece::Label { .. } | BlockPiece::Branch { .. } | BlockPiece::Button { .. } => {
+                None
+            }
         })
     }
 
@@ -209,7 +244,7 @@ impl BlockDef {
     pub fn branch_names(&self) -> impl Iterator<Item = &str> {
         self.pieces.iter().filter_map(|p| match p {
             BlockPiece::Branch { name, .. } => Some(name.as_str()),
-            BlockPiece::Label { .. } | BlockPiece::Input { .. } => None,
+            BlockPiece::Label { .. } | BlockPiece::Input { .. } | BlockPiece::Button { .. } => None,
         })
     }
 
@@ -218,12 +253,15 @@ impl BlockDef {
     pub fn input_types(&self) -> impl Iterator<Item = InputValueType> + '_ {
         self.pieces.iter().filter_map(|p| match p {
             BlockPiece::Input { value_type, .. } => Some(*value_type),
-            BlockPiece::Label { .. } | BlockPiece::Branch { .. } => None,
+            BlockPiece::Label { .. } | BlockPiece::Branch { .. } | BlockPiece::Button { .. } => {
+                None
+            }
         })
     }
 
     /// Checks input defaults and component metadata without rejecting legacy names.
     pub fn validate_input_defaults(pieces: &[BlockPiece]) -> Result<(), String> {
+        Self::validate_ui(pieces)?;
         let mut after_branch = false;
         for piece in pieces {
             after_branch |= matches!(piece, BlockPiece::Branch { .. });
@@ -271,6 +309,107 @@ impl BlockDef {
         Ok(())
     }
 
+    /// Validates menus even on imports, which may keep legacy parameter names.
+    fn validate_ui(pieces: &[BlockPiece]) -> Result<(), String> {
+        if !pieces.iter().any(|p| {
+            matches!(
+                p,
+                BlockPiece::Button { .. } | BlockPiece::Input { ui: Some(_), .. }
+            )
+        }) {
+            return Ok(());
+        }
+        let mut ids = std::collections::HashSet::new();
+        for piece in pieces {
+            if piece.id().is_empty() || !ids.insert(piece.id()) {
+                return Err("Every piece needs a unique, non-empty id".into());
+            }
+        }
+        let inputs: std::collections::HashSet<_> = pieces
+            .iter()
+            .filter_map(|p| {
+                if let BlockPiece::Input { id, .. } = p {
+                    Some(id.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let mut in_screens = std::collections::HashSet::new();
+        for piece in pieces {
+            if let BlockPiece::Button {
+                text,
+                title,
+                inputs: fields,
+                ..
+            } = piece
+            {
+                if text.trim().is_empty()
+                    || title.trim().is_empty()
+                    || fields.is_empty()
+                    || fields.len() > 128
+                {
+                    return Err("A settings button needs a label, title and 1 to 128 inputs".into());
+                }
+                let mut seen = std::collections::HashSet::new();
+                for id in fields {
+                    if !inputs.contains(id.as_str()) || !seen.insert(id) {
+                        return Err(
+                            "Settings screens must reference unique existing input ids".into()
+                        );
+                    }
+                    in_screens.insert(id.as_str());
+                }
+            }
+        }
+        for piece in pieces {
+            if let BlockPiece::Input {
+                id,
+                name,
+                value_type,
+                component,
+                multiline,
+                ui: Some(ui),
+                default_value,
+                ..
+            } = piece
+            {
+                if ui.screen_only && !in_screens.contains(id.as_str()) {
+                    return Err(format!(
+                        "Input \"{name}\" needs a settings button before it can be hidden"
+                    ));
+                }
+                if *component && (ui.screen_only || !ui.choices.is_empty()) {
+                    return Err("A component toggle cannot be hidden or have choices".into());
+                }
+                if !ui.choices.is_empty() {
+                    if *value_type == InputValueType::Bool || *multiline || ui.choices.len() > 128 {
+                        return Err("Dropdowns need a text input and at most 128 choices".into());
+                    }
+                    let mut seen = std::collections::HashSet::new();
+                    for choice in &ui.choices {
+                        if choice.label.trim().is_empty()
+                            || choice.value.is_empty()
+                            || !seen.insert(&choice.value)
+                        {
+                            return Err(
+                                "Dropdown choices need labels and unique non-empty values".into()
+                            );
+                        }
+                    }
+                    if let Some(default) = default_value
+                        && !matches!(default, Evaluated::Text(text) if seen.contains(text))
+                    {
+                        return Err(format!(
+                            "Input \"{name}\" needs a default from its dropdown choices"
+                        ));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Validates a candidate `pieces` list: the trimmed labels must spell
     /// out a name, every input needs a non-empty, unique one, and branch
     /// callbacks share that same name pool (a branch runs in the body's
@@ -281,7 +420,9 @@ impl BlockDef {
             .iter()
             .filter_map(|p| match p {
                 BlockPiece::Label { text, .. } => Some(text.trim()),
-                BlockPiece::Input { .. } | BlockPiece::Branch { .. } => None,
+                BlockPiece::Input { .. }
+                | BlockPiece::Branch { .. }
+                | BlockPiece::Button { .. } => None,
             })
             .collect::<Vec<_>>()
             .join(" ");
@@ -317,7 +458,7 @@ impl BlockDef {
                         return Err(format!("Branch name \"{trimmed}\" is used more than once"));
                     }
                 }
-                BlockPiece::Label { .. } => {}
+                BlockPiece::Label { .. } | BlockPiece::Button { .. } => {}
             }
         }
         Ok(())
@@ -439,6 +580,7 @@ mod tests {
             value_type: InputValueType::Any,
             default_value: None,
             multiline: false,
+            ui: None,
         };
         assert!(BlockDef::validate_pieces(&[label("jump")]).is_ok());
         assert!(BlockDef::validate_pieces(&[label("  ")]).is_err());
@@ -498,6 +640,7 @@ mod tests {
                     value_type: InputValueType::Any,
                     default_value: None,
                     multiline: false,
+                    ui: None,
                 },
             ])
             .is_err()

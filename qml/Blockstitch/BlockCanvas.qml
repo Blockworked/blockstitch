@@ -9,6 +9,7 @@ Rectangle {
     readonly property alias workspaceItem: workspace
     Accessible.role: Accessible.Grouping
     Accessible.name: qsTr("Block canvas")
+    property string documentId: ""
     property var strands: []
     // A strand the host marks with a badge (BlockRegistry.strandMark).
     property string markedStrandId: ""
@@ -39,6 +40,7 @@ Rectangle {
     signal markClicked(string instructionId)
     signal breakpointClicked(string instructionId)
     readonly property CanvasState canvasState: CanvasState {
+        documentId: root.documentId
         runningIds: root.runningIds
         breakpointIds: root.breakpointIds
         pausedIds: root.pausedIds
@@ -516,16 +518,30 @@ Rectangle {
         flick: flick
         strands: strandRepeater
     }
-    function buildStrand(strand) { builder.buildStrand(strand); }
-    function startStrandBuilder() { builder.start(); }
-    function bulkInsert(strand, repeater, at, n) { builder.bulkInsert(strand, repeater, at, n); }
-    function slotCreated(strand, slot, estH) { builder.slotCreated(strand, slot, estH); }
+    function buildStrand(strand) {
+        builder.buildStrand(strand);
+    }
+    function startStrandBuilder() {
+        builder.start();
+    }
+    function bulkInsert(strand, repeater, at, n) {
+        builder.bulkInsert(strand, repeater, at, n);
+    }
+    function slotCreated(strand, slot, estH) {
+        builder.slotCreated(strand, slot, estH);
+    }
     // How many strands still wait for their blocks.
-    function pendingStrands() { return builder.pendingStrands(); }
+    function pendingStrands() {
+        return builder.pendingStrands();
+    }
     // Strands and top-level blocks still waiting to be built.
-    function pendingBuilds() { return builder.pendingBuilds(); }
+    function pendingBuilds() {
+        return builder.pendingBuilds();
+    }
     // Builds every strand now, for callers that need each block to exist.
-    function buildAllStrands() { builder.buildAllStrands(); }
+    function buildAllStrands() {
+        builder.buildAllStrands();
+    }
     // Scrolls the block with this instruction id into view and outlines it.
     function revealInstruction(id) {
         if (!findBlockItem(workspace, id))
@@ -563,11 +579,11 @@ Rectangle {
     // Retain its outline until the pointer actually moves or leaves the canvas.
     HoverHandler {
         onPointChanged: {
-            if (dragSession.hoveredDropId && Math.hypot(point.scenePosition.x - dragSession.hoveredDropScene.x,
-                    point.scenePosition.y - dragSession.hoveredDropScene.y) > 0.5)
+            if (dragSession.hoveredDropId && Math.hypot(point.scenePosition.x - dragSession.hoveredDropScene.x, point.scenePosition.y - dragSession.hoveredDropScene.y) > 0.5)
                 dragSession.hoveredDropId = "";
         }
-        onHoveredChanged: if (!hovered) dragSession.hoveredDropId = ""
+        onHoveredChanged: if (!hovered)
+            dragSession.hoveredDropId = ""
     }
     // A host overlay can draw active drags outside the clipped canvas.
     property bool externalDragPreview: false
@@ -795,8 +811,12 @@ Rectangle {
     function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap) {
         return snapGeometryHelper.findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap);
     }
-    function applySnap(best, w, h, droppedIsCap, stackHeight) { dragSession.applySnap(best, w, h, droppedIsCap, stackHeight); }
-    function clearSnap() { dragSession.clearSnap(); }
+    function applySnap(best, w, h, droppedIsCap, stackHeight) {
+        dragSession.applySnap(best, w, h, droppedIsCap, stackHeight);
+    }
+    function clearSnap() {
+        dragSession.clearSnap();
+    }
     StrandModel {
         id: strandModel
     }
@@ -817,17 +837,31 @@ Rectangle {
             root.strandOrigins = origins;
         strandModel.sync(list, changing);
     }
-    function beginDrag(strandId, path, tailCount, sx, sy, ox, oy, bw, bh) { dragSession.begin(strandId, path, tailCount, sx, sy, ox, oy, bw, bh); }
-    function moveDrag(sx, sy) { dragSession.move(sx, sy); }
-    function updateSnap() { dragSession.updateSnap(); }
-    function updatePaletteSnap(ghostLeft, ghostTop, instruction, w, h) { dragSession.updatePaletteSnap(ghostLeft, ghostTop, instruction, w, h); }
-    function endDrag(sx, sy) { dragSession.end(sx, sy); }
+    function beginDrag(strandId, path, tailCount, sx, sy, ox, oy, bw, bh) {
+        dragSession.begin(strandId, path, tailCount, sx, sy, ox, oy, bw, bh);
+    }
+    function moveDrag(sx, sy) {
+        dragSession.move(sx, sy);
+    }
+    function updateSnap() {
+        dragSession.updateSnap();
+    }
+    function updatePaletteSnap(ghostLeft, ghostTop, instruction, w, h) {
+        dragSession.updatePaletteSnap(ghostLeft, ghostTop, instruction, w, h);
+    }
+    function endDrag(sx, sy) {
+        dragSession.end(sx, sy);
+    }
     // ---- drop settling: DropSettle.qml; these forward for the drags, hosts and tests ----
     readonly property DropSettle dropSettle: DropSettle {
         canvas: root
     }
-    function settleTrashed() { dropSettle.settleTrashed(); }
-    function settlePaletteDrop() { dropSettle.settlePaletteDrop(); }
+    function settleTrashed() {
+        dropSettle.settleTrashed();
+    }
+    function settlePaletteDrop() {
+        dropSettle.settlePaletteDrop();
+    }
     // Scene point where a palette drop will land (value slot or attach gap), or null.
     function paletteDropScenePoint() {
         if (paletteHighlightItem)
@@ -836,10 +870,18 @@ Rectangle {
             return workspace.mapToItem(null, dragSession.snapX, dragSession.snapY);
         return null;
     }
-    function settleValue(source, x, y, hidden) { dropSettle.settleValue(source, x, y, hidden); }
-    function endSettle() { dropSettle.endSettle(); }
-    function armSettle() { dropSettle.armSettle(); }
-    function cancelDrag() { dragSession.cancel(); }
+    function settleValue(source, x, y, hidden) {
+        dropSettle.settleValue(source, x, y, hidden);
+    }
+    function endSettle() {
+        dropSettle.endSettle();
+    }
+    function armSettle() {
+        dropSettle.armSettle();
+    }
+    function cancelDrag() {
+        dragSession.cancel();
+    }
     // ---- value (operator) drag: hit-testing in ValueDropTargets.qml, the session here ----
     readonly property ValueDropTargets valueTargets: ValueDropTargets {
         canvas: root
@@ -854,8 +896,12 @@ Rectangle {
     function resolveValueSlot(gx, gy, gw, gh, px, py) {
         return valueTargets.resolve(gx, gy, gw, gh, px, py);
     }
-    function clearValueTarget() { valueDrag.clearTarget(); }
-    function setValueHighlight(item) { valueDrag.setHighlight(item); }
+    function clearValueTarget() {
+        valueDrag.clearTarget();
+    }
+    function setValueHighlight(item) {
+        valueDrag.setHighlight(item);
+    }
     function setPaletteValueTarget(loc) {
         paletteValueTarget = loc ? JSON.parse(JSON.stringify(loc)) : null;
     }
@@ -887,11 +933,21 @@ Rectangle {
         const header = strand && (strand.instructions || [])[0];
         return header && header.type === "BlockHeader" ? header.block_id : "";
     }
-    function beginValueDrag(location, value, sx, sy, ox, oy, w, h) { valueDrag.begin(location, value, sx, sy, ox, oy, w, h); }
-    function updateValueTarget(sx, sy) { valueDrag.update(sx, sy); }
-    function moveValueDrag(sx, sy) { valueDrag.update(sx, sy); }
-    function endValueDrag(sx, sy) { valueDrag.end(sx, sy); }
-    function cancelValueDrag() { valueDrag.cancel(); }
+    function beginValueDrag(location, value, sx, sy, ox, oy, w, h) {
+        valueDrag.begin(location, value, sx, sy, ox, oy, w, h);
+    }
+    function updateValueTarget(sx, sy) {
+        valueDrag.update(sx, sy);
+    }
+    function moveValueDrag(sx, sy) {
+        valueDrag.update(sx, sy);
+    }
+    function endValueDrag(sx, sy) {
+        valueDrag.end(sx, sy);
+    }
+    function cancelValueDrag() {
+        valueDrag.cancel();
+    }
     onFloatingValuesChanged: dropSettle.settleOnDocChange()
     // The settling key lives in the shared registry; don't leave it naming a
     // location on whatever canvas comes next.
