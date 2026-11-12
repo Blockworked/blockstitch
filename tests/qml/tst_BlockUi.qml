@@ -28,6 +28,12 @@ Item {
         blockDefinitions: [Object.assign({}, scene.definition, {shape: "ReturnsValue"})]
         location: ({strand_id: "strand", index: [{index: 0}], field: "WaitDuration", path: []})
     }
+    // A row's pieces reach a dropdown as modelData, where arrays are list wrappers.
+    Repeater {
+        id: pieceModel
+        model: [{kind: "dropdown", key: "scope", options: [{value: "All", label: "all"}, {value: "One", label: "one"}]}]
+        Item { readonly property var piece: modelData }
+    }
     BlockDefinitionEditor { id: editor; width: 800; height: 500; y: 200; visible: false }
     TestCase {
         name: "BlockUi"
@@ -207,6 +213,10 @@ Item {
             compare(request.instruction.type, "DetectObjectsInWindow");
             verify(!BlockUi.open("missing", {}, {}));
             compare(BlockRegistry.choices(() => [{value: "Left", label: "Left"}], {}), [{value: "Left", label: "Left"}]);
+            const fromModel = BlockRegistry.choices(pieceModel.itemAt(0).piece.options, {});
+            compare(fromModel.length, 2);
+            compare(fromModel[1].value, "One");
+            compare(BlockRegistry.choices("not a list", {}), []);
         }
     }
 }

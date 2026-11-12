@@ -7,7 +7,9 @@ QtObject {
     id: ui
     function choices(options, instruction) {
         if (typeof options === "function") return options(instruction) || [];
-        return Array.isArray(options) ? options : [];
+        // Through a model's modelData an array arrives as a list wrapper.
+        return options && typeof options === "object" && typeof options.length === "number"
+            ? Array.from(options) : [];
     }
     // Native screens stay in the host; all row buttons use the same router.
     function open(action, request, screens) {
