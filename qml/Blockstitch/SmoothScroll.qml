@@ -98,11 +98,29 @@ QtObject {
     // Touchpads on Wayland and macOS send scroll phases. On X11 the device
     // name is the only reliable hint.
     readonly property bool x11: Qt.platform.pluginName === "xcb"
+    // Windows hands Qt a precision touchpad's scroll as plain WM_MOUSEWHEEL:
+    // mouse device, no phase, no pixelDelta. Only the size gives it away, as
+    // wheels step in whole 120s. Tests set this to play Windows events.
+    property bool windows: Qt.platform.os === "windows"
+    // A stream that showed a fine step stays a touchpad until it pauses, so
+    // a whole 120 inside a fast swipe or the OS's coasting doesn't glide.
+    readonly property int fineStreamGap: 200
+    property real _fineUntil: 0
+    function _windowsTouchpad(event) {
+        const ad = event.angleDelta, now = Date.now();
+        if (ad.x % 120 !== 0 || ad.y % 120 !== 0 || now < _fineUntil) {
+            _fineUntil = now + fineStreamGap;
+            return true;
+        }
+        return false;
+    }
     function isTouchpad(event) {
         // The browser can't tell them apart; every wheel event there takes the
         // follow path, which keeps up when events arrive faster than frames.
         if (Qt.platform.os === "wasm") return true;
         if (event.phase !== Qt.NoScrollPhase) return true;
+        // Hi-res wheels count as touchpads here too, which suits their small steps.
+        if (windows) return _windowsTouchpad(event);
         const dev = event.device;
         if (x11) return !!dev && /touch ?pad|track ?pad|synaptics|glidepoint/i.test(dev.name);
         if (Qt.platform.pluginName === "wayland" || Qt.platform.os === "osx") return false;

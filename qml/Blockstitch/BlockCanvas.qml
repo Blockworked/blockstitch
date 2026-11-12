@@ -356,6 +356,8 @@ Rectangle {
         _prevWorldTop = worldTop;
     }
     property bool _centered: false
+    // The canvas's wheel and touchpad scrolling.
+    readonly property alias scroller: canvasScroll
     CanvasZoom {
         id: zoomer
         canvas: root

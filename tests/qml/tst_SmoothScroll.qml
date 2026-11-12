@@ -75,6 +75,21 @@ Item {
             smooth.scrollTo(NaN, 200, true, 0, v);
             verify(Math.abs(smooth.velocityY - v) < v * 0.05 + 1, smooth.velocityY + " vs " + v);
         }
+        // Windows sends a precision touchpad's scroll as plain wheel events;
+        // fine steps mark it, and a whole 120 inside that stream still counts.
+        function wheel(x, y) { return { angleDelta: Qt.point(x, y), pixelDelta: Qt.point(0, 0), phase: Qt.NoScrollPhase, device: null }; }
+        function test_windowsTouchpadByStepSize() {
+            smooth.windows = true;
+            smooth._fineUntil = 0;
+            verify(!smooth.isTouchpad(wheel(0, -120)), "a wheel notch");
+            verify(!smooth.isTouchpad(wheel(0, 240)), "two notches at once");
+            verify(smooth.isTouchpad(wheel(0, -18)), "a touchpad step");
+            verify(smooth.isTouchpad(wheel(-7, 0)), "a sideways touchpad step");
+            verify(smooth.isTouchpad(wheel(0, -120)), "a whole 120 mid-swipe");
+            wait(smooth.fineStreamGap + 50);
+            verify(!smooth.isTouchpad(wheel(0, -120)), "a notch once the swipe has stopped");
+            smooth.windows = Qt.platform.os === "windows";
+        }
         function test_dragStopsTheGlide() {
             smooth.scrollBy(0, -300, true);
             smooth.stop();
