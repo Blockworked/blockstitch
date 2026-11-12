@@ -3,6 +3,10 @@
 
 use crate::value::{Evaluated, Value};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+
+/// Most inputs a settings button lists, and most choices a dropdown has.
+const MAX_UI_ITEMS: usize = 128;
 
 /// What kind of value an input slot expects. Drives the blank a fresh call
 /// site's argument gets, and so whether it renders as a capsule or a boolean
@@ -309,7 +313,8 @@ impl BlockDef {
         Ok(())
     }
 
-    /// Validates menus even on imports, which may keep legacy parameter names.
+    /// Validates settings buttons and dropdowns, even on imports, which may
+    /// keep legacy parameter names. Blocks without either are left alone.
     fn validate_ui(pieces: &[BlockPiece]) -> Result<(), String> {
         if !pieces.iter().any(|p| {
             matches!(
@@ -319,49 +324,14 @@ impl BlockDef {
         }) {
             return Ok(());
         }
-        let mut ids = std::collections::HashSet::new();
+        // Buttons address inputs by id, so ids must be unique here.
+        let mut ids = HashSet::new();
         for piece in pieces {
             if piece.id().is_empty() || !ids.insert(piece.id()) {
                 return Err("Every piece needs a unique, non-empty id".into());
             }
         }
-        let inputs: std::collections::HashSet<_> = pieces
-            .iter()
-            .filter_map(|p| {
-                if let BlockPiece::Input { id, .. } = p {
-                    Some(id.as_str())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let mut in_screens = std::collections::HashSet::new();
-        for piece in pieces {
-            if let BlockPiece::Button {
-                text,
-                title,
-                inputs: fields,
-                ..
-            } = piece
-            {
-                if text.trim().is_empty()
-                    || title.trim().is_empty()
-                    || fields.is_empty()
-                    || fields.len() > 128
-                {
-                    return Err("A settings button needs a label, title and 1 to 128 inputs".into());
-                }
-                let mut seen = std::collections::HashSet::new();
-                for id in fields {
-                    if !inputs.contains(id.as_str()) || !seen.insert(id) {
-                        return Err(
-                            "Settings screens must reference unique existing input ids".into()
-                        );
-                    }
-                    in_screens.insert(id.as_str());
-                }
-            }
-        }
+        let in_screens = Self::validate_buttons(pieces)?;
         for piece in pieces {
             if let BlockPiece::Input {
                 id,
@@ -383,29 +353,79 @@ impl BlockDef {
                     return Err("A component toggle cannot be hidden or have choices".into());
                 }
                 if !ui.choices.is_empty() {
-                    if *value_type == InputValueType::Bool || *multiline || ui.choices.len() > 128 {
+                    if *value_type == InputValueType::Bool || *multiline {
                         return Err("Dropdowns need a text input and at most 128 choices".into());
                     }
-                    let mut seen = std::collections::HashSet::new();
-                    for choice in &ui.choices {
-                        if choice.label.trim().is_empty()
-                            || choice.value.is_empty()
-                            || !seen.insert(&choice.value)
-                        {
-                            return Err(
-                                "Dropdown choices need labels and unique non-empty values".into()
-                            );
-                        }
-                    }
-                    if let Some(default) = default_value
-                        && !matches!(default, Evaluated::Text(text) if seen.contains(text))
-                    {
-                        return Err(format!(
-                            "Input \"{name}\" needs a default from its dropdown choices"
-                        ));
-                    }
+                    Self::validate_choices(name, &ui.choices, default_value.as_ref())?;
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// Checks every settings button and returns the input ids they show.
+    fn validate_buttons(pieces: &[BlockPiece]) -> Result<HashSet<&str>, String> {
+        let inputs: HashSet<_> = pieces
+            .iter()
+            .filter_map(|p| match p {
+                BlockPiece::Input { id, .. } => Some(id.as_str()),
+                _ => None,
+            })
+            .collect();
+        let mut in_screens = HashSet::new();
+        for piece in pieces {
+            let BlockPiece::Button {
+                text,
+                title,
+                inputs: fields,
+                ..
+            } = piece
+            else {
+                continue;
+            };
+            if text.trim().is_empty()
+                || title.trim().is_empty()
+                || fields.is_empty()
+                || fields.len() > MAX_UI_ITEMS
+            {
+                return Err("A settings button needs a label, title and 1 to 128 inputs".into());
+            }
+            let mut seen = HashSet::new();
+            for id in fields {
+                if !inputs.contains(id.as_str()) || !seen.insert(id) {
+                    return Err("Settings screens must reference unique existing input ids".into());
+                }
+                in_screens.insert(id.as_str());
+            }
+        }
+        Ok(in_screens)
+    }
+
+    /// A dropdown's choices need labels and unique values, and a default
+    /// must be one of them.
+    fn validate_choices(
+        name: &str,
+        choices: &[InputChoice],
+        default_value: Option<&Evaluated>,
+    ) -> Result<(), String> {
+        if choices.len() > MAX_UI_ITEMS {
+            return Err("Dropdowns need a text input and at most 128 choices".into());
+        }
+        let mut seen = HashSet::new();
+        for choice in choices {
+            if choice.label.trim().is_empty()
+                || choice.value.is_empty()
+                || !seen.insert(&choice.value)
+            {
+                return Err("Dropdown choices need labels and unique non-empty values".into());
+            }
+        }
+        if let Some(default) = default_value
+            && !matches!(default, Evaluated::Text(text) if seen.contains(text))
+        {
+            return Err(format!(
+                "Input \"{name}\" needs a default from its dropdown choices"
+            ));
         }
         Ok(())
     }
@@ -437,7 +457,7 @@ impl BlockDef {
         {
             return Err("A block can have at most 255 branches".to_string());
         }
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = HashSet::new();
         for p in pieces {
             match p {
                 BlockPiece::Input { name, .. } => {
