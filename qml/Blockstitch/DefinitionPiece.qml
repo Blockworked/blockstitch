@@ -68,6 +68,7 @@ Item {
     }
     Text {
         id: measure
+        textFormat: Text.PlainText
         anchors.centerIn: parent
         text: piece.editing ? (pieceEditor.text || " ") : (piece.pieceName || (piece.isInput ? qsTr("value") : qsTr("Add label")))
         color: piece.isInput ? Theme.accent : Theme.text

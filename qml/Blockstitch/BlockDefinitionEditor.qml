@@ -254,9 +254,9 @@ Item {
             pieces.append({
                 component: !!p.component,
                 pieceKind: p.kind,
-                pieceName: (p.kind === "Label" ? p.text : p.name) || "",
+                pieceName: (p.kind === "Label" || p.kind === "Button" ? p.text : p.name) || "",
                 valueType: p.kind === "Input" ? (p.value_type || "Any") : "Any",
-                pieceId: p.id || "",
+                pieceId: p.id || uuid(),
                 defaultKind: p.default_value ? p.default_value.kind : "",
                 defaultText: p.default_value ? String(p.default_value.value) : "",
                 pieceJson: JSON.stringify(p),
@@ -298,7 +298,7 @@ Item {
         Qt.callLater(previewViewport.centerPreview);
     }
     function blankPiece(kind, name, valueType) {
-        return { component: false, pieceKind: kind, pieceName: name, valueType: valueType || "Any", pieceId: "", defaultKind: "", defaultText: "", pieceJson: "", multiline: false };
+        return { component: false, pieceKind: kind, pieceName: name, valueType: valueType || "Any", pieceId: uuid(), defaultKind: "", defaultText: "", pieceJson: "", multiline: false };
     }
     // Puts the keyboard in the first piece; the host calls it once shown.
     function focusFirst() {
@@ -358,7 +358,7 @@ Item {
         commitSeparatorEdits();
         if (kind === "Branch" && hasBranches)
             pieces.append(blankPiece("Label", ""));
-        const name = kind === "Label" ? qsTr("label") : nextName(kind === "Branch" ? qsTr("branch") : qsTr("value"));
+        const name = kind === "Label" ? qsTr("label") : nextName(kind === "Branch" ? qsTr("branch") : kind === "Button" ? qsTr("settings") : qsTr("value"));
         let insertAt = pieces.count;
         if (kind !== "Branch") {
             if (selectedPiece >= 0 && selectedPiece < pieces.count)
@@ -470,12 +470,47 @@ Item {
                     return;
                 }
         }
+        const removedId = pieces.get(selectedPiece).pieceId;
+        for (let i = 0; i < pieces.count; ++i) {
+            const p = pieces.get(i), saved = p.pieceJson ? JSON.parse(p.pieceJson) : {};
+            if (p.pieceKind === "Button") updateButton(i, {inputs: (saved.inputs || []).filter(id => id !== removedId)});
+        }
         pieces.remove(selectedPiece);
         selectedPiece = pieces.count ? Math.max(0, Math.min(selectedPiece, pieces.count - 1)) : -1;
     }
     function setInputDefault(index, kind, text) {
         pieces.setProperty(index, "defaultKind", kind);
         pieces.setProperty(index, "defaultText", String(text));
+    }
+    function updatePieceUi(index, patch) {
+        const item = pieces.get(index), saved = item.pieceJson ? JSON.parse(item.pieceJson) : {};
+        saved.ui = Object.assign({}, saved.ui || {}, patch);
+        pieces.setProperty(index, "pieceJson", JSON.stringify(saved));
+    }
+    function setChoices(index, text) {
+        const choices = text.split("\n").filter(line => line.trim().length).map(line => {
+            const split = line.indexOf("|");
+            return {label: (split < 0 ? line : line.slice(0, split)).trim(), value: (split < 0 ? line : line.slice(split + 1)).trim()};
+        });
+        updatePieceUi(index, {choices: choices});
+        if (choices.length) {
+            pieces.setProperty(index, "multiline", false);
+            const p = pieces.get(index);
+            if (p.defaultKind !== "Text" || !choices.some(c => c.value === p.defaultText))
+                setInputDefault(index, "Text", choices[0].value);
+        }
+    }
+    function updateButton(index, patch) {
+        const item = pieces.get(index), saved = item.pieceJson ? JSON.parse(item.pieceJson) : {};
+        pieces.setProperty(index, "pieceJson", JSON.stringify(Object.assign({}, saved, patch)));
+    }
+    function screenInputChoices() {
+        const out = [];
+        for (let i = 0; i < pieces.count; ++i) {
+            const p = pieces.get(i);
+            if (p.pieceKind === "Input") out.push({id: p.pieceId, label: p.pieceName});
+        }
+        return out;
     }
     function inputDefaultForPiece(piece) {
         if (!piece.defaultKind)
@@ -501,8 +536,13 @@ Item {
             const piece = p.pieceJson ? JSON.parse(p.pieceJson) : {};
             piece.kind = p.pieceKind;
             piece.id = p.pieceId || uuid();
-            if (p.pieceKind === "Label") {
+            if (p.pieceKind === "Label" || p.pieceKind === "Button") {
                 piece.text = name;
+                if (p.pieceKind === "Button") {
+                    piece.title = piece.title || name;
+                    piece.inputs = piece.inputs || [];
+                    delete piece.name;
+                }
             } else {
                 piece.name = name;
                 if (p.pieceKind === "Input") {
@@ -546,6 +586,12 @@ Item {
             const text = p.pieceName.trim();
             if (p.pieceKind === "Branch") afterBranch = true;
             if (p.component && afterBranch) return qsTr("Components must come before branches");
+            if (p.pieceKind === "Button") {
+                const button = p.pieceJson ? JSON.parse(p.pieceJson) : {};
+                if (!text.length || !(button.title || text).trim().length || !(button.inputs || []).length)
+                    return qsTr("Choose inputs for every settings button in Inputs");
+                continue;
+            }
             if (p.pieceKind === "Label") {
                 if (text.length)
                     hasLabel = true;
@@ -556,6 +602,20 @@ Item {
             if (names[text])
                 return qsTr("Input and branch names must be unique");
             names[text] = true;
+        }
+        const result = resultPieces(), inputs = result.filter(p => p.kind === "Input");
+        const shown = new Set(result.filter(p => p.kind === "Button").reduce((ids, p) => ids.concat(p.inputs || []), []));
+        for (const input of inputs) {
+            const ui = input.ui || {}, choices = ui.choices || [], seen = new Set();
+            if (ui.screen_only && !shown.has(input.id)) return qsTr("Every hidden input needs a settings button");
+            if (input.component && (ui.screen_only || choices.length)) return qsTr("Component toggles must stay on the block");
+            if (choices.length > 128) return qsTr("A dropdown can have at most 128 choices");
+            for (const choice of choices) {
+                if (!choice.label.trim() || !choice.value || seen.has(choice.value)) return qsTr("Choices need labels and unique non-empty values");
+                seen.add(choice.value);
+            }
+            if (choices.length && input.default_value && (input.default_value.kind !== "Text" || !seen.has(input.default_value.value)))
+                return qsTr("Choose a starting value from the dropdown choices");
         }
         if (!hasLabel)
             return qsTr("Give the block a name");
@@ -948,7 +1008,7 @@ Item {
 
         GridLayout {
             Layout.fillWidth: true
-            columns: root.width < 560 ? 3 : root.allowBranches ? 5 : 4
+            columns: root.width < 560 ? 3 : root.allowBranches ? 6 : 5
             columnSpacing: 8
             Repeater {
                 model: [
@@ -978,6 +1038,13 @@ Item {
                         subtitle: qsTr("nested blocks"),
                         sample: "⌞",
                         kind: "Branch",
+                        valueType: "Any"
+                    },
+                    {
+                        title: qsTr("Button"),
+                        subtitle: qsTr("settings screen"),
+                        sample: "⚙",
+                        kind: "Button",
                         valueType: "Any"
                     },
                     {

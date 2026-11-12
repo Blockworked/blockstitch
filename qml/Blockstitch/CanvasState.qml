@@ -5,6 +5,7 @@ import QtQuick
 // BlockCanvas owns one and hands it to its blocks as `canvasState`.
 QtObject {
     id: state
+    property string documentId: ""
     property var runningIds: []
     property var breakpointIds: []
     property var pausedIds: []

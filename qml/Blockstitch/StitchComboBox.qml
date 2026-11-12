@@ -8,7 +8,7 @@ ComboBox {
     // The list opens at least as wide as its longest entry, so a narrow box doesn't cut them off.
     FontMetrics { id:itemMetrics; font:control.font }
     readonly property real widestItem: { let w=0; for (let i=0;i<count;++i) w=Math.max(w,itemMetrics.advanceWidth(textAt(i))); return w; }
-    contentItem:Text { text:control.displayText;color:control.enabled?Theme.text:Theme.textDim;font:control.font;verticalAlignment:Text.AlignVCenter;elide:Text.ElideRight }
+    contentItem:Text { textFormat: Text.PlainText; text:control.displayText;color:control.enabled?Theme.text:Theme.textDim;font:control.font;verticalAlignment:Text.AlignVCenter;elide:Text.ElideRight }
     indicator:LucideIcon { name:"chevron-down";rotation:control.popup.visible?180:0;color:control.enabled?Theme.text:Theme.textDim;width:15;height:15;x:control.width-width-9;y:(control.height-height)/2
         Behavior on rotation { enabled:Motion.enabled; NumberAnimation { duration:Motion.normal;easing.type:Easing.OutCubic } } }
     background:Rectangle { radius:5;color:control.down?Theme.field:(control.hovered?Theme.hover:Theme.panelRaised);border.color:control.activeFocus?Theme.accent:Theme.border
@@ -29,7 +29,7 @@ ComboBox {
     delegate:ItemDelegate {
         width:ListView.view.width;implicitHeight:32;highlighted:control.highlightedIndex===index
         HoverHandler { cursorShape: Qt.PointingHandCursor }
-        contentItem:Text { text:control.textRole?((modelData!==null&&typeof modelData==="object"&&modelData[control.textRole]!==undefined)?modelData[control.textRole]:model[control.textRole]):modelData;color:Theme.text;font:control.font;verticalAlignment:Text.AlignVCenter }
+        contentItem:Text { textFormat: Text.PlainText; text:control.textRole?((modelData!==null&&typeof modelData==="object"&&modelData[control.textRole]!==undefined)?modelData[control.textRole]:model[control.textRole]):modelData;color:Theme.text;font:control.font;verticalAlignment:Text.AlignVCenter }
         background:Rectangle { radius:4;color:parent.highlighted?Theme.hover:"transparent"; Behavior on color { enabled:Motion.enabled; ColorAnimation { duration:Motion.quick } } }
     }
 }

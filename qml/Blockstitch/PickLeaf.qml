@@ -36,6 +36,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
         }
         Text {
+            textFormat: Text.PlainText
             text: chip.pickLabel
             color: Theme.text
             font.pixelSize: Theme.blockText

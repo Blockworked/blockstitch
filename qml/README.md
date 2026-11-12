@@ -269,3 +269,26 @@ StitchScreenDialog {
 These examples need `QtQuick`, `QtQuick.Controls`, `QtQuick.Layouts` and
 `com.blockworked.Blockstitch 1.0`. The host owns navigation, validation,
 persistence and commands; these components supply presentation and scrolling.
+
+### Custom block interfaces
+
+`BlockPiece::Input` accepts optional `ui: {choices: [{label, value}], screen_only}`.
+Choices are text values; expressions remain valid arguments. The first choice
+is the default when no explicit default is set. A `Button` piece holds
+`{id, text, title, inputs: [inputId]}` and opens a form for those arguments.
+Buttons consume no argument slots. Hidden inputs must belong to a screen.
+The definition editor exposes these options in Inputs and its Button tool.
+
+`BlockUi.openForm(owner, title, fields, values, commit)` creates a draft form. Each
+field has `{id, label, bool?, multiline?, choices?}`. `values` maps field IDs to
+ordinary `Value` data. `commit(changes)` receives only touched values and returns
+an error string to keep the form open, or an empty result on success. The caller
+owns target resolution and one undoable edit. `BlockUi.openCustom` additionally
+checks input references and stale edits for custom calls. Statement and reporter
+calls use it automatically; hosts supply `BlockRegistry.valueReplacementHandler`
+for reporter replacement, as they do for optional custom components.
+
+Host-specific screens register adapters in a map of `action -> function(request)`
+and call `BlockUi.open(action, request, screens)` from their piece-action and
+picker handlers. The existing `BlockRegistry.choices` resolves document name
+sources and delegates static/function choice lists to `BlockUi.choices`.

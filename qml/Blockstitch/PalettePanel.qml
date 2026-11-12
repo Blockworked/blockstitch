@@ -216,7 +216,7 @@ Rectangle {
         };
     }
     function customLabel(definition) {
-        return (definition.pieces || []).filter(p => p.kind !== "Branch").map(p => p.kind === "Label" ? p.text : "(" + p.name + ")").join(" ");
+        return BlockRegistry.definitionLabel(definition);
     }
 
     // ---- search and category filtering ----

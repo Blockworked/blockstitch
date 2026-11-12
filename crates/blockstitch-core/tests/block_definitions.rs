@@ -96,6 +96,7 @@ fn input(id: &str, name: &str) -> BlockPiece {
         value_type: InputValueType::Any,
         default_value: None,
         multiline: false,
+        ui: None,
     }
 }
 fn branch(id: &str, name: &str) -> BlockPiece {
@@ -213,6 +214,7 @@ fn a_new_input_takes_its_default_at_existing_calls() {
         value_type: InputValueType::Any,
         default_value: Some(Evaluated::Number(4.0)),
         multiline: false,
+        ui: None,
     };
     let flag = BlockPiece::Input {
         component: false,
@@ -221,6 +223,7 @@ fn a_new_input_takes_its_default_at_existing_calls() {
         value_type: InputValueType::Bool,
         default_value: None,
         multiline: false,
+        ui: None,
     };
     g.update_block(
         &id,
@@ -370,6 +373,7 @@ fn reporter_shapes_and_bad_definitions() {
                 value_type: InputValueType::Bool,
                 default_value: Some(Evaluated::Number(1.0)),
                 multiline: false,
+                ui: None,
             },
         ], // wrong default type
         vec![
@@ -381,6 +385,7 @@ fn reporter_shapes_and_bad_definitions() {
                 value_type: InputValueType::Any,
                 default_value: Some(Evaluated::Number(f64::INFINITY)),
                 multiline: false,
+                ui: None,
             },
         ], // not finite
     ];
@@ -471,6 +476,7 @@ fn a_multiline_input_round_trips_and_stays_off_when_missing() {
         value_type: InputValueType::Any,
         default_value: None,
         multiline: true,
+        ui: None,
     };
     let json = serde_json::to_value(&boxed).unwrap();
     assert_eq!(json["multiline"], true);
@@ -493,6 +499,7 @@ fn a_multiline_input_round_trips_and_stays_off_when_missing() {
         value_type: InputValueType::Any,
         default_value: None,
         multiline: false,
+        ui: None,
     })
     .unwrap();
     assert!(
@@ -510,6 +517,7 @@ fn a_boolean_input_cant_be_a_multiline_box() {
         value_type: InputValueType::Bool,
         default_value: None,
         multiline: true,
+        ui: None,
     };
     assert!(BlockDef::validate_pieces(&[flag]).is_err());
 }
@@ -523,6 +531,7 @@ fn a_multiline_input_starts_as_empty_text() {
         value_type: InputValueType::Any,
         default_value: None,
         multiline: true,
+        ui: None,
     };
     assert_eq!(boxed.input_default(), Some(Value::text("")));
 }
@@ -573,4 +582,84 @@ fn renaming_a_branch_follows_its_runs_in_the_body() {
         other.instructions[0].kind,
         Block::RunBranch("action".into())
     );
+}
+
+#[test]
+fn declarative_screens_round_trip_and_keep_arguments_by_id() {
+    let pieces: Vec<BlockPiece> = serde_json::from_value(serde_json::json!([
+        {"kind":"Label", "id":"label", "text":"configure"},
+        {"kind":"Input", "id":"mode", "name":"mode", "ui":{"choices":[{"label":"Fast", "value":"fast"},{"label":"Careful", "value":"careful"}]}},
+        {"kind":"Input", "id":"note", "name":"note", "multiline":true, "ui":{"screen_only":true}},
+        {"kind":"Button", "id":"settings", "text":"Options", "title":"Configure", "inputs":["mode", "note"]}
+    ])).unwrap();
+    BlockDef::validate_pieces(&pieces).unwrap();
+    let mut graph = BlockGraph::<Block>::default();
+    let id = make(&mut graph, pieces.clone(), BlockShape::Normal);
+    assert_eq!(
+        graph.block_defs[0].input_names().collect::<Vec<_>>(),
+        ["mode", "note"]
+    );
+    assert_eq!(
+        graph.block_defs[0].input_defaults().collect::<Vec<_>>(),
+        [Value::text("fast"), Value::text("")]
+    );
+    assert_eq!(
+        serde_json::from_str::<Vec<BlockPiece>>(&serde_json::to_string(&pieces).unwrap()).unwrap(),
+        pieces
+    );
+    // A button has no argument and does not disturb the stable input slots.
+    graph.add_strand(
+        0,
+        0,
+        vec![call(
+            &id,
+            vec![Value::text("careful"), Value::text("keep")],
+            vec![],
+        )],
+    );
+    let mut reordered = pieces.clone();
+    reordered.swap(1, 2);
+    graph
+        .update_block(&id, reordered, BlockShape::Normal, "#4C97FF")
+        .unwrap();
+    assert_eq!(
+        args_of(&graph.strands.last().unwrap().instructions[0]),
+        &vec![Value::text("keep"), Value::text("careful")]
+    );
+}
+
+#[test]
+fn declarative_screens_reject_invalid_choices_and_references() {
+    let base = serde_json::json!([
+        {"kind":"Label", "id":"label", "text":"configure"},
+        {"kind":"Input", "id":"mode", "name":"mode", "ui":{"choices":[{"label":"Fast", "value":"fast"}], "screen_only":true}},
+        {"kind":"Button", "id":"settings", "text":"Options", "title":"Configure", "inputs":["mode"]}
+    ]);
+    let check = |json| {
+        BlockDef::validate_input_defaults(&serde_json::from_value::<Vec<BlockPiece>>(json).unwrap())
+    };
+    assert!(check(base.clone()).is_ok());
+    for (index, key, invalid) in [
+        (2, "inputs", serde_json::json!(["missing"])),
+        (2, "inputs", serde_json::json!(["mode", "mode"])),
+        (2, "title", serde_json::json!(" ")),
+        (1, "value_type", serde_json::json!("Bool")),
+        (
+            1,
+            "default_value",
+            serde_json::json!({"kind":"Text", "value":"missing"}),
+        ),
+        (1, "id", serde_json::json!("label")),
+    ] {
+        let mut bad = base.clone();
+        bad[index][key] = invalid;
+        assert!(check(bad).is_err(), "{key} must be checked");
+    }
+    let mut missing_button = base.clone();
+    missing_button.as_array_mut().unwrap().pop();
+    assert!(check(missing_button).is_err());
+    let mut duplicate_choice = base;
+    duplicate_choice[1]["ui"]["choices"] =
+        serde_json::json!([{"label":"A","value":"a"},{"label":"B","value":"a"}]);
+    assert!(check(duplicate_choice).is_err());
 }

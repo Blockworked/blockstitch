@@ -40,6 +40,7 @@ Loader {
         // Event (header) labels use the same caption style as the
         // built-in event blocks above, so every hat reads alike.
         Text {
+            textFormat: Text.PlainText
             text: piece.modelData.text || ""
             color: Theme.text
             font.pixelSize: block.isHeader ? Theme.blockText - 1 : Theme.blockText
@@ -151,9 +152,21 @@ Loader {
         id: buttonPiece
         Rectangle {
             id: pieceButton
+            objectName: "blockScreenButton_" + (piece.modelData.screen || piece.modelData.action || "")
+            activeFocusOnTab: clickable
+            Accessible.role: Accessible.Button
+            Accessible.name: label || piece.modelData.action || qsTr("Block settings")
+            Accessible.onPressAction: activate()
+            function activate() {
+                if (!clickable) return;
+                if (piece.modelData.screen) block.openCustomScreen(piece.modelData.screen);
+                else block.pieceActionRequested(piece.modelData.action || "", block.strandId, block.path, block.instruction);
+            }
+            Keys.onReturnPressed: activate()
+            Keys.onSpacePressed: activate()
             readonly property string picture: piece.modelData.image && block.instruction ? (block.instruction[piece.modelData.image] || "") : ""
             readonly property string label: typeof piece.modelData.text === "function" ? piece.modelData.text(block.instruction) : (piece.modelData.text || "")
-            readonly property bool clickable: !block.paletteMode || !!piece.modelData.palette
+            readonly property bool clickable: !block.locked && (!block.paletteMode || !!piece.modelData.palette)
             implicitWidth: buttonRow.implicitWidth + 14
             implicitHeight: picture ? 34 : 28
             radius: 6
@@ -183,6 +196,7 @@ Loader {
                 }
                 Text {
                     visible: pieceButton.label.length > 0
+                    textFormat: Text.PlainText
                     text: pieceButton.label
                     color: Theme.text
                     font.pixelSize: Theme.blockText
@@ -195,7 +209,7 @@ Loader {
                 hoverEnabled: true
                 enabled: pieceButton.clickable
                 cursorShape: Qt.PointingHandCursor
-                onClicked: block.pieceActionRequested(piece.modelData.action || "", block.strandId, block.path, block.instruction)
+                onClicked: pieceButton.activate()
             }
         }
     }
