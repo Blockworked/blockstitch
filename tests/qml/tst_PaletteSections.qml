@@ -122,5 +122,47 @@ Item {
             verify(palette.itemMatches({ kind: "variables" }));
             palette.searchText = "";
         }
+
+        function test_searchFindsWordsInsideBlocks() {
+            const saved = BlockRegistry.rows;
+            BlockRegistry.registerRows({
+                Key: { head: [{ kind: "label", text: "Key" }, { kind: "value", field: "KeyName", key: "key" },
+                              { kind: "dropdown", key: "pressed", options: [{ value: "down", label: "is pressed" }, { value: "up", label: "is released" }] }] },
+                Wait: { head: [{ kind: "label", text: "Wait" }, { kind: "value", field: "WaitDuration", key: "duration", unit: "ms" }] }
+            });
+            const key = { kind: "instruction", name: "Key" }, wait = { kind: "instruction", name: "Wait" };
+            palette.searchText = "released";
+            verify(palette.itemMatches(key), "a dropdown choice");
+            verify(!palette.itemMatches(wait));
+            palette.searchText = "key pressed";
+            verify(palette.itemMatches(key), "words in any order and place");
+            palette.searchText = "pick random";
+            verify(palette.itemMatches({ kind: "operator", name: "Random" }), "an operator's prefix");
+            palette.searchText = "contains";
+            verify(palette.itemMatches({ kind: "operator", name: "ListContains" }), "an operator's infix");
+            palette.searchText = "sqrt";
+            verify(palette.itemMatches({ kind: "operator", name: "Math" }), "an operator's fixed choices");
+            verify(!palette.noResults);
+            BlockRegistry.rows = saved;
+            palette.searchText = "";
+        }
+
+        function test_typosOnlyCountWhenNothingMatches() {
+            palette.searchText = "clipbaord";
+            verify(palette.nearSearch);
+            verify(palette.itemMatches({ kind: "instruction", name: "SetClipboard" }));
+            verify(!palette.itemMatches({ kind: "instruction", name: "Wait" }));
+            verify(!palette.noResults);
+            palette.searchText = "wiat";
+            verify(palette.itemMatches({ kind: "instruction", name: "Wait" }));
+            palette.searchText = "clipb";
+            verify(!palette.nearSearch, "a partial word is a real match");
+            palette.searchText = "wait";
+            verify(!palette.nearSearch);
+            verify(!palette.itemMatches({ kind: "instruction", name: "Key" }));
+            palette.searchText = "qqzzxx";
+            verify(palette.noResults);
+            palette.searchText = "";
+        }
     }
 }

@@ -407,7 +407,7 @@ Rectangle {
             return (variables || []).some(v => matches(v));
         if (item.kind === "lists" || item.kind === "dicts")
             return false;
-        return matches(item.name);
+        return entryMatches(searchIndex[item.kind + ":" + item.name] || searchEntry(humanize(item.name)));
     }
     function categoryName(id) {
         for (const c of categories)
@@ -489,17 +489,165 @@ Rectangle {
         return String(s).replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
     }
     function matches(label) {
-        return humanize(label).indexOf(searchText.trim().toLowerCase()) >= 0;
+        return entryMatches(searchEntry(humanize(label)));
+    }
+
+    // ---- search ----
+    // A search finds a block by its name or by any word drawn on it: labels,
+    // fixed dropdown choices and component labels. Every query word must
+    // appear somewhere (any order, any part of a word). Only when nothing at
+    // all matches that way do near misses count (one typo in a word of 4+
+    // letters, two from 8+), so a typo still finds something but never adds
+    // noise to a search that already worked.
+    readonly property var searchTokens: searchText.trim().toLowerCase().split(/\s+/).filter(t => t.length > 0)
+    readonly property bool searching: searchTokens.length > 0
+    // Block words drawn by InstructionBlock itself rather than a row.
+    readonly property var controlLabels: ({
+            If: [qsTr("if"), qsTr("then")],
+            IfElse: [qsTr("if"), qsTr("then"), qsTr("else")],
+            Repeat: [qsTr("repeat")],
+            Forever: [qsTr("forever")],
+            While: [qsTr("while")]
+        })
+    // {text, words} for one entry; text is lower case and space-padded.
+    property var searchEntryCache: ({})
+    function searchEntry(text) {
+        let entry = searchEntryCache[text];
+        if (!entry) {
+            const lower = String(text).toLowerCase();
+            entry = {
+                text: " " + lower + " ",
+                words: lower.split(/[^a-z0-9\u00c0-\uffff]+/).filter(w => w.length >= 3)
+            };
+            searchEntryCache[text] = entry;
+        }
+        return entry;
+    }
+    function optionLabels(options) {
+        if (!Array.isArray(options))
+            return [];
+        return options.map(o => o && typeof o === "object" ? String(o.label === undefined ? o.value : o.label) : String(o)).filter(l => !/^\d+$/.test(l));
+    }
+    function pieceTexts(pieces) {
+        const out = [];
+        for (const p of pieces || []) {
+            if (!p)
+                continue;
+            if (p.kind === "label" || p.kind === "button")
+                out.push(p.text || "");
+            out.push(...optionLabels(p.options));
+            if (p.unit)
+                out.push(p.unit);
+        }
+        return out;
+    }
+    function instructionTexts(type) {
+        const out = [humanize(type)].concat(controlLabels[type] || []);
+        const spec = BlockRegistry.row(type);
+        if (spec) {
+            try {
+                out.push(...pieceTexts(typeof spec.head === "function" ? spec.head(prefab(type)) : spec.head));
+            } catch (e) {}
+            for (const c of spec.components || [])
+                out.push(c.label || "", ...pieceTexts(c.pieces));
+        }
+        return out;
+    }
+    function operatorTexts(item) {
+        const out = [humanize(item.name)];
+        const spec = BlockRegistry.operator(item.name);
+        if (spec) {
+            out.push(spec.prefix || "", spec.suffix || "");
+            out.push(...(Array.isArray(spec.infix) ? spec.infix : [spec.infix || ""]));
+            if (spec.enumArg)
+                out.push(...optionLabels(spec.enumArg.options));
+            try {
+                const layout = typeof spec.layout === "function" ? spec.layout(operatorValue(item.spec)) : spec.layout;
+                for (const p of layout || [])
+                    if (p && p.label)
+                        out.push(p.label);
+            } catch (e) {}
+        }
+        return out;
+    }
+    // "instruction:Type" / "operator:Op" -> search entry, built once per
+    // palette change rather than on every keystroke.
+    readonly property var searchIndex: {
+        BlockRegistry.revision;
+        BlockRegistry.rows;
+        BlockRegistry.operators;
+        const out = {};
+        for (const s of resolvedSections)
+            for (const item of s.items) {
+                if (item.kind === "instruction")
+                    out["instruction:" + item.name] = searchEntry(instructionTexts(item.name).join(" "));
+                else if (item.kind === "operator")
+                    out["operator:" + item.name] = searchEntry(operatorTexts(item).join(" "));
+            }
+        return out;
+    }
+    // Every entry a search can show, for the fallback and "no results" checks.
+    readonly property var searchEntries: {
+        const out = Object.values(searchIndex);
+        for (const v of variables || [])
+            out.push(searchEntry(humanize(v)));
+        for (const d of blockDefinitions || [])
+            out.push(searchEntry(humanize(customLabel(d))));
+        for (const p of communityPacks)
+            out.push(searchEntry(humanize(p.name)));
+        return out;
+    }
+    function exactMatch(entry) {
+        return searchTokens.every(t => entry.text.indexOf(t) >= 0);
+    }
+    // Damerau-Levenshtein distance of a and b, or limit + 1 once it's past limit.
+    function editDistance(a, b, limit) {
+        if (Math.abs(a.length - b.length) > limit)
+            return limit + 1;
+        let prev2 = null, prev = [];
+        for (let j = 0; j <= b.length; j++)
+            prev.push(j);
+        for (let i = 1; i <= a.length; i++) {
+            const row = [i];
+            let best = i;
+            for (let j = 1; j <= b.length; j++) {
+                let d = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+                if (prev2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+                    d = Math.min(d, prev2[j - 2] + 1);
+                row.push(d);
+                best = Math.min(best, d);
+            }
+            if (best > limit)
+                return limit + 1;
+            prev2 = prev;
+            prev = row;
+        }
+        return prev[b.length];
+    }
+    // A query word near enough a block word, or the start of one (typing).
+    // Blocks share most words, so each pair is worked out once per query.
+    property var nearWords: ({})
+    function nearWord(token, word) {
+        const key = token + " " + word;
+        let near = nearWords[key];
+        if (near === undefined) {
+            const limit = token.length >= 8 ? 2 : 1;
+            near = editDistance(token, word, limit) <= limit || (word.length > token.length && editDistance(token, word.slice(0, token.length), limit) <= limit);
+            nearWords[key] = near;
+        }
+        return near;
+    }
+    function nearMatch(entry) {
+        return searchTokens.every(t => entry.text.indexOf(t) >= 0 || (t.length >= 4 && entry.words.some(w => nearWord(t, w))));
+    }
+    onSearchTokensChanged: nearWords = {}
+    readonly property bool nearSearch: searching && !searchEntries.some(e => exactMatch(e))
+    function entryMatches(entry) {
+        return exactMatch(entry) || (nearSearch && nearMatch(entry));
     }
     // Palette blocks still building in the background (see the entry Loader).
     property int pendingEntries: 0
-    readonly property bool searching: searchText.trim().length > 0
-    readonly property bool noResults: {
-        if (!searching)
-            return false;
-        const labels = [].concat(allInstructionTypes, Array.from(listInstructionTypes || []), dictsEnabled ? Array.from(dictInstructionTypes || []) : [], allOperators.map(o => o[0]), listOperators.map(o => o[0]), dictsEnabled ? dictOperators.map(o => o[0]) : [], Array.from(variables || []), Array.from(blockDefinitions || []).map(d => customLabel(d)), communityPacks.map(p => p.name));
-        return !labels.some(l => matches(l));
-    }
+    readonly property bool noResults: searching && nearSearch && !searchEntries.some(e => nearMatch(e))
 
     // The block list for one category ("" = every category). A Component so the
     // accordion can host one per open section.
