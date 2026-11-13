@@ -1,4 +1,3 @@
-.pragma library
 // Rows the tests' sample blocks use. Blockstitch has no built-in rows for
 // host blocks such as Wait, so a test registers the ones it draws.
 function register(registry) {
