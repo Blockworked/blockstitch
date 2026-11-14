@@ -69,8 +69,8 @@ Item {
             // Settles within a few frames of the last step, not a 220 ms glide later.
             tryVerify(() => !s.following, 200);
             const moved = f.contentY - start;
-            // Same as Linux: 2 px per step, accelerated from 6 px per px.
-            compare(Math.round(moved), Math.round(20 * s.wheelStep(-24, 0, true) * -1));
+            // At the wheel rate, unaccelerated: 24 units is a fifth of a notch.
+            compare(Math.round(moved), Math.round(20 * 24 / 120 * Qt.styleHints.wheelScrollLines * 24));
             // A wheel notch after the swipe has stopped still glides.
             wait(s.fineStreamGap + 50);
             mouseWheel(canvas, 450, 350, 0, -120);

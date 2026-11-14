@@ -90,6 +90,17 @@ Item {
             verify(!smooth.isTouchpad(wheel(0, -120)), "a notch once the swipe has stopped");
             smooth.windows = Qt.platform.os === "windows";
         }
+        // Windows' driver accelerates already: a fast step pans no more per
+        // unit than a slow one, at the wheel's own rate.
+        function test_windowsTouchpadIsNotAccelerated() {
+            smooth.windows = true;
+            const notch = smooth.wheelStep(-120, 0, false);
+            compare(smooth.wheelStep(-2, 0, true) * 60, notch);
+            compare(smooth.wheelStep(-290, 0, true), notch * 290 / 120);
+            smooth.windows = false;
+            verify(Math.abs(smooth.wheelStep(-290, 0, true)) > Math.abs(notch * 290 / 120) * 2, "Linux touchpads still accelerate");
+            smooth.windows = Qt.platform.os === "windows";
+        }
         function test_dragStopsTheGlide() {
             smooth.scrollBy(0, -300, true);
             smooth.stop();

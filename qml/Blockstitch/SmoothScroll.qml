@@ -131,9 +131,11 @@ QtObject {
     // Flickable step per notch (angleDelta 120, less on hi-res wheels) with no
     // acceleration; a touchpad gets an accelerated pan starting at `base` px
     // per unit. pixelDelta is truncated to ints on touchpads; angleDelta
-    // carries the real resolution (about 12 units per px).
+    // carries the real resolution (about 12 units per px). A Windows
+    // touchpad driver already accelerates and coasts its steps (a quick flick
+    // sends 50+ notches' worth), so there it pans at the plain wheel rate.
     function wheelStep(angleDelta, pixelDelta, touchpad, base) {
-        if (!touchpad) return angleDelta / 120 * Qt.styleHints.wheelScrollLines * 24;
+        if (!touchpad || windows) return angleDelta / 120 * Qt.styleHints.wheelScrollLines * 24;
         const d = angleDelta !== 0 ? angleDelta / 12 : pixelDelta;
         return d * Math.min(24, (base === undefined ? 6 : base) + 1.5 * Math.abs(d));
     }
