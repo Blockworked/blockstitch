@@ -121,6 +121,17 @@ Item {
             tryVerify(() => !openDialog());
         }
 
+        function test_numberFieldHasNoBiggerBox() {
+            plain.instruction = { id: "p1", type: "TestSay", text: { kind: "Number", value: 50 } };
+            const field = named(plain, "expandTextButton").parent;
+            mouseClick(field, 5, 5);
+            verify(field.activeFocus);
+            verify(!named(plain, "expandTextButton").visible);
+            keyClick(Qt.Key_Return, Qt.ShiftModifier);
+            wait(50);
+            verify(!openDialog());
+        }
+
         function test_cancelKeepsTheText() {
             const field = named(plain, "expandTextButton").parent;
             mouseClick(field, 5, 5);
