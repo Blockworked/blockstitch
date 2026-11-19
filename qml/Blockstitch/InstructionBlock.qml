@@ -61,7 +61,7 @@ Item {
     signal valueDragEnded(real sceneX, real sceneY)
     signal valueDragCanceled
     signal runBranchRequested(string strandId, var path, string name)
-    signal keyCaptureRequested(string strandId, var path)
+    signal keyCaptureRequested(string strandId, var path, string field)
     // A registered row's "button" piece was clicked; `action` names it.
     signal pieceActionRequested(string action, string strandId, var path, var instruction)
     signal detailsRequested(string type)
@@ -1143,13 +1143,15 @@ Item {
         }
     }
 
-    // keyCapture is {kind: "Strand", strand_id, index} or {kind: "Standalone"} (see qml/README.md).
-    function isCapturingKey() {
+    // keyCapture is {kind: "Strand", strand_id, index, field?} or {kind: "Standalone"} (see qml/README.md).
+    // Without a field it is the block's only key slot.
+    function isCapturingKey(field) {
         if (!keyCapture)
             return false;
         if (paletteMode)
             return keyCapture.kind === "Standalone";
-        return keyCapture.kind === "Strand" && keyCapture.strand_id === strandId && samePath(keyCapture.index, path);
+        return keyCapture.kind === "Strand" && keyCapture.strand_id === strandId && samePath(keyCapture.index, path)
+            && (!keyCapture.field || !field || keyCapture.field === field);
     }
     // Paths from a host's backend may carry an explicit `slot: null` on every step; ours omit it.
     function samePath(a, b) {

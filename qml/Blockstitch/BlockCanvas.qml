@@ -80,7 +80,7 @@ Rectangle {
     signal paletteDragMoved(real sceneX, real sceneY)
     signal paletteDragEnded(real sceneX, real sceneY)
     signal paletteDragCanceled
-    signal keyCaptureRequested(string strandId, var path)
+    signal keyCaptureRequested(string strandId, var path, string field)
     signal pieceActionRequested(string action, string strandId, var path, var instruction)
     signal detailsRequested(string type)
     signal valueTakeRequested(var location)

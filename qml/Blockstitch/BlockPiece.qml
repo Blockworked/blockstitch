@@ -70,8 +70,8 @@ Loader {
             pick: piece.modelData.pick || null
             flatLeaf: !!piece.modelData.unit
             keyMode: !!piece.modelData.keyCapture
-            keyCapturing: !!piece.modelData.keyCapture && block.isCapturingKey()
-            onKeyCaptureRequested: block.keyCaptureRequested(block.strandId, block.path)
+            keyCapturing: !!piece.modelData.keyCapture && block.isCapturingKey(piece.modelData.field)
+            onKeyCaptureRequested: block.keyCaptureRequested(block.strandId, block.path, piece.modelData.field || "")
             blockDefinitions: block.blockDefinitions
             canvasState: block.canvasState
             onEditRequested: (l, t) => block.valueEdited(l, t)

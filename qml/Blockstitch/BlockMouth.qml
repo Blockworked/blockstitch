@@ -90,7 +90,7 @@ Item {
                     item.valueDragEnded.connect((sx, sy) => block.valueDragEnded(sx, sy));
                     item.valueDragCanceled.connect(() => block.valueDragCanceled());
                     item.runBranchRequested.connect((s, p, n) => block.runBranchRequested(s, p, n));
-                    item.keyCaptureRequested.connect((s, p) => block.keyCaptureRequested(s, p));
+                    item.keyCaptureRequested.connect((s, p, f) => block.keyCaptureRequested(s, p, f));
                     item.detailsRequested.connect(t => block.detailsRequested(t));
                     item.menuActionRequested.connect((a, s, p, i) => block.menuActionRequested(a, s, p, i));
                     item.pieceActionRequested.connect((a, s, p, i) => block.pieceActionRequested(a, s, p, i));

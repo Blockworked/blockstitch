@@ -80,10 +80,13 @@ and `If`, `IfElse`, `Repeat`, `Forever` and `While` are drawn by
 their bodies; `selfDrawnTypes` adds the custom block types). A
 host registers a row for every other type; one without a row draws as its
 icon alone. A value piece's `unit` frames the slot with a caption (`"ms"`),
-and `keyCapture: true` turns a click on its text into `keyCaptureRequested`
-so the host can record a key. While it does, set `BlockCanvas.keyCapture` (and
-the palette's) to `{kind: "Strand", strand_id, index}` (the block's path) or
-`{kind: "Standalone"}` for a palette block, and the slot shows it is waiting.
+and `keyCapture: true` turns a click on its text into
+`keyCaptureRequested(strandId, path, field)` so the host can record a key
+(`field` is the piece's field, for a block with more than one key slot). While
+it does, set `BlockCanvas.keyCapture` (and the palette's) to
+`{kind: "Strand", strand_id, index, field}` (the block's path; `field` may be
+left out when the block has one key slot) or `{kind: "Standalone"}` for a
+palette block, and the slot shows it is waiting.
 `shape`
 (`"header"`/`"cap"`) and `mouths` (the instruction keys holding nested
 bodies) decide a block's outline; the comments in `BlockRegistry.qml` list
