@@ -810,8 +810,8 @@ Rectangle {
     function collectContainers() {
         return snapGeometryHelper.collectContainers();
     }
-    function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap) {
-        return snapGeometryHelper.findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap);
+    function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap, stackConnector) {
+        return snapGeometryHelper.findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap, stackConnector);
     }
     function applySnap(best, w, h, droppedIsCap, stackHeight) {
         dragSession.applySnap(best, w, h, droppedIsCap, stackHeight);
@@ -1236,6 +1236,29 @@ Rectangle {
                     spine: 20
                     mouthHeights: dragSession.draggedMouths
                     flatEnds: dragSession.draggedFlat
+                    partTab: dragSession.draggedPart
+                    partMouths: dragSession.draggedPartMouths
+                }
+            }
+            // Why a near slot won't take the dragged stack (parts vs normal blocks).
+            Rectangle {
+                id: refusedHint
+                objectName: "refusedHint"
+                visible: dragSession.active && !!dragSession.refusedHint && !dragSession.snapValid
+                x: dragSession.hintX
+                y: dragSession.hintY - height - 8
+                z: 96
+                width: hintText.implicitWidth + 20
+                height: hintText.implicitHeight + 10
+                radius: 6
+                color: Theme.dangerBackground
+                border.color: Theme.dangerBorder
+                Text {
+                    id: hintText
+                    anchors.centerIn: parent
+                    text: dragSession.refusedHint
+                    color: Theme.text
+                    font.pixelSize: Theme.blockText - 1
                 }
             }
             // Ghost following the pointer while an existing value is dragged.

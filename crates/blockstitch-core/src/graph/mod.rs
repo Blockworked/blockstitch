@@ -22,7 +22,7 @@ pub use dicts::{
 };
 pub use document::BlockGraph;
 pub use fragment::{Fragment, IdMap};
-pub use instruction::{BlockKind, Instruction, RefKind};
+pub use instruction::{BlockKind, Connector, Instruction, RefKind};
 pub use lists::{
     ListDef, ListItem, ListStore, is_list_reporter, list_index, list_reporter_name_index,
     list_to_json, parse_json_array, rename_list_in_value, resolve_list_reporter,

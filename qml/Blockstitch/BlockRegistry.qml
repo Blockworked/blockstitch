@@ -475,6 +475,23 @@ QtObject {
         return isControlBlock(type) ? controlBlocks[type] : [];
     }
     function isWrap(type) { return type === "BranchCallBlock" || mouthKeys(type).length > 0; }
+    // A row's `connector: "part"` gives its block a square tab: it only stacks
+    // with other parts, inside a mouth its owner's row marks "part" in
+    // `mouthConnectors` (one entry per mouth). "" is the usual tab.
+    function connector(type) {
+        const r = row(type);
+        return (r && r.connector) || "";
+    }
+    function mouthConnector(type, slot) {
+        const r = row(type);
+        return (r && r.mouthConnectors && r.mouthConnectors[slot]) || "";
+    }
+    // Shown while a drag hovers a place its connector doesn't fit. A host
+    // names its parts here ("Only window parts fit here").
+    property var connectorHints: ({
+        part: qsTr("Only parts fit here"),
+        normal: qsTr("This only fits inside the block it belongs to")
+    })
     function isHeader(type) {
         const r = row(type);
         if (r && r.shape) return r.shape === "header";

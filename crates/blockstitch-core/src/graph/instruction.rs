@@ -36,6 +36,21 @@ pub trait BlockKind:
         false
     }
 
+    /// What the app calls its part blocks, for the placement errors the
+    /// editor raises ("Only window parts fit here").
+    const PART_LABEL: &'static str = "part";
+
+    /// The connector this block stacks with. A [`Connector::Part`] block
+    /// only fits a body that takes parts, and only stacks with other parts.
+    fn connector(&self) -> Connector {
+        Connector::Normal
+    }
+
+    /// The connector the body in `slot` takes.
+    fn body_connector(&self, _slot: u8) -> Connector {
+        Connector::Normal
+    }
+
     /// Read-only counterpart to [`BlockKind::body_mut`].
     fn body(&self, _slot: u8) -> Option<&Vec<Instruction<Self>>> {
         None
@@ -111,6 +126,16 @@ pub trait BlockKind:
     fn field_requires_integer(&self, _field: &str) -> bool {
         false
     }
+}
+
+/// Which blocks can stack together. Parts are pieces of the block whose body
+/// holds them (a window's label or button): they never mix with normal
+/// blocks, and they draw with a square tab instead of the usual one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum Connector {
+    #[default]
+    Normal,
+    Part,
 }
 
 /// What a name in [`BlockKind::visit_refs_mut`] refers to. Each has its

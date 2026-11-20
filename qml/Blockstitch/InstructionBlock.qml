@@ -175,7 +175,19 @@ Item {
     }
     // Match the web canvas: the chosen color marks a custom block's icon and
     // hover outline, while the block body stays in the neutral canvas palette.
-    readonly property color displayColor: type === "RunBranch" ? Theme.panelRaised : isCustomBlock ? Theme.block : blockColor
+    readonly property color displayColor: type === "RunBranch" ? Theme.panelRaised : isCustomBlock ? Theme.block : isPart ? Theme.partBlock : blockColor
+    // Part blocks (BlockRegistry.connector) wear a square tab and a tint.
+    readonly property bool isPart: BlockRegistry.connector(type) === "part"
+    readonly property var partMouths: {
+        const out = [];
+        for (let k = 0; k < slotCount(); ++k)
+            out.push(BlockRegistry.mouthConnector(type, k) === "part");
+        return out;
+    }
+    // The connector the list this block sits in takes; "*" takes any. A
+    // block that doesn't match (an older file) is outlined in red.
+    property string placeConnector: "*"
+    readonly property bool misplaced: !paletteMode && placeConnector !== "*" && placeConnector !== BlockRegistry.connector(type)
     implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(type === "RunBranch" ? 150 : isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 28), hasBranchHeader ? pvOuterWidth + 28 : 0, boxPieces.length ? boxes.x + boxes.implicitWidth + 16 : 0)
     implicitHeight: isWrap ? headHeight + mouthTotal + Math.max(0, slotCount() - 1) * midHeight + footHeight + (isCap ? 0 : tabDepth) : hasBranchHeader ? pvTop + pvOuterHeight + 8 + tabDepth : (isCap ? rowHeight - tabDepth : rowHeight) + boxExtra
     z: dragRole > 0 ? 50 : hovered ? 2 : 1
@@ -710,8 +722,8 @@ Item {
         shape: root.isWrap ? "wrap" : root.isHeader ? "header" : root.isCap ? "cap" : "stack"
         fill: root.displayColor
         hovered: root.dragPreview || root.hovered || root.dragRole === 1 || root.flashing || root.running || root.pausedHere
-        hoverColor: root.pausedHere ? Theme.warning : root.running ? Theme.running : root.flashing && root.markText ? Theme.danger : root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : Theme.accent
-        outlineWidth: root.running || root.pausedHere ? 2.6 : 1.3
+        hoverColor: root.misplaced ? Theme.danger : root.pausedHere ? Theme.warning : root.running ? Theme.running : root.flashing && root.markText ? Theme.danger : root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : Theme.accent
+        outlineWidth: root.running || root.pausedHere ? 2.6 : root.misplaced ? 2 : 1.3
         headHeight: root.headHeight
         midHeight: root.midHeight
         footHeight: root.footHeight
@@ -719,6 +731,9 @@ Item {
         mouthHeights: root.isWrap ? root.effMouthHeights : []
         footTab: !(root.isWrap && root.isCap)
         flatEnds: root.flatEnds
+        partTab: root.isPart
+        partMouths: root.partMouths
+        outline: root.misplaced ? Theme.danger : Theme.border
     }
     // Raise highlighted outlines without covering a nested block's hover outline.
     Shape {

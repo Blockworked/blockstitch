@@ -16,7 +16,7 @@ pub use history::{EditSession, History};
 pub use location::{
     ValueBuffers, ValueLocation, drop_strand_buffers, prune_value_buffers, retain_live_buffers,
 };
-pub use ops::{ValueEdit, apply_value_kind};
+pub use ops::{ValueEdit, apply_value_kind, connector_error, misplaced_connector};
 pub use path::{InstrPath, PathStep, resolve_body, resolve_body_mut};
 pub use reporter_branch::{
     BranchArgKeys, OpenBranches, REPORTER_BRANCH_PREFIX, reporter_branch_ids,

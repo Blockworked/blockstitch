@@ -41,6 +41,13 @@ QtObject {
     // kind, mouth heights and flat (cap) ends a real InstructionBlock would
     // report, so the preview draws identical tabs/notches/C-shape.
     function shapeInfoFor(ins) {
+        const info = baseShapeInfo(ins);
+        const t = (ins && ins.type) || "";
+        info.part = BlockRegistry.connector(t) === "part";
+        info.partMouths = info.mouths.map((_, k) => BlockRegistry.mouthConnector(t, k) === "part");
+        return info;
+    }
+    function baseShapeInfo(ins) {
         if (!ins) return { shape: "stack", mouths: [], flat: [] };
         const t = ins.type || "";
         if (isHeaderType(t)) return { shape: "header", mouths: [], flat: [] };
@@ -151,7 +158,8 @@ QtObject {
             const topList = st.instructions || [];
             const topHeights = layoutHeights(topList, st.id, []);
             const lx = st.x + canvas.originOffsetX, ly = st.y + canvas.originOffsetY;
-            out.push({ strandId: st.id, basePath: [], x: lx, y: ly, list: topList, heights: topHeights });
+            const accepts = topList.length ? BlockRegistry.connector(topList[0].type) : "";
+            out.push({ strandId: st.id, basePath: [], x: lx, y: ly, list: topList, heights: topHeights, accepts: accepts });
             let top = ly;
             for (let j = 0; j < topList.length; ++j) {
                 collectChildren(st.id, topList[j], [{ index: j }], lx, top, 1, out);
@@ -182,7 +190,8 @@ QtObject {
             const base = copyPath(pathToBlock);
             base[base.length - 1].slot = k;
             const heights = layoutHeights(body, strandId, base);
-            out.push({ strandId: strandId, basePath: base, x: cX, y: cY, list: body, heights: heights });
+            const accepts = ins.type === "BranchCallBlock" ? "" : BlockRegistry.mouthConnector(ins.type, k);
+            out.push({ strandId: strandId, basePath: base, x: cX, y: cY, list: body, heights: heights, accepts: accepts });
             let childTop = cY;
             for (let ci = 0; ci < body.length; ++ci) {
                 const childPath = copyPath(base);
@@ -205,7 +214,12 @@ QtObject {
     // -8): a dropped block's top sits exactly on the old row top it replaces
     // (or 8px above the old bottom edge at the end / on the mouth origin when
     // empty), and everything after it moves by height-8, not height.
-    function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap) {
+    // The connector a refused near miss wanted ("part" or "normal"), for a
+    // hint while the drag hovers it; "" when nothing near was refused.
+    property string refused: ""
+    function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap, stackConnector) {
+        refused = "";
+        let refusedDist = 1e9;
         const geometry = snapGeometry();
         const containers = geometry.containers || (geometry.containers = collectContainers());
         let best = null, bestEff = 1e9;
@@ -233,6 +247,18 @@ QtObject {
             }
             if (Math.abs(ghostLeft - c.x) > snapThreshold) continue;
             const isTop = c.basePath.length === 0;
+            // A top-level stack takes whatever it starts with; a mouth takes
+            // what its block's row says. Parts and normal blocks never mix.
+            if ((c.accepts || "") !== (stackConnector || "")) {
+                let end = c.y;
+                for (let i = 0; i < list.length; ++i) end += heights[i] - 8;
+                const d = ghostTop < c.y ? c.y - ghostTop : ghostTop > end ? ghostTop - end : 0;
+                if (d < snapThreshold && d < refusedDist) {
+                    refusedDist = d;
+                    refused = c.accepts === "part" ? "part" : "normal";
+                }
+                continue;
+            }
             const headIsHeader = isTop && list.length > 0 && isHeaderType(list[0].type);
             const bounds = [];
             if (!list.length) {
@@ -276,6 +302,8 @@ QtObject {
                 }
             }
         }
+        if (best)
+            refused = "";
         return best;
     }
 }

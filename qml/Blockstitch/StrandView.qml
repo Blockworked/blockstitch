@@ -95,6 +95,7 @@ Column {
                     tailCount: strandBlocks.count - index
                     strandMarked: index === 0 && canvas.markedStrandId === strand.sid
                     dragState: canvas.branchDragState
+                    placeConnector: strand.blockList.length ? BlockRegistry.connector(strand.blockList[0].type) : "*"
                     variables: canvas.variables
                     lists: canvas.lists
                     blockDefinitions: canvas.blockDefinitions

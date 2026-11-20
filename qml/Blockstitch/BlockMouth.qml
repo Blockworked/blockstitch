@@ -77,7 +77,8 @@ Item {
                     branchColor: Qt.binding(() => block.branchColor),
                     keyCapture: Qt.binding(() => block.keyCapture),
                     locked: Qt.binding(() => block.locked),
-                    dragState: Qt.binding(() => block.dragState)
+                    dragState: Qt.binding(() => block.dragState),
+                    placeConnector: Qt.binding(() => block.type === "BranchCallBlock" ? "*" : BlockRegistry.mouthConnector(block.type, slotDelegate.index))
                 })
                 onLoaded: {
                     item.removeRequested.connect((s, p) => block.removeRequested(s, p));

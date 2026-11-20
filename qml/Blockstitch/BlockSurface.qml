@@ -26,16 +26,21 @@ Shape {
     property bool headNotch: true   // wrap: top connector notch
     property bool footTab: true     // wrap: bottom connector tab (false for an ending block / reporter)
     property var flatEnds: []   // per mouth: last nested block has no bottom tab, so the bar below it has no notch
+    property bool partTab: false    // own top notch and bottom tab are square (a part block)
+    property var partMouths: []     // per mouth: its tab and notch are square (the mouth holds parts)
     readonly property real tab: 8
 
     preferredRendererType: Shape.CurveRenderer
 
     // connector profile, relative to the connector's left edge: [x, depth]
     readonly property var profile: [[0, 0], [8, 8], [22, 8], [30, 0]]
+    // A part's connector: straight sides, so it can't seat in the usual one.
+    readonly property var squareProfile: [[2, 0], [2, 8], [28, 8], [28, 0]]
 
-    function connector(ctx, x0, y, reverse) {
+    function connector(ctx, x0, y, reverse, square) {
         const rounding = 1.5;
-        const points = reverse ? profile.slice().reverse() : profile;
+        const shape = square ? squareProfile : profile;
+        const points = reverse ? shape.slice().reverse() : shape;
         const direction = reverse ? -1 : 1;
         for (let i = 0; i < points.length; ++i) {
             const point = points[i];
@@ -51,8 +56,8 @@ Shape {
         }
     }
 
-    function notch(ctx, x0, y) { connector(ctx, x0, y, false); }
-    function tabTo(ctx, x0, y) { connector(ctx, x0, y, true); }
+    function notch(ctx, x0, y, square) { connector(ctx, x0, y, false, square); }
+    function tabTo(ctx, x0, y, square) { connector(ctx, x0, y, true, square); }
 
     function trace(ctx) {
         const ins = .6, r = 5, w = width, h = height;
@@ -62,10 +67,10 @@ Shape {
             const topNotch = shape !== "header", bottomTab = shape !== "cap";
             const base = bottomTab ? h - tab : h;
             ctx.moveTo(L + r, T);
-            if (topNotch) { notch(ctx, 13, T); }
+            if (topNotch) { notch(ctx, 13, T, partTab); }
             ctx.lineTo(R - r, T); ctx.quadraticCurveTo(R, T, R, T + r);
             ctx.lineTo(R, base - r); ctx.quadraticCurveTo(R, base, R - r, base);
-            if (bottomTab) { tabTo(ctx, 13, base); }
+            if (bottomTab) { tabTo(ctx, 13, base, partTab); }
             ctx.lineTo(L + r, base); ctx.quadraticCurveTo(L, base, L, base - r);
             ctx.lineTo(L, T + r); ctx.quadraticCurveTo(L, T, L + r, T);
             ctx.closePath();
@@ -73,11 +78,12 @@ Shape {
         }
         const S = spine, mouthLeft = S + ins, mouths = mouthHeights || [];
         ctx.moveTo(L + r, T);
-        if (headNotch) { notch(ctx, 13, T); }
+        const parts = partMouths || [];
+        if (headNotch) { notch(ctx, 13, T, partTab); }
         ctx.lineTo(R - r, T); ctx.quadraticCurveTo(R, T, R, T + r);
         let y = headHeight;
         ctx.lineTo(R, y - r); ctx.quadraticCurveTo(R, y, R - r, y);
-        tabTo(ctx, S + 13, y);
+        tabTo(ctx, S + 13, y, !!parts[0]);
         ctx.lineTo(mouthLeft + r, y);
         ctx.quadraticCurveTo(mouthLeft, y, mouthLeft, y + r);
         for (let k = 0; k < mouths.length; ++k) {
@@ -86,15 +92,15 @@ Shape {
             // Match the nested block's left corners so the canvas cannot show through.
             ctx.lineTo(mouthLeft, y - r);
             ctx.quadraticCurveTo(mouthLeft, y, mouthLeft + r, y);
-            if (!(flatEnds || [])[k]) { notch(ctx, S + 13, y); }
+            if (!(flatEnds || [])[k]) { notch(ctx, S + 13, y, !!parts[k]); }
             ctx.lineTo(R - r, y); ctx.quadraticCurveTo(R, y, R, y + r);
             y += foot ? footHeight : midHeight;
             ctx.lineTo(R, y - r); ctx.quadraticCurveTo(R, y, R - r, y);
             if (foot) {
-                if (footTab) { tabTo(ctx, 13, y); }
+                if (footTab) { tabTo(ctx, 13, y, partTab); }
                 ctx.lineTo(L + r, y); ctx.quadraticCurveTo(L, y, L, y - r);
             } else {
-                tabTo(ctx, S + 13, y);
+                tabTo(ctx, S + 13, y, !!parts[k + 1]);
                 ctx.lineTo(mouthLeft + r, y);
                 ctx.quadraticCurveTo(mouthLeft, y, mouthLeft, y + r);
             }

@@ -6,7 +6,7 @@ pub mod sources;
 pub mod value;
 
 pub use graph::{
-    BlockGraph, BlockKind, DictDef, DictEntry, DictItem, DictStore, Instruction, ListDef, ListItem,
-    ListStore,
+    BlockGraph, BlockKind, Connector, DictDef, DictEntry, DictItem, DictStore, Instruction,
+    ListDef, ListItem, ListStore,
 };
 pub use value::{Evaluated, Op, Value};

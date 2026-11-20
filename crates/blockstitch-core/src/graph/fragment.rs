@@ -170,6 +170,13 @@ impl<K: BlockKind> BlockGraph<K> {
                 K::HEADER_LABEL
             )));
         }
+        if let Some(want) =
+            crate::editor::misplaced_connector(&fragment.instructions, first.kind.connector())
+        {
+            return Err(EditError::Rejected(crate::editor::connector_error::<K>(
+                want,
+            )));
+        }
         let missing: Vec<String> = fragment
             .called_blocks()
             .into_iter()

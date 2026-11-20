@@ -40,6 +40,14 @@ QtObject {
     property var draggedMouths: []
     property var draggedFlat: []
     property bool draggedIsCap: false
+    property bool draggedPart: false
+    property var draggedPartMouths: []
+    // What the dragged stack stacks with (BlockRegistry.connector), and the
+    // hint for a near miss its connector doesn't fit ("" for none).
+    property string draggedConnector: ""
+    property string refusedHint: ""
+    property real hintX: 0
+    property real hintY: 0
     // Attach preview (canvas drags and palette drags share it).
     // snapHeight is the preview block's own height; snapShiftAmt is how
     // far siblings after it move (height minus the 8px tab overlap that
@@ -112,6 +120,13 @@ QtObject {
         drag.snapTargetY = null;
         drag.snapTargetId = "";
         drag.snapPath = [];
+        drag.refusedHint = "";
+    }
+    function noteRefused(ghostLeft, ghostTop) {
+        const wanted = canvas.snapGeometryHelper.refused;
+        drag.refusedHint = wanted ? (BlockRegistry.connectorHints[wanted] || "") : "";
+        drag.hintX = ghostLeft;
+        drag.hintY = ghostTop;
     }
     function prevSnapObj() {
         if (!drag.snapValid)
@@ -158,6 +173,9 @@ QtObject {
         drag.draggedMouths = si.mouths;
         drag.draggedFlat = si.flat;
         drag.draggedIsCap = !!(instruction && canvas.isCapBlock(instruction));
+        drag.draggedPart = si.part;
+        drag.draggedPartMouths = si.partMouths;
+        drag.draggedConnector = instruction ? BlockRegistry.connector(instruction.type) : "";
         // Shrink the home mouth for the drag's duration (see sourceShrink).
         // Top-level tails have no mouth shell, so only nested paths shrink.
         drag.sourceStrandId = strandId;
@@ -222,8 +240,9 @@ QtObject {
             };
         }
         const t = geometry.tail;
-        const best = canvas.findSnap(ghostLeft, ghostTop, drag.strandId, sourcePath, isWhole, prevSnapObj(), t.height, t.endsCap);
+        const best = canvas.findSnap(ghostLeft, ghostTop, drag.strandId, sourcePath, isWhole, prevSnapObj(), t.height, t.endsCap, drag.draggedConnector);
         applySnap(best, t.width, drag.draggedHeight, t.endsCap, t.height);
+        noteRefused(ghostLeft, ghostTop);
     }
     // Palette (new-block) drags share the same preview: a header prefab can
     // never snap into an existing strand, anything else uses the same
@@ -239,12 +258,16 @@ QtObject {
         drag.draggedMouths = si.mouths;
         drag.draggedFlat = si.flat;
         drag.draggedIsCap = canvas.isCapBlock(instruction);
+        drag.draggedPart = si.part;
+        drag.draggedPartMouths = si.partMouths;
+        drag.draggedConnector = BlockRegistry.connector(instruction.type);
         // The ghost's measured height wins: blockHeight only estimates blocks
         // that aren't on the canvas, and calls every plain block one row.
         drag.draggedWidth = w || 200;
         drag.draggedHeight = h > 0 ? h : (canvas.blockHeight(instruction) || 58);
-        const best = canvas.findSnap(ghostLeft + canvas.originOffsetX, ghostTop + canvas.originOffsetY, null, [], false, prevSnapObj(), drag.draggedHeight, drag.draggedIsCap);
+        const best = canvas.findSnap(ghostLeft + canvas.originOffsetX, ghostTop + canvas.originOffsetY, null, [], false, prevSnapObj(), drag.draggedHeight, drag.draggedIsCap, drag.draggedConnector);
         applySnap(best, drag.draggedWidth, drag.draggedHeight, drag.draggedIsCap);
+        noteRefused(ghostLeft + canvas.originOffsetX, ghostTop + canvas.originOffsetY);
     }
     function end(sx, sy) {
         if (!drag.active)

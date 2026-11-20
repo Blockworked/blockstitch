@@ -4,8 +4,8 @@
 use crate::editor::location::ValueLocation;
 use crate::editor::path::{PathStep, resolve_body, resolve_body_mut};
 use crate::graph::{
-    BlockDef, BlockGraph, BlockKind, BlockPiece, BlockShape, Comment, FloatingValue, Instruction,
-    Strand, normalize_block_color,
+    BlockDef, BlockGraph, BlockKind, BlockPiece, BlockShape, Comment, Connector, FloatingValue,
+    Instruction, Strand, normalize_block_color,
 };
 use crate::value::{Evaluated, Value, operator_kind};
 use std::collections::HashMap;
@@ -75,6 +75,47 @@ impl<K: BlockKind> BlockGraph<K> {
         Ok(())
     }
 
+    /// The connector the list `path` points into takes: a body's own, or
+    /// for a strand's top level whatever its first block is. `None` takes
+    /// anything. `moving_top` is a top-level index about to move away, so a
+    /// strand whose whole stack moves doesn't judge by its old first block.
+    fn list_connector(
+        &self,
+        strand_id: &str,
+        path: &[PathStep],
+        moving_top: Option<usize>,
+    ) -> Option<Connector> {
+        let strand = self.strand(strand_id)?;
+        if path.len() <= 1 {
+            if moving_top == Some(0) {
+                return None;
+            }
+            return strand.instructions.first().map(|ins| ins.kind.connector());
+        }
+        let owner_path = &path[..path.len() - 1];
+        let slot = owner_path.last()?.slot?;
+        let owner = self.instruction_at(strand_id, owner_path)?;
+        Some(owner.kind.body_connector(slot))
+    }
+
+    /// Parts only stack with parts, inside a body that takes them; every
+    /// other block stays out of such a body.
+    fn check_connectors(
+        &self,
+        strand_id: &str,
+        path: &[PathStep],
+        moving: &[Instruction<K>],
+        moving_top: Option<usize>,
+    ) -> Result<(), String> {
+        let Some(want) = self.list_connector(strand_id, path, moving_top) else {
+            return Ok(());
+        };
+        if moving.iter().all(|ins| ins.kind.connector() == want) {
+            return Ok(());
+        }
+        Err(connector_error::<K>(want))
+    }
+
     /// Inserts `instruction` at `path`. `Ok(false)` means the path doesn't
     /// resolve and nothing happened; a rejected placement is an `Err`.
     pub fn insert_instruction(
@@ -84,6 +125,7 @@ impl<K: BlockKind> BlockGraph<K> {
         instruction: Instruction<K>,
     ) -> Result<bool, String> {
         self.check_header_placement(strand_id, path, &instruction)?;
+        self.check_connectors(strand_id, path, std::slice::from_ref(&instruction), None)?;
         let Some(strand) = self.strand_mut(strand_id) else {
             return Ok(false);
         };
@@ -293,6 +335,9 @@ impl<K: BlockKind> BlockGraph<K> {
         {
             return Err(format!("Can't attach a strand above a {label} block"));
         }
+        if let Some(dragged) = self.strand(dragged_id) {
+            self.check_connectors(target_id, path, &dragged.instructions, None)?;
+        }
         let dragged_pos = self
             .strands
             .iter()
@@ -366,6 +411,12 @@ impl<K: BlockKind> BlockGraph<K> {
             {
                 return Err("Can't attach a block inside itself".to_string());
             }
+        }
+        {
+            let (list, index) = resolve_body(&source.instructions, source_path)
+                .ok_or("Unknown source instruction path")?;
+            let moving_top = (source_id == target_id && source_path.len() == 1).then_some(index);
+            self.check_connectors(target_id, target_path, &list[index..], moving_top)?;
         }
         // Mutate: extract the tail, then insert it. On target failure put the
         // tail back where it came from rather than dropping instructions.
@@ -818,4 +869,37 @@ pub fn apply_value_kind(
         }
     }
     Ok(())
+}
+
+/// Why a block can't go where it was dropped, for a body or stack that
+/// takes `want`.
+pub fn connector_error<K: BlockKind>(want: Connector) -> String {
+    match want {
+        Connector::Part => format!("Only {}s fit here", K::PART_LABEL),
+        Connector::Normal => format!(
+            "A {} only fits inside the block it belongs to",
+            K::PART_LABEL
+        ),
+    }
+}
+
+/// The first connector in `list`, or anything nested in it, that its place
+/// doesn't take.
+pub fn misplaced_connector<K: BlockKind>(
+    list: &[Instruction<K>],
+    want: Connector,
+) -> Option<Connector> {
+    for ins in list {
+        if ins.kind.connector() != want {
+            return Some(want);
+        }
+        for slot in 0..K::BODY_SLOTS {
+            if let Some(body) = ins.body(slot)
+                && let Some(found) = misplaced_connector(body, ins.kind.body_connector(slot))
+            {
+                return Some(found);
+            }
+        }
+    }
+    None
 }
