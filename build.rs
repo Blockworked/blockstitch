@@ -1,6 +1,7 @@
 use cxx_qt_build::{CxxQtBuilder, QmlFile, QmlModule};
 use serde_json::Value;
 use std::collections::BTreeSet;
+use std::path::PathBuf;
 
 // qml/module.json is the one list of the module's files; cmake/BlockstitchQml.cmake reads it too.
 const MANIFEST: &str = "qml/module.json";
@@ -51,7 +52,33 @@ fn main() {
         .fold(CxxQtBuilder::new_qml_module(module), |builder, qt| {
             builder.qt_module(qt)
         })
+        .qrc(folder_qmldir(&field("uri"), &dir, &singletons))
         .build();
+}
+
+/// A qmldir for the folder the files sit in inside the module. A file's own
+/// folder is imported before the module, and without a qmldir there every
+/// file is a plain type: where Qt resolves a name at run time instead of in
+/// the compiled code (Qt 6.12 does for `Motion`), a singleton then comes
+/// back as a type with no properties. The .qrc gets its own name because
+/// rcc names its init function after the file, and a host's resources_0.qrc
+/// would otherwise replace this one at link time.
+fn folder_qmldir(uri: &str, dir: &str, singletons: &[String]) -> PathBuf {
+    let out = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("folder_qmldir");
+    std::fs::create_dir_all(&out).expect("cannot create the folder qmldir directory");
+    let text: String = singletons
+        .iter()
+        .map(|name| format!("singleton {} 1.0 {name}\n", name.trim_end_matches(".qml")))
+        .collect();
+    std::fs::write(out.join("qmldir"), text).expect("cannot write the folder qmldir");
+    let prefix = format!("/qt/qml/{}/{dir}", uri.replace('.', "/"));
+    let qrc = out.join("blockstitch_folder_qmldir.qrc");
+    std::fs::write(
+        &qrc,
+        format!("<RCC>\n  <qresource prefix=\"{prefix}\">\n    <file>qmldir</file>\n  </qresource>\n</RCC>\n"),
+    )
+    .expect("cannot write the folder qmldir .qrc");
+    qrc
 }
 
 /// Every .qml file in the directory is listed, and every listed file exists.
