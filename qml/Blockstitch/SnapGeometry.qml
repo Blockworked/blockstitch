@@ -214,12 +214,7 @@ QtObject {
     // -8): a dropped block's top sits exactly on the old row top it replaces
     // (or 8px above the old bottom edge at the end / on the mouth origin when
     // empty), and everything after it moves by height-8, not height.
-    // The connector a refused near miss wanted ("part" or "normal"), for a
-    // hint while the drag hovers it; "" when nothing near was refused.
-    property string refused: ""
     function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap, stackConnector) {
-        refused = "";
-        let refusedDist = 1e9;
         const geometry = snapGeometry();
         const containers = geometry.containers || (geometry.containers = collectContainers());
         let best = null, bestEff = 1e9;
@@ -249,16 +244,7 @@ QtObject {
             const isTop = c.basePath.length === 0;
             // A top-level stack takes whatever it starts with; a mouth takes
             // what its block's row says. Parts and normal blocks never mix.
-            if ((c.accepts || "") !== (stackConnector || "")) {
-                let end = c.y;
-                for (let i = 0; i < list.length; ++i) end += heights[i] - 8;
-                const d = ghostTop < c.y ? c.y - ghostTop : ghostTop > end ? ghostTop - end : 0;
-                if (d < snapThreshold && d < refusedDist) {
-                    refusedDist = d;
-                    refused = c.accepts === "part" ? "part" : "normal";
-                }
-                continue;
-            }
+            if ((c.accepts || "") !== (stackConnector || "")) continue;
             const headIsHeader = isTop && list.length > 0 && isHeaderType(list[0].type);
             const bounds = [];
             if (!list.length) {
@@ -302,8 +288,6 @@ QtObject {
                 }
             }
         }
-        if (best)
-            refused = "";
         return best;
     }
 }

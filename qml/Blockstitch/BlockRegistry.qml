@@ -486,12 +486,6 @@ QtObject {
         const r = row(type);
         return (r && r.mouthConnectors && r.mouthConnectors[slot]) || "";
     }
-    // Shown while a drag hovers a place its connector doesn't fit. A host
-    // names its parts here ("Only window parts fit here").
-    property var connectorHints: ({
-        part: qsTr("Only parts fit here"),
-        normal: qsTr("This only fits inside the block it belongs to")
-    })
     function isHeader(type) {
         const r = row(type);
         if (r && r.shape) return r.shape === "header";
