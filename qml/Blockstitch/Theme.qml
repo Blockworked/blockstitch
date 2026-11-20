@@ -23,6 +23,9 @@ QtObject {
     readonly property color running: dark ? "#3ccf6e" : "#18743b"
     readonly property color block: dark ? "#3b3c40" : "#e1e5eb"
     readonly property color blockTop: dark ? "#44454a" : "#d5dbe4"
+    // Blocks of another stack kind (BlockRegistry.stackOf), tinted so they read as their own family.
+    readonly property color blockAlt: dark ? "#3c3950" : "#e3def5"
+    readonly property color borderAlt: dark ? "#6a5fb4" : "#9a8dd3"
     readonly property color menu: panelRaised
     readonly property color hover: dark ? "#3b3c40" : "#dbe1e9"
     readonly property color selection: dark ? "#1d3a55" : "#d9eaff"

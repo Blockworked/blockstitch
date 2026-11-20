@@ -92,6 +92,12 @@ palette block, and the slot shows it is waiting.
 bodies) decide a block's outline; the comments in `BlockRegistry.qml` list
 every piece kind. For an instruction-dependent ending, `shape` may be a
 function of the instruction returning `"cap"` or `"stack"`.
+`stack` names the kind of stack a block joins and `mouthStacks` the kind
+each mouth holds (both default to `""`, the ordinary kind). Blocks only snap
+where their kind fits; any other kind draws a square tab and a tinted body,
+and one sitting in the wrong place (an older document) is dimmed with a
+warning. Match them to `BlockKind::stack_kind`/`body_stack_kind` in the core,
+and set `BlockRegistry.stackMismatchText` for the hint and warning wording.
 `blockMenu`/`canvasMenu` add app-specific context menu
 items, which come back through `blockMenuAction`/`canvasMenuAction`. An
 operator's `enumArg` may give its choices as an array, a function, or

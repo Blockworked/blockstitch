@@ -41,19 +41,21 @@ QtObject {
     // kind, mouth heights and flat (cap) ends a real InstructionBlock would
     // report, so the preview draws identical tabs/notches/C-shape.
     function shapeInfoFor(ins) {
-        if (!ins) return { shape: "stack", mouths: [], flat: [] };
+        if (!ins) return { shape: "stack", mouths: [], flat: [], stack: "", mouthStacks: [] };
         const t = ins.type || "";
-        if (isHeaderType(t)) return { shape: "header", mouths: [], flat: [] };
-        if (isCapBlock(ins)) return { shape: "cap", mouths: [], flat: [] };
-        if (!isWrapType(t)) return { shape: "stack", mouths: [], flat: [] };
+        const stack = BlockRegistry.stackOf(t);
+        if (isHeaderType(t)) return { shape: "header", mouths: [], flat: [], stack: stack, mouthStacks: [] };
+        if (isCapBlock(ins)) return { shape: "cap", mouths: [], flat: [], stack: stack, mouthStacks: [] };
+        if (!isWrapType(t)) return { shape: "stack", mouths: [], flat: [], stack: stack, mouthStacks: [] };
         const n = slotCountFor(ins);
-        const mouths = [], flat = [];
+        const mouths = [], flat = [], mouthStacks = [];
         for (let k = 0; k < n; ++k) {
             const body = bodyFor(ins, k);
             mouths.push(mouthHeightFor(body));
             flat.push(body.length > 0 && isCapBlock(body[body.length - 1]));
+            mouthStacks.push(t === "BranchCallBlock" ? "" : BlockRegistry.mouthStack(t, k));
         }
-        return { shape: "wrap", mouths: mouths, flat: flat };
+        return { shape: "wrap", mouths: mouths, flat: flat, stack: stack, mouthStacks: mouthStacks };
     }
     function listFor(strand, basePath) {
         let list = (strand && strand.instructions) || [];
@@ -151,7 +153,9 @@ QtObject {
             const topList = st.instructions || [];
             const topHeights = layoutHeights(topList, st.id, []);
             const lx = st.x + canvas.originOffsetX, ly = st.y + canvas.originOffsetY;
-            out.push({ strandId: st.id, basePath: [], x: lx, y: ly, list: topList, heights: topHeights });
+            // A strand's top level holds its first block's stack kind.
+            const topStack = topList.length ? BlockRegistry.stackOf(topList[0].type) : null;
+            out.push({ strandId: st.id, basePath: [], x: lx, y: ly, list: topList, heights: topHeights, stack: topStack });
             let top = ly;
             for (let j = 0; j < topList.length; ++j) {
                 collectChildren(st.id, topList[j], [{ index: j }], lx, top, 1, out);
@@ -162,6 +166,7 @@ QtObject {
         canvas.branchContainers(canvas.workspaceItem, branches);
         for (const branch of branches) {
             branch.heights = layoutHeights(branch.list, branch.strandId, branch.basePath);
+            branch.stack = "";
             out.push(branch);
             let y = branch.y;
             for (let i = 0; i < branch.list.length; ++i) {
@@ -182,7 +187,8 @@ QtObject {
             const base = copyPath(pathToBlock);
             base[base.length - 1].slot = k;
             const heights = layoutHeights(body, strandId, base);
-            out.push({ strandId: strandId, basePath: base, x: cX, y: cY, list: body, heights: heights });
+            const stack = ins.type === "BranchCallBlock" ? "" : BlockRegistry.mouthStack(ins.type, k);
+            out.push({ strandId: strandId, basePath: base, x: cX, y: cY, list: body, heights: heights, stack: stack });
             let childTop = cY;
             for (let ci = 0; ci < body.length; ++ci) {
                 const childPath = copyPath(base);
@@ -205,10 +211,14 @@ QtObject {
     // -8): a dropped block's top sits exactly on the old row top it replaces
     // (or 8px above the old bottom edge at the end / on the mouth origin when
     // empty), and everything after it moves by height-8, not height.
-    function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap) {
+    // `stackKinds` are the dragged blocks' stack kinds: a container of another
+    // kind is no snap point. When the only near one is refused, the result is
+    // { blocked: {stack, want, x, y} } so the canvas can say why.
+    function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap, stackKinds) {
         const geometry = snapGeometry();
         const containers = geometry.containers || (geometry.containers = collectContainers());
-        let best = null, bestEff = 1e9;
+        const kinds = stackKinds || [];
+        let best = null, bestEff = 1e9, blocked = null, blockedEff = 1e9;
         const srcParentBase = (sourceId && sourcePath && sourcePath.length) ? sourcePath.slice(0, sourcePath.length - 1) : null;
         const srcIdx = (sourceId && sourcePath && sourcePath.length) ? sourcePath[sourcePath.length - 1].index : -1;
         for (let ci = 0; ci < containers.length; ++ci) {
@@ -233,6 +243,7 @@ QtObject {
             }
             if (Math.abs(ghostLeft - c.x) > snapThreshold) continue;
             const isTop = c.basePath.length === 0;
+            const odd = c.stack === null || c.stack === undefined ? undefined : kinds.find(k => k !== c.stack);
             const headIsHeader = isTop && list.length > 0 && isHeaderType(list[0].type);
             const bounds = [];
             if (!list.length) {
@@ -267,6 +278,13 @@ QtObject {
                 const isCur = prevSnap && prevSnap.targetId === c.strandId && baseEqual(prevSnap.path, path);
                 const distance = Math.hypot(ghostLeft - c.x, dist);
                 const eff = isCur ? Math.max(0, distance - snapSticky) : distance;
+                if (odd !== undefined) {
+                    if (eff < blockedEff) {
+                        blocked = { stack: odd, want: c.stack, x: c.x, y: b.y };
+                        blockedEff = eff;
+                    }
+                    continue;
+                }
                 if (best === null || eff < bestEff) {
                     const shift = prepend ? stackHeight - 8 : 0;
                     best = { targetId: c.strandId, path: path, x: c.x, y: b.y - shift,
@@ -276,6 +294,6 @@ QtObject {
                 }
             }
         }
-        return best;
+        return best || (blocked ? { blocked: blocked } : null);
     }
 }

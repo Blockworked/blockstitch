@@ -39,6 +39,8 @@ QtObject {
     property string draggedShape: "stack"
     property var draggedMouths: []
     property var draggedFlat: []
+    property string draggedStack: ""
+    property var draggedMouthStacks: []
     property bool draggedIsCap: false
     // Attach preview (canvas drags and palette drags share it).
     // snapHeight is the preview block's own height; snapShiftAmt is how
@@ -57,6 +59,10 @@ QtObject {
     property real snapGrowAmt: 50
     // Publish animation inputs together so a new mouth never uses the old gap size.
     property var snapLayout: null
+    // Why the nearest spot refused the dragged blocks (another stack kind), and where.
+    property string blockedText: ""
+    property real blockedX: 0
+    property real blockedY: 0
     // Source collapse: the mouth the dragged tail is being pulled out of
     // renders as if the tail were already gone (the webapp splits the
     // strand on pickup; here the model only changes on drop). Shrink is
@@ -75,10 +81,16 @@ QtObject {
     property real settleDx: 0
     property real settleDy: 0
     function applySnap(best, w, h, droppedIsCap, stackHeight) {
-        if (!best) {
+        if (!best || best.blocked) {
             clearSnap();
+            if (best) {
+                drag.blockedText = BlockRegistry.stackMismatchText(best.blocked.stack, best.blocked.want);
+                drag.blockedX = best.blocked.x;
+                drag.blockedY = best.blocked.y;
+            }
             return;
         }
+        drag.blockedText = "";
         drag.snapTargetId = best.targetId;
         drag.snapTargetY = best.targetY === undefined ? null : best.targetY;
         drag.snapPath = best.path;
@@ -107,6 +119,7 @@ QtObject {
         };
     }
     function clearSnap() {
+        drag.blockedText = "";
         drag.snapLayout = null;
         drag.snapValid = false;
         drag.snapTargetY = null;
@@ -157,6 +170,8 @@ QtObject {
         drag.draggedShape = si.shape;
         drag.draggedMouths = si.mouths;
         drag.draggedFlat = si.flat;
+        drag.draggedStack = si.stack;
+        drag.draggedMouthStacks = si.mouthStacks;
         drag.draggedIsCap = !!(instruction && canvas.isCapBlock(instruction));
         // Shrink the home mouth for the drag's duration (see sourceShrink).
         // Top-level tails have no mouth shell, so only nested paths shrink.
@@ -216,13 +231,14 @@ QtObject {
                     width = Math.max(width, item.implicitWidth);
             }
             geometry.tail = {
+                stacks: tail.map(instruction => BlockRegistry.stackOf(instruction.type)),
                 endsCap: tail.length > 0 && canvas.isCapBlock(tail[tail.length - 1]),
                 height: canvas.contentHeightFor(tail),
                 width: width
             };
         }
         const t = geometry.tail;
-        const best = canvas.findSnap(ghostLeft, ghostTop, drag.strandId, sourcePath, isWhole, prevSnapObj(), t.height, t.endsCap);
+        const best = canvas.findSnap(ghostLeft, ghostTop, drag.strandId, sourcePath, isWhole, prevSnapObj(), t.height, t.endsCap, t.stacks);
         applySnap(best, t.width, drag.draggedHeight, t.endsCap, t.height);
     }
     // Palette (new-block) drags share the same preview: a header prefab can
@@ -238,12 +254,14 @@ QtObject {
         drag.draggedShape = si.shape;
         drag.draggedMouths = si.mouths;
         drag.draggedFlat = si.flat;
+        drag.draggedStack = si.stack;
+        drag.draggedMouthStacks = si.mouthStacks;
         drag.draggedIsCap = canvas.isCapBlock(instruction);
         // The ghost's measured height wins: blockHeight only estimates blocks
         // that aren't on the canvas, and calls every plain block one row.
         drag.draggedWidth = w || 200;
         drag.draggedHeight = h > 0 ? h : (canvas.blockHeight(instruction) || 58);
-        const best = canvas.findSnap(ghostLeft + canvas.originOffsetX, ghostTop + canvas.originOffsetY, null, [], false, prevSnapObj(), drag.draggedHeight, drag.draggedIsCap);
+        const best = canvas.findSnap(ghostLeft + canvas.originOffsetX, ghostTop + canvas.originOffsetY, null, [], false, prevSnapObj(), drag.draggedHeight, drag.draggedIsCap, [BlockRegistry.stackOf(instruction.type)]);
         applySnap(best, drag.draggedWidth, drag.draggedHeight, drag.draggedIsCap);
     }
     function end(sx, sy) {

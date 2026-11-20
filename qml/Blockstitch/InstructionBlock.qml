@@ -80,6 +80,12 @@ Item {
     readonly property string type: instruction ? instruction.type : ""
     readonly property bool isWrap: BlockRegistry.isWrap(type)
     readonly property bool isHeader: BlockRegistry.isHeader(type)
+    // Stack kind this block joins, and the kind of the list it sits in
+    // (null on a strand's first block or in the palette, which take any).
+    readonly property string stackKind: BlockRegistry.stackOf(type)
+    property var containerStack: null
+    readonly property bool misplaced: !paletteMode && containerStack !== null && containerStack !== undefined && containerStack !== stackKind
+    readonly property string misplacedText: misplaced ? BlockRegistry.stackMismatchText(stackKind, containerStack) : ""
     readonly property bool hasComment: !!instruction && !!canvasState && canvasState.commentedSet[instruction.id] === true
     readonly property string markText: !paletteMode && instruction ? (canvasState && canvasState.marks[instruction.id] || "") : ""
     readonly property bool flashing: !paletteMode && !!instruction && !!canvasState && canvasState.flashId === instruction.id
@@ -175,12 +181,12 @@ Item {
     }
     // Match the web canvas: the chosen color marks a custom block's icon and
     // hover outline, while the block body stays in the neutral canvas palette.
-    readonly property color displayColor: type === "RunBranch" ? Theme.panelRaised : isCustomBlock ? Theme.block : blockColor
+    readonly property color displayColor: type === "RunBranch" ? Theme.panelRaised : isCustomBlock ? Theme.block : stackKind ? Theme.blockAlt : blockColor
     implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(type === "RunBranch" ? 150 : isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 28), hasBranchHeader ? pvOuterWidth + 28 : 0, boxPieces.length ? boxes.x + boxes.implicitWidth + 16 : 0)
     implicitHeight: isWrap ? headHeight + mouthTotal + Math.max(0, slotCount() - 1) * midHeight + footHeight + (isCap ? 0 : tabDepth) : hasBranchHeader ? pvTop + pvOuterHeight + 8 + tabDepth : (isCap ? rowHeight - tabDepth : rowHeight) + boxExtra
     z: dragRole > 0 ? 50 : hovered ? 2 : 1
     // The overlay draws active tails; trashed tails wait for their removal.
-    opacity: dragRole === 1 && dragState && ((dragState.active && dragState.externalPreview) || (!dragState.active && dragState.settling && dragState.settleHidden)) ? 0 : 1
+    opacity: dragRole === 1 && dragState && ((dragState.active && dragState.externalPreview) || (!dragState.active && dragState.settling && dragState.settleHidden)) ? 0 : misplaced ? 0.5 : 1
     // Follow the pointer even when an earlier mouth or sibling changes size.
     // Read each ancestor's position so Column layout and mouth animations
     // invalidate this binding. The workspace's scale is outside this sum.
@@ -439,6 +445,9 @@ Item {
     }
     function body(slot) {
         return BlockRegistry.body(instruction, slot);
+    }
+    function mouthStack(slot) {
+        return type === "BranchCallBlock" ? "" : BlockRegistry.mouthStack(type, slot);
     }
     function slotCount() {
         return type === "BranchCallBlock" ? BlockRegistry.slotCount(instruction) : Math.max(1, BlockRegistry.slotCount(instruction));
@@ -709,6 +718,14 @@ Item {
         anchors.fill: parent
         shape: root.isWrap ? "wrap" : root.isHeader ? "header" : root.isCap ? "cap" : "stack"
         fill: root.displayColor
+        outline: root.stackKind ? Theme.borderAlt : Theme.border
+        stack: root.stackKind
+        mouthStacks: {
+            const out = [];
+            for (let k = 0; root.isWrap && k < root.slotCount(); ++k)
+                out.push(root.mouthStack(k));
+            return out;
+        }
         hovered: root.dragPreview || root.hovered || root.dragRole === 1 || root.flashing || root.running || root.pausedHere
         hoverColor: root.pausedHere ? Theme.warning : root.running ? Theme.running : root.flashing && root.markText ? Theme.danger : root.type === "RunBranch" ? root.branchColor : root.isCustomBlock ? root.customColor : Theme.accent
         outlineWidth: root.running || root.pausedHere ? 2.6 : 1.3
@@ -1113,13 +1130,14 @@ Item {
         }
     }
 
+    // A host's mark (red), or a block of the wrong stack kind for where it sits (amber).
     Rectangle {
-        visible: root.markText.length > 0
+        visible: root.markText.length > 0 || root.misplaced
         z: 30
         width: 18
         height: 18
         radius: 9
-        color: Theme.danger
+        color: root.markText.length > 0 ? Theme.danger : Theme.warning
         border.width: 2
         border.color: Theme.canvas
         x: root.width - 12
@@ -1133,12 +1151,13 @@ Item {
         }
         ToolTip.visible: markHover.hovered
         ToolTip.delay: 200
-        ToolTip.text: root.markText
+        ToolTip.text: root.markText || root.misplacedText
         HoverHandler {
             id: markHover
             cursorShape: Qt.PointingHandCursor
         }
         TapHandler {
+            enabled: root.markText.length > 0
             onTapped: root.canvasState.markClicked(root.instruction.id)
         }
     }

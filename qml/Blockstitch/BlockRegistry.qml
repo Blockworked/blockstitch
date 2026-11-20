@@ -474,6 +474,20 @@ QtObject {
         if (r && r.mouths) return r.mouths;
         return isControlBlock(type) ? controlBlocks[type] : [];
     }
+    // A row's `stack` names the kind of stack its block joins ("" is the
+    // ordinary one) and `mouthStacks` the kind each mouth holds. Blocks only
+    // stack with their own kind (BlockKind::stack_kind in blockstitch-core).
+    function stackOf(type) {
+        const r = row(type);
+        return (r && r.stack) || "";
+    }
+    function mouthStack(type, slot) {
+        const r = row(type);
+        return (r && r.mouthStacks && r.mouthStacks[slot || 0]) || "";
+    }
+    // Tooltip on a block of kind `block` sitting where `list` belongs; a host
+    // words its own.
+    property var stackMismatchText: (block, list) => qsTr("This block doesn't fit here")
     function isWrap(type) { return type === "BranchCallBlock" || mouthKeys(type).length > 0; }
     function isHeader(type) {
         const r = row(type);

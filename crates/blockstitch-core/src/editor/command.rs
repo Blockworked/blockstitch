@@ -302,6 +302,8 @@ impl<K: BlockKind> BlockGraph<K> {
                     .ok_or(EditError::Missing("Unknown instruction path"))?;
                 self.check_header_placement(&strand_id, &path, &instruction)
                     .map_err(EditError::Rejected)?;
+                self.check_stack_kind(&strand_id, &path, std::slice::from_ref(&instruction))
+                    .map_err(EditError::Rejected)?;
                 Ok(PreparedEdit {
                     buffers: vec![BufferEffect::DropStrand(strand_id.clone())],
                     plan: Plan::Insert {

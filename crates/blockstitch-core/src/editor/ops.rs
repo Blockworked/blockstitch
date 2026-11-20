@@ -75,6 +75,35 @@ impl<K: BlockKind> BlockGraph<K> {
         Ok(())
     }
 
+    /// The stack kind the list holding `path` takes: its container's body
+    /// kind when nested, or its first block's on a strand's top level.
+    /// `None` for an empty top level, which takes anything.
+    pub fn list_stack_kind(&self, strand_id: &str, path: &[PathStep]) -> Option<&'static str> {
+        let strand = self.strand(strand_id)?;
+        let (_, parent) = path.split_last()?;
+        let Some(step) = parent.last() else {
+            return strand.instructions.first().map(Instruction::stack_kind);
+        };
+        let (list, index) = resolve_body(&strand.instructions, parent)?;
+        Some(list.get(index)?.kind.body_stack_kind(step.slot?))
+    }
+
+    /// Every block in `blocks` must be the stack kind the list at `path` holds.
+    pub fn check_stack_kind(
+        &self,
+        strand_id: &str,
+        path: &[PathStep],
+        blocks: &[Instruction<K>],
+    ) -> Result<(), String> {
+        let Some(want) = self.list_stack_kind(strand_id, path) else {
+            return Ok(());
+        };
+        match blocks.iter().find(|ins| ins.stack_kind() != want) {
+            Some(ins) => Err(K::stack_mismatch(ins.stack_kind(), want)),
+            None => Ok(()),
+        }
+    }
+
     /// Inserts `instruction` at `path`. `Ok(false)` means the path doesn't
     /// resolve and nothing happened; a rejected placement is an `Err`.
     pub fn insert_instruction(
@@ -84,6 +113,7 @@ impl<K: BlockKind> BlockGraph<K> {
         instruction: Instruction<K>,
     ) -> Result<bool, String> {
         self.check_header_placement(strand_id, path, &instruction)?;
+        self.check_stack_kind(strand_id, path, std::slice::from_ref(&instruction))?;
         let Some(strand) = self.strand_mut(strand_id) else {
             return Ok(false);
         };
@@ -293,6 +323,7 @@ impl<K: BlockKind> BlockGraph<K> {
         {
             return Err(format!("Can't attach a strand above a {label} block"));
         }
+        self.check_stack_kind(target_id, path, &dragged.instructions)?;
         let dragged_pos = self
             .strands
             .iter()
@@ -338,6 +369,7 @@ impl<K: BlockKind> BlockGraph<K> {
             if index >= list.len() {
                 return Err("Source index out of range".to_string());
             }
+            self.check_stack_kind(target_id, target_path, &list[index..])?;
             (list.len(), index, list[index].is_header())
         };
         if tail_first_is_header {

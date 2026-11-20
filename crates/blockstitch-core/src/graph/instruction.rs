@@ -111,6 +111,23 @@ pub trait BlockKind:
     fn field_requires_integer(&self, _field: &str) -> bool {
         false
     }
+
+    /// Which kind of stack this block joins. Blocks only stack with their
+    /// own kind; `""` is the ordinary one. A host gives another kind to
+    /// blocks that only make sense inside one container.
+    fn stack_kind(&self) -> &'static str {
+        ""
+    }
+
+    /// The stack kind `slot`'s body holds.
+    fn body_stack_kind(&self, _slot: u8) -> &'static str {
+        ""
+    }
+
+    /// The error for a `block` stack kind dropped where `list` belongs.
+    fn stack_mismatch(_block: &str, _list: &str) -> String {
+        "That block doesn't fit here".to_string()
+    }
 }
 
 /// What a name in [`BlockKind::visit_refs_mut`] refers to. Each has its
@@ -150,6 +167,10 @@ impl<K> Instruction<K> {
 impl<K: BlockKind> Instruction<K> {
     pub fn is_header(&self) -> bool {
         self.kind.is_header()
+    }
+
+    pub fn stack_kind(&self) -> &'static str {
+        self.kind.stack_kind()
     }
 
     pub fn body(&self, slot: u8) -> Option<&Vec<Instruction<K>>> {

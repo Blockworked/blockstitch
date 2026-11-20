@@ -810,8 +810,8 @@ Rectangle {
     function collectContainers() {
         return snapGeometryHelper.collectContainers();
     }
-    function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap) {
-        return snapGeometryHelper.findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap);
+    function findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap, stackKinds) {
+        return snapGeometryHelper.findSnap(ghostLeft, ghostTop, sourceId, sourcePath, isWhole, prevSnap, stackHeight, stackEndsCap, stackKinds);
     }
     function applySnap(best, w, h, droppedIsCap, stackHeight) {
         dragSession.applySnap(best, w, h, droppedIsCap, stackHeight);
@@ -1236,6 +1236,28 @@ Rectangle {
                     spine: 20
                     mouthHeights: dragSession.draggedMouths
                     flatEnds: dragSession.draggedFlat
+                    stack: dragSession.draggedStack
+                    mouthStacks: dragSession.draggedMouthStacks
+                }
+            }
+            // Why the nearest spot won't take the dragged blocks (another stack kind).
+            Rectangle {
+                objectName: "stackHint"
+                visible: dragSession.blockedText.length > 0 && !dragSession.settling
+                x: dragSession.blockedX
+                y: dragSession.blockedY - height - 6
+                z: 96
+                width: stackHintText.implicitWidth + 20
+                height: stackHintText.implicitHeight + 10
+                radius: Theme.radius
+                color: Theme.panelRaised
+                border.color: Theme.warning
+                Text {
+                    id: stackHintText
+                    anchors.centerIn: parent
+                    text: dragSession.blockedText
+                    color: Theme.text
+                    font.pixelSize: Theme.blockText
                 }
             }
             // Ghost following the pointer while an existing value is dragged.

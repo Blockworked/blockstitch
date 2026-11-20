@@ -102,6 +102,7 @@ Column {
                     keyCapture: canvas.keyCapture
                     locked: canvas.locked
                     branchColor: strand.branchColor
+                    containerStack: index > 0 && strand.blockList.length ? BlockRegistry.stackOf(strand.blockList[0].type) : null
                     // Signals go through wireInstruction, the one list branch blocks use too.
                     Component.onCompleted: canvas.wireInstruction(this)
                 }
