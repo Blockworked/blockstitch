@@ -215,6 +215,7 @@ Item {
     readonly property string opSuffix: opSpec && opSpec.suffix ? opSpec.suffix : ""
     readonly property int enumIndex: opSpec && opSpec.enumArg ? opSpec.enumArg.index : -1
     readonly property int pickIndex: opSpec && opSpec.pickArg ? opSpec.pickArg.index : -1
+    readonly property int keyIndex: opSpec && opSpec.keyArg ? opSpec.keyArg.index : -1
     // An operator's own layout, for one whose words depend on the value (a
     // host's generic operator): [{label, arg: -1}|{arg, bool}], or null for the plain
     // prefix / infix / suffix form. The array is cached by the host so the
@@ -332,6 +333,11 @@ Item {
         item.valueDragMoved.connect((sx, sy) => root.valueDragMoved(sx, sy));
         item.valueDragEnded.connect((sx, sy) => root.valueDragEnded(sx, sy));
         item.valueDragCanceled.connect(() => root.valueDragCanceled());
+        if (index === root.keyIndex) {
+            item.keyMode = Qt.binding(() => !!item.valueData && item.valueData.kind === "Text");
+            item.keyCapturing = Qt.binding(() => !!BlockRegistry.capturingKey && BlockRegistry.capturingKey === BlockRegistry.locationKey(root.childLocation(index)));
+            item.keyCaptureRequested.connect(() => BlockRegistry.requestKeyCapture(root.childLocation(index)));
+        }
         item.valueData = data;
     }
     readonly property real branchHead: Math.max(50, content.implicitHeight + 16)

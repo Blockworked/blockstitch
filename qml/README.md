@@ -91,7 +91,11 @@ palette block, and the slot shows it is waiting.
 (`"header"`/`"cap"`) and `mouths` (the instruction keys holding nested
 bodies) decide a block's outline; the comments in `BlockRegistry.qml` list
 every piece kind. For an instruction-dependent ending, `shape` may be a
-function of the instruction returning `"cap"` or `"stack"`.
+function of the instruction returning `"cap"` or `"stack"`. A row with
+`connector: "part"` draws a square tab and only stacks with other parts,
+inside a mouth whose owner lists `"part"` in `mouthConnectors` (one entry per
+mouth); the Rust side says the same through `BlockKind::connector` and
+`body_connector`.
 `blockMenu`/`canvasMenu` add app-specific context menu
 items, which come back through `blockMenuAction`/`canvasMenuAction`. An
 operator's `enumArg` may give its choices as an array, a function, or
@@ -99,7 +103,10 @@ operator's `enumArg` may give its choices as an array, a function, or
 `pickArg: {index, action, icon}` puts a button after that arg while it holds
 text; a click calls `BlockRegistry.pickHandler(action, location, value)` with
 the slot's location, so the host can open a picker and write the choice back
-like a typed edit.
+like a typed edit. `keyArg: {index}` draws that arg as keycaps while it holds
+text, and a click calls `BlockRegistry.keyCaptureHandler(location)`; set
+`BlockRegistry.capturingKey` to `BlockRegistry.locationKey(location)` while
+the host listens, and write the key back into that location.
 
 A row's `components` keep a block short: each is an optional group of pieces
 the user adds from the "+" at the end of the row (or the block's right-click

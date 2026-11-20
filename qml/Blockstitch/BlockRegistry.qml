@@ -53,6 +53,12 @@ QtObject {
     // slot with the result.
     property var pickHandler: null
     function requestPick(action, location, value, anchor) { if (pickHandler) pickHandler(action, location, value, anchor || null); }
+    // A reporter's key slot (an operator's `keyArg`) asks the host to record
+    // a key into its value location; the host sets `capturingKey` to that
+    // location's locationKey while it listens.
+    property var keyCaptureHandler: null
+    property string capturingKey: ""
+    function requestKeyCapture(location) { if (keyCaptureHandler) keyCaptureHandler(location); }
     function deliverPreview(key, text, isError) {
         preview = { key: key, text: text, error: !!isError };
         previewTimer.restart();
@@ -136,6 +142,7 @@ QtObject {
     }
     // op -> { prefix, infix (one label, or a list: one per gap), suffix, result, enumArg: {index, options|source}, oneBased: [index],
     //        pickArg: {index, action, icon} (a button after that arg's text field, see pickHandler),
+    //        keyArg: {index} (that arg's text drawn as keycaps that record a key, see keyCaptureHandler),
     //        pickOp: {action, icon, tip} (a button after the whole operator; pickHandler gets its own location) }
     // An operator may instead give `layout`: [piece] or function(value) -> [piece],
     // piece {label, arg: -1} | {arg, bool}, `arg` indexing the value's args. Args no
