@@ -40,5 +40,20 @@ Item {
             compare(editor.selectedPiece, 1);
             tryVerify(() => editor.activeEditor && editor.activeEditor.activeFocus);
         }
+
+        function test_reporter_branches_can_be_turned_off() {
+            const editor = createTemporaryObject(editorFactory, scene, {allowReporterBranches: false});
+            editor.load({shape: "Normal", pieces: [
+                {kind: "Label", text: "around"},
+                {kind: "Branch", name: "body"}
+            ]});
+            verify(editor.branchesOffered);
+            compare(editor.validate(), "");
+            const toggle = findChild(editor, "returnsValueToggle");
+            verify(!toggle.enabled);
+            editor.blockShape = "ReturnsValue";
+            verify(!editor.branchesOffered);
+            verify(editor.validate().length > 0);
+        }
     }
 }

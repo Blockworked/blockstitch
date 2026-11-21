@@ -20,6 +20,9 @@ Item {
 
     // What the host's runtime supports.
     property bool allowBranches: true
+    // Off when the host can't run a reporter's branches: Branch is only
+    // offered to command shapes, and a block with branches can't return.
+    property bool allowReporterBranches: true
     property bool allowDefaults: true
     property bool allowCustomColor: true
     property var shapes: ["Normal", "Ending", "ReturnsValue", "ReturnsBool"]
@@ -60,6 +63,7 @@ Item {
     property string validationError: ""
     readonly property bool returnsValue: blockShape === "ReturnsValue" || blockShape === "ReturnsBool"
     readonly property bool hasBranches: branchCount() > 0
+    readonly property bool branchesOffered: allowBranches && (allowReporterBranches || !returnsValue)
     readonly property bool offersCommands: shapes.indexOf("Normal") >= 0 || shapes.indexOf("Ending") >= 0
     readonly property bool offersReporters: shapes.indexOf("ReturnsValue") >= 0 || shapes.indexOf("ReturnsBool") >= 0
 
@@ -551,6 +555,8 @@ Item {
                     hasLabel = true;
                 continue;
             }
+            if (p.pieceKind === "Branch" && returnsValue && !allowReporterBranches)
+                return qsTr("A block that returns a value can't have branches");
             if (!text.length)
                 return qsTr("Every input and branch needs a name");
             if (names[text])
@@ -948,7 +954,7 @@ Item {
 
         GridLayout {
             Layout.fillWidth: true
-            columns: root.width < 560 ? 3 : root.allowBranches ? 5 : 4
+            columns: root.width < 560 ? 3 : root.branchesOffered ? 5 : 4
             columnSpacing: 8
             Repeater {
                 model: [
@@ -990,7 +996,7 @@ Item {
                 ]
                 delegate: Button {
                     required property var modelData
-                    visible: modelData.kind !== "Branch" || root.allowBranches
+                    visible: modelData.kind !== "Branch" || root.branchesOffered
                     Layout.fillWidth: true
                     implicitHeight: 52
                     onClicked: modelData.kind === "Component" ? root.addComponent() : root.addPiece(modelData.kind, modelData.valueType)
@@ -1072,6 +1078,7 @@ Item {
         StitchCheckBox {
             objectName: "returnsValueToggle"
             visible: root.offersCommands && root.offersReporters
+            enabled: root.allowReporterBranches || !root.hasBranches
             text: qsTr("Returns a value")
             checked: root.returnsValue
             onToggled: root.blockShape = checked ? root.firstShape(["ReturnsValue", "ReturnsBool"]) : root.firstShape(["Normal", "Ending"])
