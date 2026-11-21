@@ -1,6 +1,7 @@
 //! The editing layer: addressing, undo history, and every mutation a
 //! canvas gesture performs on a [`crate::graph::BlockGraph`].
 
+mod branch_edit;
 mod command;
 mod history;
 mod location;
@@ -8,6 +9,7 @@ mod ops;
 mod path;
 mod reporter_branch;
 
+pub use branch_edit::{BRANCH_COMMANDS, BranchCodec, CANVAS_ARG_KEYS};
 pub use command::{
     BufferEffect, Created, EditCommand, EditContext, EditError, EditOutcome, NumberSpelling,
     PreparedEdit, ValueDestination, apply_buffer_effects,
@@ -19,6 +21,6 @@ pub use location::{
 pub use ops::{ValueEdit, apply_value_kind, connector_error, misplaced_connector};
 pub use path::{InstrPath, PathStep, resolve_body, resolve_body_mut};
 pub use reporter_branch::{
-    BranchArgKeys, OpenBranches, REPORTER_BRANCH_PREFIX, reporter_branch_ids,
+    BranchArgKeys, BranchReader, OpenBranches, REPORTER_BRANCH_PREFIX, reporter_branch_ids,
     targets_reporter_branch,
 };
