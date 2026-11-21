@@ -128,3 +128,78 @@ fn a_header_in_a_branch_is_refused() {
         .push(Instruction::new(Block::Start));
     assert!(graph.close_reporter_branches(open, &write).is_err());
 }
+
+fn instruction(json: &Json) -> Result<Instruction<Block>, String> {
+    serde_json::from_value(json.clone()).map_err(|e| e.to_string())
+}
+
+fn fragment(fragment: &blockstitch_core::graph::Fragment<Block>) -> Result<Json, String> {
+    serde_json::to_value(fragment).map_err(|e| e.to_string())
+}
+
+#[test]
+fn canvas_commands_run_inside_a_branch_and_back_out() {
+    use blockstitch_core::editor::BranchCodec;
+    let codec = BranchCodec {
+        read: &read,
+        write: &write,
+        instruction: &instruction,
+        fragment: &fragment,
+    };
+    let mut graph: BlockGraph<Block> = BlockGraph::new();
+    let strand = graph.add_strand(
+        0,
+        0,
+        vec![Instruction::new(Block::Say { text: reporter() })],
+    );
+    let location = ValueLocation::Field {
+        strand_id: strand,
+        index: vec![PathStep::at(0)],
+        field_id: "SayText".into(),
+        path: vec![],
+    };
+    let branch = format!(
+        "{REPORTER_BRANCH_PREFIX}{}",
+        json!({ "location": location, "slot": 1 })
+    );
+    let said = json!({ "id": "said", "kind": { "type": "Say", "text": { "kind": "Text", "value": "hi" } } });
+    graph
+        .edit_reporter_branch(
+            "add_instruction",
+            &json!({ "strandId": branch, "path": [{ "index": 0 }], "instruction": said }),
+            &codec,
+        )
+        .unwrap();
+    let Some(Value::Call { branches, .. }) = graph.value_at(&location) else {
+        panic!("no reporter")
+    };
+    assert_eq!(branches.len(), 2, "slot 1 opened an empty slot 0");
+    assert_eq!(branches[1][0]["id"], "said");
+
+    let copied = graph
+        .edit_reporter_branch(
+            "copy_instructions",
+            &json!({ "strandId": branch, "path": [{ "index": 0 }], "count": 1 }),
+            &codec,
+        )
+        .unwrap();
+    assert_eq!(copied["instructions"][0]["id"], "said");
+
+    graph
+        .edit_reporter_branch(
+            "move_strand",
+            &json!({ "strandId": branch, "x": 5, "y": 6 }),
+            &codec,
+        )
+        .unwrap();
+    assert_eq!(graph.strands.len(), 2, "the body is a strand of its own");
+    let Some(Value::Call { branches, .. }) = graph.value_at(&location) else {
+        panic!("no reporter")
+    };
+    assert!(branches[1].is_empty());
+    assert!(
+        graph
+            .edit_reporter_branch("make_variable", &json!({ "strandId": branch }), &codec)
+            .is_err()
+    );
+}
