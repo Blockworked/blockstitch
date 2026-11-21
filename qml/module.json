@@ -86,6 +86,7 @@
     "BlockUi.qml",
     "BlockSettingsDialog.qml",
     "PropertyEditor.qml",
-    "PropertyForm.qml"
+    "PropertyForm.qml",
+    "DockRegion.qml"
   ]
 }
