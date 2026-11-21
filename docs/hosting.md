@@ -148,6 +148,7 @@ call. Don't keep operator defaults in QML; change the Rust `default_args`
 and re-bless the generated tables (`BLESS=1`, see `qml/README.md`).
 
 Make a Block is `BlockDefinitionEditor`: set `allowBranches`,
+`allowReporterBranches` (off when only command blocks may have branches),
 `allowDefaults`, `allowCustomColor` and `shapes` to what the runtime can
 run, `load(def)` or `reset()`, and send its `createRequested(draft)` /
 `editRequested(blockId, draft)` to `BlockGraph::create_block`/`update_block`
