@@ -84,6 +84,8 @@
     "StitchPage.qml",
     "StitchScreenDialog.qml",
     "BlockUi.qml",
-    "BlockSettingsDialog.qml"
+    "BlockSettingsDialog.qml",
+    "PropertyEditor.qml",
+    "PropertyForm.qml"
   ]
 }
