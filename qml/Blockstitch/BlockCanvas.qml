@@ -414,9 +414,9 @@ Rectangle {
                 if (k.paletteMode !== false || !k.instruction || k.instruction.id !== id)
                     continue;
                 let node = k.parent;
-                while (node && node !== item)
+                while (node && node !== item && !node.instructionLoading)
                     node = node.parent;
-                if (!node)
+                if (node !== item)
                     continue;
                 match = k;
                 if (++matches > 1)
@@ -434,6 +434,8 @@ Rectangle {
         const kids = item.children || [];
         for (let i = 0; i < kids.length; ++i) {
             const k = kids[i];
+            if (k.instructionLoading)
+                continue;
             if (k.instruction && k.paletteMode === false && k.instruction.id === id)
                 return k;
             const deep = walkBlockItem(k, id);
@@ -532,11 +534,18 @@ Rectangle {
     function slotCreated(strand, slot, estH) {
         builder.slotCreated(strand, slot, estH);
     }
+    function finishSlot(slot) {
+        builder.finishSlot(slot);
+    }
+    function blockTreeLoading(strandId, instructionId) {
+        return builder.incubating.some(slot => slot && slot.instructionLoading
+            && slot.strandItem.sid === strandId && slot.instructionData.id === instructionId);
+    }
     // How many strands still wait for their blocks.
     function pendingStrands() {
         return builder.pendingStrands();
     }
-    // Strands and top-level blocks still waiting to be built.
+    // Strands and block trees that are still being built.
     function pendingBuilds() {
         return builder.pendingBuilds();
     }
@@ -783,8 +792,8 @@ Rectangle {
     function isCapBlock(ins) {
         return snapGeometryHelper.isCapBlock(ins);
     }
-    function blockHeight(ins) {
-        return snapGeometryHelper.blockHeight(ins);
+    function blockHeight(ins, useLive = true) {
+        return snapGeometryHelper.blockHeight(ins, useLive);
     }
     function contentHeightFor(list) {
         return snapGeometryHelper.contentHeightFor(list);

@@ -14,24 +14,24 @@ QtObject {
     function isCapBlock(ins) { return BlockRegistry.isCap(ins, canvas.blockDefinitions); }
     function slotCountFor(ins) { return !ins ? 0 : ins.type === "BranchCallBlock" ? BlockRegistry.slotCount(ins) : Math.max(1, BlockRegistry.slotCount(ins)); }
     function bodyFor(ins, slot) { return BlockRegistry.body(ins, slot); }
-    function blockHeight(ins) {
+    function blockHeight(ins, useLive = true) {
         if (!ins) return 58;
-        const live = canvas.findBlockItem(canvas.workspaceItem, ins.id);
+        const live = useLive ? canvas.findBlockItem(canvas.workspaceItem, ins.id) : null;
         if (live) return live.implicitHeight;
         if (!isWrapType(ins.type)) return isCapBlock(ins) ? 50 : 58;
         const n = slotCountFor(ins);
         let total = 0;
-        for (let k = 0; k < n; ++k) total += mouthHeightFor(bodyFor(ins, k));
+        for (let k = 0; k < n; ++k) total += mouthHeightFor(bodyFor(ins, k), useLive);
         return 50 + total + Math.max(0, n - 1) * 34 + 26 + 8;
     }
-    function contentHeightFor(list) {
+    function contentHeightFor(list, useLive = true) {
         if (!list || !list.length) return 0;
         let sum = 0;
-        for (let i = 0; i < list.length; ++i) sum += blockHeight(list[i]);
+        for (let i = 0; i < list.length; ++i) sum += blockHeight(list[i], useLive);
         return sum - 8 * (list.length - 1);
     }
-    function mouthHeightFor(list) {
-        const ch = contentHeightFor(list);
+    function mouthHeightFor(list, useLive = true) {
+        const ch = contentHeightFor(list, useLive);
         if (ch === 0) return 26;
         const last = list[list.length - 1];
         const cap = last && isCapBlock(last);
@@ -112,7 +112,7 @@ QtObject {
     // hundreds of milliseconds. Plain JS so nothing re-evaluates on it.
     readonly property var _snapCache: ({ key: null })
     function snapGeometry() {
-        const key = [canvas.strands, canvas.originOffsetX, canvas.originOffsetY, BlockRegistry.indexSerial,
+        const key = [canvas.strands, canvas.originOffsetX, canvas.originOffsetY, BlockRegistry.indexSerial, canvas.builtStrands,
                      canvas.branchDragState.strandId, JSON.stringify(canvas.branchDragState.path || []), canvas.branchDragState.draggedWidth,
                      canvas.branchDragState.active, canvas.branchDragState.settling, canvas.branchDragState.sourceShrink];
         const c = _snapCache;
@@ -180,7 +180,7 @@ QtObject {
         return out;
     }
     function collectChildren(strandId, ins, pathToBlock, blockX, blockY, depth, out) {
-        if (!ins || !isWrapType(ins.type)) return;
+        if (!ins || !isWrapType(ins.type) || (depth === 1 && canvas.blockTreeLoading(strandId, ins.id))) return;
         const n = slotCountFor(ins);
         const live = canvas.findBlockItem(canvas.workspaceItem, ins.id);
         let mTop = live ? live.headHeight : 50;

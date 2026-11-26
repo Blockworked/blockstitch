@@ -10,6 +10,8 @@ QtObject {
     required property Repeater strands
     // Top-level block slots still waiting, nearest first once ordered.
     property var waitingQueue: []
+    // Large block trees that Qt is instantiating across frames.
+    property var incubating: []
     property string queueKey: ""
     property bool queueDirty: false
     function start() { timer.start(); }
@@ -45,12 +47,31 @@ QtObject {
         const y = strand.estY;
         strand.estY += estH - 8;
         if (!canvas.lazyStrands || !strand.loading || canvas.nearView(strand.x, strand.y + y, canvas.strandEstW, estH)) {
-            slot.built = true;
+            buildSlot(slot, canvas.lazyStrands && strand.loading);
             return;
         }
         waitingQueue.push(slot);
         queueDirty = true;
         timer.start();
+    }
+    function buildSlot(slot, defer) {
+        // A tall wrapper can own a whole tree of delegates. Incubate that
+        // tree across frames while standalone blocks still build immediately.
+        slot.asynchronous = defer && slot.estimatedHeight >= 1800;
+        slot.built = true;
+        if (slot.status === Loader.Loading)
+            incubatingSlots().push(slot);
+    }
+    function finishSlot(slot) {
+        const at = incubating.indexOf(slot);
+        if (at < 0)
+            return;
+        incubating.splice(at, 1);
+        canvas.builtStrands++;
+    }
+    function incubatingSlots() {
+        incubating = incubating.filter(s => s && s.status === Loader.Loading);
+        return incubating;
     }
     function waitingSlots() {
         waitingQueue = waitingQueue.filter(s => s && s.built === false);
@@ -64,16 +85,19 @@ QtObject {
                 ++n;
         return n;
     }
-    // Strands and top-level blocks still waiting to be built.
+    // Strands and block trees that are still being built.
     function pendingBuilds() {
-        return pendingStrands() + waitingSlots().length;
+        return pendingStrands() + waitingSlots().length + incubatingSlots().length;
     }
     // Builds every strand now, for callers that need each block to exist.
     function buildAllStrands() {
         for (let i = 0; i < strands.count; ++i)
             buildStrand(strands.itemAt(i));
         for (const s of waitingSlots())
-            s.built = true;
+            buildSlot(s, false);
+        for (const s of incubatingSlots())
+            s.asynchronous = false;
+        incubating = [];
         waitingQueue = [];
         timer.stop();
         canvas.builtStrands++;
@@ -136,7 +160,7 @@ QtObject {
             while (i < queue.length && Date.now() - t0 < 30) {
                 const s = queue[i++];
                 if (s && s.built === false)
-                    s.built = true;
+                    builder.buildSlot(s, true);
             }
             builder.waitingQueue = queue.slice(i);
             if (i)

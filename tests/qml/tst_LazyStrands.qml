@@ -62,6 +62,38 @@ Item {
             wait(20);
         }
 
+        function test_tallWrapperKeepsItsSpaceWhileLoading() {
+            canvas.centerOnOrigin();
+            const body = Array.from({ length: 80 }, (_, i) => ({ id: "deep-" + i, type: "Wait", ms: i }));
+            const wrap = { id: "wrap", x: 0, y: 0, instructions: [{ id: "outer", type: "While", body: [
+                { id: "inner", type: "While", body }
+            ] }] };
+            canvas.strands = [wrap, strand("neighbor", 40, 0)];
+            verify(!!block("neighbor-a"));
+            verify(canvas.pendingBuilds() > 0);
+            compare(canvas.findBlockItem(canvas.workspaceItem, "deep-79"), null);
+            verify(canvas.needBottom >= 80 * 40);
+            tryVerify(() => canvas.pendingBuilds() === 0);
+            verify(!!block("deep-79"));
+
+            canvas.strands = [];
+            wait(20);
+            canvas.strands = [wrap];
+            verify(canvas.pendingBuilds() > 0);
+            verify(canvas.revealInstruction("deep-79"));
+            verify(!!block("deep-79"));
+            compare(canvas.pendingBuilds(), 0);
+
+            canvas.strands = [];
+            wait(20);
+            canvas.centerOnOrigin();
+            canvas.strands = [wrap];
+            verify(canvas.pendingBuilds() > 0);
+            canvas.strands = [];
+            tryVerify(() => canvas.pendingBuilds() === 0);
+            compare(block("deep-79"), null);
+        }
+
         function test_revealBuildsAFarBlockOfALongStrand() {
             canvas.strands = [];
             wait(20);

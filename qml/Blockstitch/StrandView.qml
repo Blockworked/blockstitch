@@ -66,26 +66,41 @@ Column {
             required property int index
             property bool built: false
             readonly property Item strandItem: strand
+            readonly property var instructionData: JSON.parse(payload)
+            readonly property real estimatedHeight: canvas.blockHeight(instructionData, false)
+            readonly property bool instructionLoading: status === Loader.Loading
+            // Keep following blocks in place until the real geometry is ready.
+            width: item ? item.implicitWidth : canvas.strandEstW
+            height: item ? item.implicitHeight : estimatedHeight
             // Blocks stack among their siblings (a hovered or dragged
             // block over the next one), so the slot carries their z.
             z: item ? item.z : 0
-            sourceComponent: built ? blockComponent : placeholderComponent
-            Component.onCompleted: canvas.slotCreated(strand, slot, canvas.blockHeight(JSON.parse(payload)))
-            Component {
-                id: placeholderComponent
-                Item {
-                    width: canvas.strandEstW
-                    height: canvas.blockHeight(JSON.parse(slot.payload))
+            sourceComponent: built ? blockComponent : undefined
+            onStatusChanged: if (asynchronous && status !== Loader.Loading)
+                canvas.finishSlot(slot)
+            Component.onCompleted: canvas.slotCreated(strand, slot, estimatedHeight)
+            Rectangle {
+                visible: slot.instructionLoading && canvas.inCullBand(strand.x + slot.x, strand.y + slot.y, width, height)
+                width: canvas.strandEstW
+                height: 48
+                radius: 6
+                color: Theme.panelRaised
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: qsTr("Loading blocks…")
+                    color: Theme.textDim
+                    font.pixelSize: Theme.blockText
                 }
             }
             Component {
                 id: blockComponent
                 InstructionBlock {
                     id: block
-                    readonly property string payload: slot.payload
                     readonly property int index: slot.index
-                    visible: dragRole !== 0 || canvas.inCullBand(strand.x + slot.x, strand.y + slot.y + snapShift, Math.max(slot.width, 1), Math.max(slot.height, 1))
-                    instruction: JSON.parse(payload)
+                    visible: slot.status === Loader.Ready && (dragRole !== 0 || canvas.inCullBand(strand.x + slot.x, strand.y + slot.y + snapShift, Math.max(slot.width, 1), Math.max(slot.height, 1)))
+                    instruction: slot.instructionData
                     strandId: strand.sid
                     path: [
                         {
