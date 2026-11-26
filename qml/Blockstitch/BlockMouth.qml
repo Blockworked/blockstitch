@@ -44,6 +44,31 @@ Item {
     y: block.mouthTop(index)
     width: block.width
     height: mouthHeight
+    Loader {
+        id: actionPlaceholder
+        readonly property bool draggingWholeBody: {
+            if (!block.isSourceMouth(slotDelegate.index))
+                return false;
+            const drag = block.dragState;
+            const path = drag.active ? drag.path : drag.settlePath;
+            return path[path.length - 1]?.index === 0;
+        }
+        active: block.isPart && !block.partMouths[slotDelegate.index]
+            && !block.paletteMode && !block.dragPreview
+            && (slotBlocks.count === 0 || draggingWholeBody)
+        visible: active && !block.isSnapMouth(slotDelegate.index)
+        x: block.spine
+        width: 132
+        height: block.effMouthHeights[slotDelegate.index] + (slotDelegate.capEnd ? 0 : block.tabDepth)
+        sourceComponent: BlockSurface {
+            shape: slotDelegate.capEnd ? "cap" : "stack"
+            fill: Qt.alpha(Theme.block, 0.45)
+            outline: Qt.alpha(Theme.text, 0.3)
+            outlineWidth: 1
+            Accessible.role: Accessible.StaticText
+            Accessible.name: qsTr("Drop action blocks here")
+        }
+    }
     Column {
         id: slotBody
         x: block.spine

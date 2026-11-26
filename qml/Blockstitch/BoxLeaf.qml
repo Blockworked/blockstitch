@@ -11,8 +11,8 @@ Rectangle {
     implicitWidth: Math.max(260, Math.min(600, boxArea.contentWidth + 44))
     implicitHeight: shownLines * lineHeight + 14
     radius: 5
-    color: Theme.field
-    border.color: boxArea.activeFocus ? Theme.accent : Theme.border
+    color: chip.fieldColor
+    border.color: boxArea.activeFocus ? Theme.accent : chip.fieldBorderColor
     FontMetrics {
         id: boxMetrics
         font: boxArea.font

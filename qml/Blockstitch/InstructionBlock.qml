@@ -733,7 +733,7 @@ Item {
         flatEnds: root.flatEnds
         partTab: root.isPart
         partMouths: root.partMouths
-        outline: root.misplaced ? Theme.danger : Theme.border
+        outline: root.misplaced ? Theme.danger : root.isPart ? Theme.partBlockOutline : Theme.border
     }
     // Raise highlighted outlines without covering a nested block's hover outline.
     Shape {

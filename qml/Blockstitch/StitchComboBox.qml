@@ -3,6 +3,7 @@ import QtQuick.Controls
 
 ComboBox {
     id:control
+    property bool partStyle: false
     implicitHeight:34;leftPadding:10;rightPadding:32;font.pixelSize:13
     HoverHandler { cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
     // The list opens at least as wide as its longest entry, so a narrow box doesn't cut them off.
@@ -11,8 +12,14 @@ ComboBox {
     contentItem:Text { textFormat: Text.PlainText; text:control.displayText;color:control.enabled?Theme.text:Theme.textDim;font:control.font;verticalAlignment:Text.AlignVCenter;elide:Text.ElideRight }
     indicator:LucideIcon { name:"chevron-down";rotation:control.popup.visible?180:0;color:control.enabled?Theme.text:Theme.textDim;width:15;height:15;x:control.width-width-9;y:(control.height-height)/2
         Behavior on rotation { enabled:Motion.enabled; NumberAnimation { duration:Motion.normal;easing.type:Easing.OutCubic } } }
-    background:Rectangle { radius:5;color:control.down?Theme.field:(control.hovered?Theme.hover:Theme.panelRaised);border.color:control.activeFocus?Theme.accent:Theme.border
-        Behavior on color { enabled:Motion.enabled; ColorAnimation { duration:Motion.quick } } }
+    background: Rectangle {
+        radius: 5
+        color: control.partStyle
+            ? (control.hovered && !control.down ? Theme.partFieldHover : Theme.partField)
+            : (control.down ? Theme.field : control.hovered ? Theme.hover : Theme.panelRaised)
+        border.color: control.activeFocus ? Theme.accent : control.partStyle ? Theme.partFieldBorder : Theme.border
+        Behavior on color { enabled: Motion.enabled; ColorAnimation { duration: Motion.quick } }
+    }
     popup:Popup {
         y:control.height+3;width:Math.max(control.width,implicitWidth,Math.ceil(control.widestItem)+36);height:Math.min(264,control.count*32+8);padding:4;topInset:0;bottomInset:0;leftInset:0;rightInset:0
         contentItem:StitchListView { clip:true;model:control.popup.visible?control.delegateModel:null;currentIndex:control.highlightedIndex;boundsBehavior:Flickable.StopAtBounds;ScrollBar.vertical:ScrollBar{policy:control.count*32>256?ScrollBar.AsNeeded:ScrollBar.AlwaysOff} }

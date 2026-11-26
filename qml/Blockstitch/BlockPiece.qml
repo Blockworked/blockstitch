@@ -52,6 +52,7 @@ Loader {
     Component {
         id: valuePiece
         ValueChip {
+            partStyle: block.isPart
             valueData: block.instruction ? (block.slotValue(piece.modelData) || (piece.modelData.bool ? {
                         kind: "Bool"
                     } : {
@@ -92,8 +93,8 @@ Loader {
             width: implicitWidth
             height: implicitHeight
             radius: 5
-            color: Theme.field
-            border.color: unitChip.item && unitChip.item.dropHighlighted ? Theme.accent : Theme.border
+            color: block.isPart ? Theme.partField : Theme.field
+            border.color: unitChip.item && unitChip.item.dropHighlighted ? Theme.accent : block.isPart ? Theme.partFieldBorder : Theme.border
             Text {
                 id: unitLabel
                 x: 7
@@ -114,6 +115,7 @@ Loader {
         id: dropdownPiece
         StitchComboBox {
             id: pieceDrop
+            partStyle: block.isPart
             readonly property var choices: block.pieceOptions(piece.modelData)
             readonly property string current: block.pieceValue(piece.modelData)
             readonly property int chosen: {
@@ -170,8 +172,10 @@ Loader {
             implicitWidth: buttonRow.implicitWidth + 14
             implicitHeight: picture ? 34 : 28
             radius: 6
-            color: buttonMouse.containsMouse && clickable ? Theme.panelRaised : Theme.field
-            border.color: buttonMouse.containsMouse && clickable ? Theme.accent : Theme.border
+            color: buttonMouse.containsMouse && clickable
+                ? (block.isPart ? Theme.partFieldHover : Theme.panelRaised)
+                : (block.isPart ? Theme.partField : Theme.field)
+            border.color: buttonMouse.containsMouse && clickable ? Theme.accent : block.isPart ? Theme.partFieldBorder : Theme.border
             Row {
                 id: buttonRow
                 anchors.centerIn: parent
@@ -293,6 +297,7 @@ Loader {
     Component {
         id: textPiece
         StitchTextField {
+            partStyle: block.isPart
             text: block.pieceValue(piece.modelData)
             placeholderText: piece.modelData.placeholder || ""
             implicitWidth: Math.min(piece.modelData.maxWidth || 200, Math.max(piece.modelData.minWidth || 64, contentWidth + 20))

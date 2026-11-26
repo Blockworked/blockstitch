@@ -25,8 +25,8 @@ Item {
         bottomPadding: 2
         background: Rectangle {
             radius: 5
-            color: chip.flatLeaf ? "transparent" : Theme.field
-            border.color: chip.flatLeaf ? "transparent" : (leafInput.activeFocus ? Theme.accent : Theme.border)
+            color: chip.flatLeaf ? "transparent" : chip.fieldColor
+            border.color: chip.flatLeaf ? "transparent" : (leafInput.activeFocus ? Theme.accent : chip.fieldBorderColor)
         }
         onEditingFinished: chip.commitText(text)
         // Shift+Enter starts a second line, in the bigger editor.

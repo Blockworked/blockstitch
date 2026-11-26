@@ -9,8 +9,8 @@ Rectangle {
     implicitHeight: 27
     implicitWidth: Math.max(36, pickRow.implicitWidth + 18)
     radius: 5
-    color: pickHover.hovered && live ? Theme.hover : (chip.flatLeaf ? "transparent" : Theme.field)
-    border.color: chip.flatLeaf ? "transparent" : (pickHover.hovered && live ? Theme.accent : Theme.border)
+    color: pickHover.hovered && live ? chip.fieldHoverColor : (chip.flatLeaf ? "transparent" : chip.fieldColor)
+    border.color: chip.flatLeaf ? "transparent" : (pickHover.hovered && live ? Theme.accent : chip.fieldBorderColor)
     Behavior on color {
         enabled: Motion.enabled
         ColorAnimation {

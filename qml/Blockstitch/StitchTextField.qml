@@ -6,6 +6,7 @@ import QtQuick.Templates as T
 // scrolls or its origin moves. This placeholder exists only while it shows.
 T.TextField {
     id:control
+    property bool partStyle: false
     implicitWidth:implicitBackgroundWidth + leftInset + rightInset
         || Math.max(contentWidth, placeholderLoader.item ? placeholderLoader.item.implicitWidth : 0) + leftPadding + rightPadding
     implicitHeight:34
@@ -34,8 +35,9 @@ T.TextField {
     }
 
     background:Rectangle {
-        radius:5;color:control.enabled?Theme.field:Theme.canvas
-        border.color:control.activeFocus?Theme.accent:Theme.border
+        radius: 5
+        color: control.enabled ? (control.partStyle ? Theme.partField : Theme.field) : Theme.canvas
+        border.color: control.activeFocus ? Theme.accent : control.partStyle ? Theme.partFieldBorder : Theme.border
         border.width:control.activeFocus?1.5:1
         Behavior on border.color { enabled:Motion.enabled; ColorAnimation { duration:Motion.quick } }
     }

@@ -12,8 +12,8 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: 5
-        color: chip.keyCapturing ? Theme.accent : (capHover.hovered ? Theme.hover : Theme.field)
-        border.color: chip.keyCapturing ? Theme.accentHover : Theme.border
+        color: chip.keyCapturing ? Theme.accent : (capHover.hovered ? chip.fieldHoverColor : chip.fieldColor)
+        border.color: chip.keyCapturing ? Theme.accentHover : chip.fieldBorderColor
     }
     Text {
         id: hint

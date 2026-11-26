@@ -9,8 +9,8 @@ Rectangle {
     implicitHeight: 27
     implicitWidth: summaryRow.implicitWidth + 16
     radius: 5
-    color: chip.flatLeaf ? "transparent" : (summaryHover.hovered && chip.editable ? Theme.hover : Theme.field)
-    border.color: chip.flatLeaf ? "transparent" : (summaryHover.hovered && chip.editable ? Theme.accent : Theme.border)
+    color: chip.flatLeaf ? "transparent" : (summaryHover.hovered && chip.editable ? chip.fieldHoverColor : chip.fieldColor)
+    border.color: chip.flatLeaf ? "transparent" : (summaryHover.hovered && chip.editable ? Theme.accent : chip.fieldBorderColor)
     Row {
         id: summaryRow
         anchors.centerIn: parent

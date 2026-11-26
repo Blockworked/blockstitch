@@ -22,8 +22,13 @@ QtObject {
     readonly property color warning: dark ? "#f5b942" : "#8a5900"
     readonly property color running: dark ? "#3ccf6e" : "#18743b"
     readonly property color block: dark ? "#3b3c40" : "#e1e5eb"
-    // Part blocks (BlockRegistry.connector) and the mouths that hold them.
-    readonly property color partBlock: dark ? "#3e3a4f" : "#e4ddf3"
+    // Square-tab part blocks.
+    readonly property color partBlock: dark ? "#373345" : "#eee8f6"
+    readonly property color partBlockOutline: dark ? "#8e81a5" : "#857695"
+    readonly property color partField: dark ? "#2d293a" : "#f9f6fd"
+    readonly property color partFieldBorder: dark ? "#655b77" : "#a595b5"
+    readonly property color partFieldHover: dark ? "#41394f" : "#e4daef"
+    readonly property color partFieldReference: dark ? "#8cbcff" : "#285994"
     readonly property color blockTop: dark ? "#44454a" : "#d5dbe4"
     readonly property color menu: panelRaised
     readonly property color hover: dark ? "#3b3c40" : "#dbe1e9"

@@ -14,6 +14,10 @@ Item {
     property CanvasState canvasState: null
     property bool dropHighlighted: false
     property bool paletteMode: false
+    property bool partStyle: false
+    readonly property color fieldColor: partStyle ? Theme.partField : Theme.field
+    readonly property color fieldBorderColor: partStyle ? Theme.partFieldBorder : Theme.border
+    readonly property color fieldHoverColor: partStyle ? Theme.partFieldHover : Theme.hover
     // Bare Number/Text field without its own box, for a host that draws the slot.
     property bool flatLeaf: false
     // Optional named choices for a Text leaf; reporters still fit this slot.
@@ -55,8 +59,9 @@ Item {
     property bool dragPreview: false
     readonly property var parameterDefinition: valueData && valueData.kind === "Param" && originBlockId !== "" ? defFor(originBlockId) : null
     readonly property bool booleanParameter: !!parameterDefinition && (parameterDefinition.pieces || []).some(p => p.kind === "Input" && p.name === valueData.name && (p.value_type === "Bool" || p.component === true))
-    // Parameters use their definition colour; ordinary variables keep the accent.
-    property color referenceColor: parameterDefinition && parameterDefinition.color ? parameterDefinition.color : Theme.accent
+    // Parameters use their definition colour when set.
+    property color referenceColor: parameterDefinition && parameterDefinition.color
+        ? parameterDefinition.color : partStyle ? Theme.partFieldReference : Theme.accent
     function keyPartLabel(k) {
         const named = {
             Control: "Ctrl",
@@ -321,6 +326,7 @@ Item {
         // Bound, not copied: a chip now outlives edits elsewhere on its block.
         item.location = Qt.binding(() => root.childLocation(index));
         item.editable = Qt.binding(() => root.editable);
+        item.partStyle = Qt.binding(() => root.partStyle);
         item.boxed = !!data && ["Op", "Var", "Param", "Call"].indexOf(data.kind) >= 0;
         item.blockDefinitions = Qt.binding(() => root.blockDefinitions);
         item.canvasState = Qt.binding(() => root.canvasState);
@@ -423,6 +429,7 @@ Item {
             item.editable = false;
             item.dropHighlighted = Qt.binding(() => root.dropHighlighted);
             item.flatLeaf = Qt.binding(() => root.flatLeaf);
+            item.partStyle = Qt.binding(() => root.partStyle);
             item.leafOptions = Qt.binding(() => root.leafOptions);
             item.leafPlaceholder = Qt.binding(() => root.leafPlaceholder);
             item.keyMode = Qt.binding(() => root.keyMode);
@@ -456,7 +463,7 @@ Item {
         Shape {
             id: chipShape
             preferredRendererType: Shape.CurveRenderer
-            readonly property color edge: (root.hovered || root.dragPreview || root.dropHighlighted) ? root.refColor : (root.customCall ? root.quietRefColor : Theme.border)
+            readonly property color edge: (root.hovered || root.dragPreview || root.dropHighlighted) ? root.refColor : (root.customCall ? root.quietRefColor : root.fieldBorderColor)
             readonly property string outline: {
                 const w = width, h = height;
                 if (w <= 0 || h <= 0)
@@ -483,7 +490,7 @@ Item {
                 strokeColor: chipShape.edge
                 strokeWidth: root.dropHighlighted ? 2.4 : ((root.hovered || root.dragPreview) ? 1.6 : 1)
                 joinStyle: ShapePath.RoundJoin
-                fillColor: Theme.field
+                fillColor: root.fieldColor
                 PathSvg {
                     path: chipShape.outline
                 }
@@ -707,6 +714,7 @@ Item {
                     sourceComponent: Component {
                         StitchComboBox {
                             id: enumBox
+                            partStyle: root.partStyle
                             readonly property var choices: argRow.isEnum ? BlockRegistry.enumChoices(root.opSpec.enumArg) : []
                             readonly property int chosen: {
                                 const v = argRow.modelData ? argRow.modelData.value : "";
@@ -760,8 +768,9 @@ Item {
                     height: 27
                     radius: 5
                     anchors.verticalCenter: parent.verticalCenter
-                    color: pickMouse.containsMouse && pickMouse.enabled ? Theme.panelRaised : Theme.field
-                    border.color: pickMouse.containsMouse && pickMouse.enabled ? Theme.accent : Theme.border
+                    color: pickMouse.containsMouse && pickMouse.enabled
+                        ? (root.partStyle ? root.fieldHoverColor : Theme.panelRaised) : root.fieldColor
+                    border.color: pickMouse.containsMouse && pickMouse.enabled ? Theme.accent : root.fieldBorderColor
                     LucideIcon {
                         anchors.centerIn: parent
                         name: root.opSpec && root.opSpec.pickArg && root.opSpec.pickArg.icon ? root.opSpec.pickArg.icon : "list"
@@ -962,8 +971,9 @@ Item {
             height: 27
             radius: 5
             anchors.verticalCenter: parent.verticalCenter
-            color: opPickMouse.containsMouse && opPickMouse.enabled ? Theme.panelRaised : Theme.field
-            border.color: opPickMouse.containsMouse && opPickMouse.enabled ? Theme.accent : Theme.border
+            color: opPickMouse.containsMouse && opPickMouse.enabled
+                ? (root.partStyle ? root.fieldHoverColor : Theme.panelRaised) : root.fieldColor
+            border.color: opPickMouse.containsMouse && opPickMouse.enabled ? Theme.accent : root.fieldBorderColor
             LucideIcon {
                 anchors.centerIn: parent
                 name: parent.spec && parent.spec.icon ? parent.spec.icon : "crosshair"

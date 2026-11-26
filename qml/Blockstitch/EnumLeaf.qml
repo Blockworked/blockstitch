@@ -4,6 +4,7 @@ import QtQuick.Controls
 // A text slot with fixed choices: a dropdown. A leaf of ValueChip.
 StitchComboBox {
     required property Item chip
+    partStyle: chip.partStyle
     id: leafBox
     readonly property var choices: chip.leafOptions || []
     readonly property string current: chip.valueData ? String(chip.valueData.value || "") : ""
