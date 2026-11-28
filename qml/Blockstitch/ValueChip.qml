@@ -122,6 +122,35 @@ Item {
         else
             root.leafEdited([], root.leafFromText(root.valueData, text));
     }
+    // A field inside this block still being typed into commits on focus loss,
+    // which a drag reaches too late: commit it now and drag the typed value.
+    function flushEdit() {
+        const focused = root.Window.activeFocusItem;
+        let leaf = focused;
+        while (leaf && !leaf.isValueChip)
+            leaf = leaf.parent;
+        let inside = leaf;
+        while (inside && inside !== root)
+            inside = inside.parent;
+        if (!inside || !focused || typeof focused.text !== "string" || !leaf.location || !root.location)
+            return root.valueData;
+        const text = focused.text, old = leaf.valueData;
+        focused.focus = false; // editingFinished sends the edit
+        if (!old || text === leaf.leafText)
+            return root.valueData;
+        const typed = leaf.leafFromText(old, text);
+        const steps = (leaf.location.path || []).slice((root.location.path || []).length);
+        if (!steps.length)
+            return typed;
+        const copy = JSON.parse(JSON.stringify(root.valueData));
+        let at = copy;
+        for (let i = 0; i < steps.length - 1 && at; ++i)
+            at = (at.args || [])[steps[i]];
+        if (!at || !at.args)
+            return root.valueData;
+        at.args[steps[steps.length - 1]] = typed;
+        return copy;
+    }
     // The bigger editor, over the whole window.
     function openTextEditor(text) {
         if (!root.editable)
@@ -516,7 +545,7 @@ Item {
         // `visible`, not `enabled`: a disabled area still swallows the hover
         // (and cursor) of the chip behind it. Hidden, it takes no presses.
         visible: dragEnabled
-        onDragBegan: (sx, sy, ox, oy) => root.valueDragBegan(root.location, root.valueData, sx, sy, ox, oy, root.fullWidth, root.fullHeight)
+        onDragBegan: (sx, sy, ox, oy) => root.valueDragBegan(root.location, root.flushEdit(), sx, sy, ox, oy, root.fullWidth, root.fullHeight)
         onDragMoved: (sx, sy) => root.valueDragMoved(sx, sy)
         onDragEnded: (sx, sy) => root.valueDragEnded(sx, sy)
         onDragCanceled: root.valueDragCanceled()

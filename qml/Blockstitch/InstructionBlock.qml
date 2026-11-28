@@ -762,7 +762,17 @@ Item {
         anchors.fill: parent
         containmentMask: hitMask
         dragEnabled: root.paletteMode || !root.locked
-        onDragBegan: (sx, sy, ox, oy) => root.dragBegan(root.strandId, root.path, root.tailCount, sx, sy, ox, oy, root.implicitWidth, root.implicitHeight)
+        onDragBegan: (sx, sy, ox, oy) => {
+            // A field still being typed into commits before the block moves,
+            // while its location still points at this block.
+            const focused = root.Window.activeFocusItem;
+            for (let it = focused; it; it = it.parent)
+                if (it === root) {
+                    focused.focus = false;
+                    break;
+                }
+            root.dragBegan(root.strandId, root.path, root.tailCount, sx, sy, ox, oy, root.implicitWidth, root.implicitHeight);
+        }
         onDragMoved: (sx, sy) => root.dragMoved(sx, sy)
         onDragEnded: (sx, sy) => root.dragEnded(sx, sy)
         onDragCanceled: root.dragCanceled()
