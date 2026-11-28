@@ -190,7 +190,8 @@ Item {
     readonly property bool misplaced: !paletteMode && placeConnector !== "*" && placeConnector !== BlockRegistry.connector(type)
     implicitWidth: isWrap ? Math.max(218, headContent.implicitWidth + 42, spine + bodyWidth + 24) : Math.max(type === "RunBranch" ? 150 : isHeader ? 108 : 132, fields.implicitWidth + (isHeader ? 24 : 28), hasBranchHeader ? pvOuterWidth + 28 : 0, boxPieces.length ? boxes.x + boxes.implicitWidth + 16 : 0)
     implicitHeight: isWrap ? headHeight + mouthTotal + Math.max(0, slotCount() - 1) * midHeight + footHeight + (isCap ? 0 : tabDepth) : hasBranchHeader ? pvTop + pvOuterHeight + 8 + tabDepth : (isCap ? rowHeight - tabDepth : rowHeight) + boxExtra
-    z: dragRole > 0 ? 50 : hovered ? 2 : 1
+    // A running, paused or flashed block sits over its neighbours so its thick outline isn't covered.
+    z: dragRole > 0 ? 50 : running || pausedHere || flashing ? 3 : hovered ? 2 : 1
     // The overlay draws active tails; trashed tails wait for their removal.
     opacity: dragRole === 1 && dragState && ((dragState.active && dragState.externalPreview) || (!dragState.active && dragState.settling && dragState.settleHidden)) ? 0 : 1
     // Follow the pointer even when an earlier mouth or sibling changes size.

@@ -43,5 +43,27 @@ Rectangle {
             }
             mouseMove(scene, 880, 580);
         }
+        // A running block's thick outline isn't covered by the block below it.
+        function test_runningOutlineOverNext() {
+            Theme.mode = "dark";
+            canvas.strands = [{ id: "target", x: 40, y: 40, instructions: [
+                { id: "first", type: "Wait", ms: { kind: "Number", value: 100 } },
+                { id: "second", type: "Wait", ms: { kind: "Number", value: 100 } }
+            ] }];
+            wait(50);
+            canvas.canvasState.runningIds = ["first"];
+            const first = canvas.findBlockItem(canvas, "first");
+            tryCompare(first, "running", true);
+            waitForRendering(canvas);
+            const image = grabImage(scene);
+            const pos = first.mapToItem(scene, 0, 0);
+            const bottom = first.height - first.tabDepth;
+            // The stroke's half below the shared edge used to be under the next block.
+            for (const dy of [-1, 0]) {
+                const color = image.pixel(Math.round(pos.x + first.width - 20), Math.round(pos.y + bottom + dy));
+                verify(color.g - color.r > 0.4, "Running outline covered at dy " + dy + ": " + color);
+            }
+            canvas.canvasState.runningIds = [];
+        }
     }
 }
